@@ -139,25 +139,57 @@ OAuth access token / refresh token。詳見
 
 ## Installation
 
+### 需求（Requirements）
+
+- **Python 3.11+**（開發與測試環境使用 3.11；`from __future__ import annotations`
+  搭配的型別語法需要 3.10 以上）
+- **Git**：取得原始碼，以及 `codex_ppt_dependency.py` 用一般、未經身份驗證的
+  `git` 操作解析 external dependency
+- **Codex CLI**：已登入的訂閱 session（見下方「Codex CLI 需求」）
+- **Kiro CLI V3**：已登入的訂閱 session（見下方「Kiro `ppt-engineer` 設定」）
+- 需要組裝 `.pptx` 時，`skills/agy-ppt/requirements.txt` 列出的 Python 套件
+  （`python-pptx`、`Pillow`、`openai`、`filelock`）：
+
+  ```bash
+  python3 -m pip install -r skills/agy-ppt/requirements.txt
+  ```
+
+  也可以使用 `skills/agy-ppt/scripts/codex_ppt_runtime.py bootstrap` 建立獨立的
+  共用 runtime venv（詳見該腳本說明）。目前沒有 `pip install agy-ppt`、
+  `brew install agy-ppt` 或 `npm install agy-ppt` 這類套件管理器安裝方式；
+  安裝方式只有「取得原始碼」。
+
+### 取得原始碼
+
+```bash
+git clone https://github.com/sujunmin/agy-ppt.git
+cd agy-ppt
+```
+
 ### 全域安裝 AGY Skill
 
-AGY skill（`skills/agy-ppt/`）可安裝於：
+AGY skill 只需要同步 `skills/agy-ppt/` 這一個目錄，不需要（也不應該）同步整個
+repository、`.git/`，或 codex-ppt 的 external dependency cache。
 
-```text
-~/.gemini/config/skills/agy-ppt/
+安裝到 Global AGY Skill 位置：
+
+```bash
+rsync -a --delete \
+  ./skills/agy-ppt/ \
+  ~/.gemini/config/skills/agy-ppt/
 ```
 
 或安裝到你正在使用的專案 workspace：
 
 ```text
-/path/to/agy-ppt/.agents/skills/agy-ppt/
+<your-workspace>/.agents/skills/agy-ppt/
 ```
 
-本地開發時建議用符號連結，方便即時測試：
+本地開發時建議用符號連結取代複製，方便即時測試：
 
 ```bash
 mkdir -p ~/.gemini/config/skills
-ln -s /path/to/agy-ppt/skills/agy-ppt ~/.gemini/config/skills/agy-ppt
+ln -s "$(pwd)/skills/agy-ppt" ~/.gemini/config/skills/agy-ppt
 ```
 
 ### Kiro `ppt-engineer` 設定
