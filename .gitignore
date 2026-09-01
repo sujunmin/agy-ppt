@@ -1,0 +1,111 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+.env
+.env.*
+
+# Local agent runtime installs / checkpoints (machine-specific, not source)
+# NOTE: .kiro/agents/ppt-engineer.md is a tracked, published agent definition
+# and must NOT be ignored here; only the top-level .agents/ runtime install
+# copy and the machine environment checkpoint are local-only.
+/.agents/
+/ENVIRONMENT_CHECKPOINT.txt
+
+# agy-ppt integration test artifacts (opt-in live tests write here only)
+/.agy-ppt-integration/
+
+# External codex-ppt runtime dependency cache (scripts/codex_ppt_dependency.py).
+# By design this resolves to an OS application-cache path outside this
+# repository (see default_cache_root()), so nothing here should ever be
+# created inside the repo tree. These are defensive-only patterns in case a
+# future override or bug points the cache locally; they are not the primary
+# guarantee against dependency pollution -- the resolver's own path policy is.
+/.codex-ppt-cache/
+/.codex-ppt/
+/vendor/
+/third_party/
+
+# Local project workspaces / generated decks (never part of the public skill)
+/output/
+/decks/
+
+# Generated files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.pptx
+*.pdf
+examples/
+
+# Test outputs
+/tests/
+test_output/
+outputs/
+temp/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# data
+/data
