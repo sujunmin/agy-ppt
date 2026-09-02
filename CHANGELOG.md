@@ -4,6 +4,8 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-02
+
 ### Added
 
 - AGY sole-orchestrator workflow: AGY owns the outline, storytelling, visual
