@@ -423,6 +423,31 @@ Schema：`schemas/project_state.schema.json`、`schemas/slide_job.schema.json`�
 
 Freeze 意義：除非出現實際 integration blocker / bug，否則後續 Phase 不得順手 refactor。
 
+## 9.2 Source Grounding & Traceability（Phase 12.1/12.2，optional，尚未整合進正常流程）
+
+`scripts/source_grounding.py` 提供一組獨立於 `project_state.py` 的 sidecar
+artifact（`source_inventory.json`、`claim_traceability.json`、
+`source_coverage.json`、`source_grounded_qa.json`），供有 source document 的
+專案（例如需要對照契約、報告等原始文件產出簡報）記錄 source unit、claim 對應、
+coverage accounting 與最終 grounded QA report。
+
+- **Optional capability**：純創意、無 source 的簡報完全不受影響，不需要建立
+  任何這裡描述的 artifact；`source_inventory.json` 不存在（或
+  `enabled: false`）就代表這個專案沒有啟用 source grounding。
+- **兩層分離**：AGY 負責 semantic judgement（claim 是否被 source 支持、
+  coverage priority、數字/模態語意）；Python validator 只負責 schema 形狀、
+  ID 完整性、參照存在性與 HIGH priority coverage accounting，永遠不會自己
+  判斷一個 claim 是否為真。
+- **與既有 Visual QA 完全分離**：不改寫、不覆蓋 `generated -> qa_passed/qa_failed`
+  的既有語意。
+- **尚未整合進 workflow**：目前 `SKILL.md` 第 6 節「正常簡報流程」與
+  `docs/project-assembly-and-reporting.md` 的組裝流程尚未呼叫這個模組；何時
+  建立/更新這些 artifact，屬於後續 Phase 12.3 的工作。
+
+詳見 `docs/source-grounding.md`。Schema：`schemas/source_inventory.schema.json`、
+`schemas/claim_traceability.schema.json`、`schemas/source_coverage.schema.json`、
+`schemas/source_grounded_qa.schema.json`。
+
 ## 10. 必讀檔案
 
 - `docs/architecture-and-design-rationale.md`
@@ -434,3 +459,4 @@ Freeze 意義：除非出現實際 integration blocker / bug，否則後續 Phas
 - `docs/outline-style-and-sample.md`
 - `docs/slide-generation-and-subagents.md`
 - `docs/project-assembly-and-reporting.md`
+- `docs/source-grounding.md`（optional，僅適用於有 source document 的專案）
