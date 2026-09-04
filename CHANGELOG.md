@@ -4,6 +4,8 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-04
+
 ### Added
 
 - Repository contribution governance is now versioned in `AGENTS.md`, covering
