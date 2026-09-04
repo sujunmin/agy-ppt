@@ -4,48 +4,57 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-04
+
 ### Added
 
 - Optional source-grounding capability for source-driven presentation projects
   (`skills/agy-ppt/scripts/source_grounding.py`), built on four sidecar
   contracts: `source_inventory.json`, `claim_traceability.json`,
   `source_coverage.json`, and `source_grounded_qa.json`. Purely creative decks
-  with no source material are unaffected and require none of these artifacts.
+  with no source material are unaffected and require none of these artifacts. (#1)
 - A reusable source inventory contract with stable source-unit identifiers
   derived deterministically from `(source_id, locator)`, optional source
   fingerprints for change detection, extensible source locators (`page`,
   `section`, `line_range`, `generic`), and HIGH/MEDIUM/LOW priority
   classification. A locator describes a position within a document and is
-  never an absolute local path.
+  never an absolute local path. (#1)
 - Claim-to-source traceability that persists AGY's per-claim semantic support
   decision verbatim, together with optional numeric and modal evidence, using
-  stable claim identifiers derived from `(slide_id, sequence)`.
+  stable claim identifiers derived from `(slide_id, sequence)`. (#1)
 - Source coverage accounting over `covered`, `speaker_notes_only`,
   `intentionally_omitted` (which requires a non-empty reason),
   `not_applicable`, and `unaccounted`, with deterministic completeness
   validation so that a HIGH-priority source unit can never silently disappear
-  and coverage cannot be inflated by duplicate accounting.
+  and coverage cannot be inflated by duplicate accounting. (#1)
 - A source-grounded QA report that keeps AGY's `semantic_findings` strictly
-  separate from the validator's computed `deterministic_findings`.
+  separate from the validator's computed `deterministic_findings`. (#1)
 - A deterministic assembly precondition for grounding-enabled projects
   (`skills/agy-ppt/scripts/validate_source_grounding.py`) that must pass
   before assembly starts. A failure there is a recoverable grounding
   precondition failure, deliberately kept distinct from the Phase 9
-  assembly-failure recovery path, and is not by itself a project blocker.
+  assembly-failure recovery path, and is not by itself a project blocker. (#1)
 - Stale-evidence detection: when a recorded source digest no longer matches the
   current one, previously persisted grounding evidence is rejected rather than
-  silently reused.
+  silently reused. (#1)
 - Resume-safe grounding persistence: reloading from disk and re-applying the
   same source produces no source-unit or claim identifier drift, no duplicated
-  evidence, and no lost support or coverage decisions.
+  evidence, and no lost support or coverage decisions. (#1)
+- Integration of source grounding into the source-driven AGY workflow, so
+  traceability and coverage validation run as a formal step before assembly. (#1)
 - Public-source validation evidence for the source-grounding implementation
   (`skills/agy-ppt/docs/validation/phase-12.4-public-source-validation.md`),
-  recording validation against NIST AI 100-1 (AI RMF 1.0) and RFC 2119 with
-  official source URLs, SHA-256 fingerprints, the tested commit, and the
-  validation outcomes. Validation runtime outputs and downloaded source files
-  are deliberately not committed.
+  recording deterministic validation against NIST AI 100-1 (AI RMF 1.0) and
+  RFC 2119 with official source URLs, SHA-256 fingerprints, the tested commit,
+  and the validation outcomes. Validation runtime outputs and downloaded source
+  files are deliberately not committed. (#1)
+- An independent AGY semantic-authority attestation
+  (`skills/agy-ppt/docs/validation/phase-12.4-agy-semantic-attestation.md`),
+  kept separate from the deterministic engineering evidence so that the two
+  provenances are never conflated. (#1)
 - Architecture documentation for the two-layer grounding design
-  (`skills/agy-ppt/docs/source-grounding.md`).
+  (`skills/agy-ppt/docs/source-grounding.md`), and a README section covering the
+  optional source-grounding workflow, the assembly gate, and its boundaries. (#1)
 
 ### Changed
 
@@ -54,7 +63,7 @@ All notable changes to `agy-ppt` will be documented in this file.
   structured source evidence and coverage decisions. AGY remains the semantic
   authority: the deterministic validators check schema, identifier and
   reference integrity, coverage accounting, source freshness, and the assembly
-  readiness contract, and never independently prove factual truth.
+  readiness contract, and never independently prove factual truth. (#1)
 
 ## [0.1.0] - 2026-09-02
 
