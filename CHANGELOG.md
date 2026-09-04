@@ -68,6 +68,33 @@ All notable changes to `agy-ppt` will be documented in this file.
   `SOURCE_TEXT_UNAVAILABLE`, while a corrupted or encrypted package reports
   `SOURCE_EXTRACTION_FAILED`. Encrypted documents fail without any interactive
   password prompt, and there is no OCR. (#4)
+- Deterministic local HTML source ingestion, handled through the same
+  `ingest_source()` API and CLI as the existing formats. Extraction is static and
+  structural: heading hierarchy from real `h1`–`h6` elements, paragraphs, ordered
+  and unordered lists including nested items, and tables, all produced in DOM
+  document order so interleaved content keeps its original sequence. Inline
+  markup contributes text to its enclosing paragraph rather than fragmenting it,
+  and visible hyperlink text is retained. (#5)
+- A network-free HTML ingestion contract: no JavaScript is executed, no browser
+  or headless engine is used, no CSS is applied, and no remote or
+  locally-referenced resource, stylesheet, image, iframe or hyperlink is ever
+  fetched or opened. The parser is constructed with network access disabled, and
+  tests assert this by intercepting socket and HTTP APIs rather than relying on
+  the network being unavailable. (#5)
+- Structural HTML locators using the existing `section` locator kind, carrying a
+  heading path plus 1-based extraction-order element indices, list indices, and
+  table and row indices. No page number, screen position or scroll offset is
+  fabricated. (#5)
+- Conservative HTML format detection: an `.html` or `.htm` extension is trusted
+  only when the content actually contains element markup, an html-specific
+  document marker is required to detect HTML without a recognised extension, and
+  plain text is resolved first so a text file mentioning markup stays text. (#5)
+- Deterministic HTML exclusions reusing the existing error codes: `script`
+  including embedded JSON-LD, `style`, `template`, `noscript`, `svg`, `math`,
+  HTML comments, and document head content are never ingested as source text.
+  An empty document or a page whose content exists only after JavaScript reports
+  `SOURCE_TEXT_UNAVAILABLE`, while malformed but recoverable HTML is extracted
+  deterministically. (#5)
 
 ### Changed
 
@@ -80,6 +107,16 @@ All notable changes to `agy-ppt` will be documented in this file.
   DOCX support, its structural locator model, and the DOCX features that are
   deliberately not ingested: headers, footers, footnotes, endnotes, comments,
   tracked-change reconstruction, and text inside embedded images. (#4)
+- `skills/agy-ppt/requirements.txt` now declares `lxml>=4.9.0` explicitly, used
+  for deterministic static HTML parsing with network access disabled. It was
+  already present transitively via `python-pptx` and `python-docx`, so the
+  environment does not grow. (#5)
+- The source-ingestion documentation, `SKILL.md`, and both READMEs now describe
+  local static HTML support, its structural locator model, the network-free
+  contract, and its limitations: JavaScript-generated content is not ingested,
+  CSS visibility and layout are not reconstructed, `rowspan` and `colspan` are
+  not expanded, and only heading, paragraph, list and table elements become
+  blocks. (#5)
 
 ## [0.2.0] - 2026-09-04
 

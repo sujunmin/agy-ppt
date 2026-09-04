@@ -150,7 +150,7 @@ OAuth access token / refresh token。詳見
 - **Codex CLI**：已登入的訂閱 session（見下方「Codex CLI 需求」）
 - **Kiro CLI V3**：已登入的訂閱 session（見下方「Kiro `ppt-engineer` 設定」）
 - 需要組裝 `.pptx` 時，`skills/agy-ppt/requirements.txt` 列出的 Python 套件
-  （`python-pptx`、`Pillow`、`openai`、`filelock`、`pypdf`、`python-docx`）：
+  （`python-pptx`、`Pillow`、`openai`、`filelock`、`pypdf`、`python-docx`、`lxml`）：
 
   ```bash
   python3 -m pip install -r skills/agy-ppt/requirements.txt
@@ -379,7 +379,8 @@ local source
 | Markdown | 在 `main` 上支援 |
 | 純文字 | 在 `main` 上支援 |
 | DOCX | 在 `main` 上支援 |
-| HTML | 尚未支援 |
+| 本機靜態 HTML | 在 `main` 上支援 |
+| 遠端 URL ingestion | 不支援 |
 | OCR / 掃描影像 PDF | 不支援 |
 
 ### Extraction 不等於 semantic segmentation
@@ -391,10 +392,10 @@ Phase 13 deterministic extraction  ≠  semantic source understanding
 ```
 
 Ingestion 只產出 blocks 與 locator（PDF 為 1-based 頁碼、Markdown 為 heading 層級與
-行號、純文字為行號範圍、DOCX 為 heading 層級與結構性元素／表格序號），全部使用
-1-based 編號。**它不決定**什麼重要、什麼是 HIGH priority、claim 的語意，或 coverage。
-AGY 負責 semantic segmentation 與所有 grounding 決策，extracted block 也因此**不是**
-Phase 12 的 semantic source unit。
+行號、純文字為行號範圍、DOCX 與 HTML 為 heading 層級與結構性元素／清單／表格序號），
+全部使用 1-based 編號。**它不決定**什麼重要、什麼是 HIGH priority、claim 的語意，
+或 coverage。AGY 負責 semantic segmentation 與所有 grounding 決策，extracted block
+也因此**不是** Phase 12 的 semantic source unit。
 
 ### PDF 限制
 
@@ -411,6 +412,29 @@ DOCX 擷取是**結構性擷取，不是 rendered-page 擷取**。DOCX 是 flow-
 Word 內建 heading style 判定，不從字型大小或粗體推斷。headers、footers、footnotes、
 endnotes、comments、tracked-change 語意還原，以及內嵌圖片內的文字皆**不擷取**；
 受密碼保護的 DOCX 不支援，會明確失敗。
+
+### HTML 限制
+
+HTML ingestion 是**本機檔案的靜態擷取**，不是瀏覽器渲染。
+
+不支援：
+
+```text
+JavaScript 產生的內容
+browser rendering
+遠端資源載入
+URL 抓取
+CSS 可見性／版面重建
+```
+
+只讀取本機 `.html`／`.htm`，擷取 heading、段落、清單與表格並保留 DOM 順序。
+**不執行 JavaScript、不使用任何 browser 或 headless engine、不套用 CSS、不下載
+任何遠端或本機參照資源、不追蹤超連結、不抓取 iframe**——網路活動為 zero，且以測試
+攔截 socket 與 HTTP API 來證明，而不是依賴剛好沒有網路。
+
+`script`、`style`、`template`、`noscript`、HTML 註解與 JSON-LD 皆排除。超連結的
+可見文字會保留，連結目標不會被追蹤或視為來源證據。表格不展開 `rowspan`／`colspan`。
+locator 為結構性，不會虛構頁碼或螢幕位置。
 
 相同來源、相同 extractor version 重複 ingest 會得到相同的 block ID、locator 與順序；
 結果不依賴檔案的絕對路徑。詳見
@@ -473,10 +497,11 @@ AGY_PPT_LIVE_RECOVERY=1 AGY_PPT_LIVE_RECOVERY_INTERRUPT=1 \
   segmentation 由 AGY 負責，本專案不提供萬用文件解析器。Deterministic validator
   也不取代 Content QA，不會獨立判斷內容的事實真偽。
 - Source ingestion（`main` 上可用）目前只支援本機 PDF（需可擷取文字層）、Markdown、
-  純文字與 DOCX：尚未支援 HTML、不支援 OCR，也不支援遠端 URL 抓取。DOCX 不提供
-  rendered 頁碼 locator、不還原 Word 視覺版面，headers/footers/footnotes/comments
-  與內嵌圖片文字皆不擷取。Extraction 不等於 semantic segmentation，AGY 仍是
-  semantic authority。
+  純文字、DOCX 與靜態 HTML：不支援遠端 URL ingestion、web crawling、browser
+  rendering，也不支援 OCR。DOCX 不提供 rendered 頁碼 locator、不還原 Word 視覺版面，
+  headers/footers/footnotes/comments 與內嵌圖片文字皆不擷取。HTML 不執行 JavaScript、
+  不套用 CSS、不載入任何外部資源，因此 JavaScript 產生的內容不會被擷取。Extraction
+  不等於 semantic segmentation，AGY 仍是 semantic authority。
 
 ## Upstream & Attribution
 

@@ -468,9 +468,10 @@ Gate 失敗是 **grounding precondition failure，不是 assembly failure**
 
 ## 9.3 Source Ingestion（optional，本機來源檔案適用）
 
-當 source-driven 專案的來源是**本機**的 PDF（具可擷取文字層）、Markdown、純文字或
-DOCX 檔時，第 1 階段（讀取來源資料）可以先用 `scripts/ingest_source.py` 做
-deterministic 擷取，再由 AGY 進行 semantic segmentation：
+當 source-driven 專案的來源是**本機**的 PDF（具可擷取文字層）、Markdown、純文字、
+DOCX 或靜態 HTML 檔時，第 1 階段（讀取來源資料）可以先用
+`scripts/ingest_source.py` 做 deterministic 擷取，再由 AGY 進行 semantic
+segmentation：
 
 ```text
 local source
@@ -496,7 +497,11 @@ python3 scripts/ingest_source.py \
 - **DOCX 是結構性擷取**：擷取 heading 層級、段落與表格，並保留文件順序。DOCX 是
   flow-based OOXML，**沒有可靠的 rendered 頁碼**，因此不提供也不虛構頁碼 locator；
   headers/footers/footnotes/comments 與內嵌圖片文字皆不擷取。
-- HTML、遠端 URL 目前不支援。
+- **HTML 是本機靜態擷取**：只讀本機 `.html`／`.htm`，擷取 heading、段落、清單與表格
+  並保留 DOM 順序。**不執行 JavaScript、不使用 browser、不套用 CSS、不下載任何遠端
+  或本機參照資源、不追蹤超連結、不抓取 iframe**；`script`／`style`／`noscript`／
+  註解／JSON-LD 皆排除。網路活動為 zero。
+- 遠端 URL ingestion、web crawling、OCR 目前不支援。
 - `source_digest` 直接沿用 Phase 12 的 `compute_source_digest()`，全專案只有一個
   canonical fingerprint 定義。
 
