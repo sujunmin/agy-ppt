@@ -10,6 +10,49 @@ All notable changes to `agy-ppt` will be documented in this file.
   the pull-request flow, a single Conventional Commit PR-title policy, release
   PR naming, changelog format, real-PR-number-only changelog references, and the
   release and verification process. (#2)
+- Deterministic source ingestion and locator extraction
+  (`skills/agy-ppt/scripts/source_ingestion.py`), the upstream producer for the
+  source-grounding system: a local source file is turned into normalized
+  extraction blocks with source-format-native locators, which AGY then
+  semantically segments. Extraction is deliberately separate from grounding, and
+  an extracted block is not a semantic source unit. (#3)
+- Support for three initial source formats: PDF with an extractable text layer
+  (page-level blocks, 1-based page locators), Markdown (H1–H6 heading hierarchy
+  with `heading_path` and 1-based line ranges, where repeated heading names stay
+  distinct and a heading inside a fenced code block is ignored), and plain text
+  (blank-line paragraph blocks with 1-based line ranges). UTF-8 and
+  UTF-8-with-BOM are supported. (#3)
+- A single deterministic format-detection authority that validates the PDF file
+  signature rather than trusting the file extension alone. (#3)
+- Stable, resume-safe block identifiers derived from
+  `(source_id, locator, ordinal)`, so re-ingesting identical bytes with the same
+  extractor version reproduces the same block ids, locators, and ordering,
+  independently of the file's absolute path. (#3)
+- A persisted `extractor_version`, independent of the release version and of Git
+  tags, so future changes to extraction behaviour remain identifiable. (#3)
+- A dedicated ingestion error taxonomy — `SOURCE_FORMAT_UNSUPPORTED`,
+  `SOURCE_FILE_NOT_FOUND`, `SOURCE_READ_FAILED`,
+  `SOURCE_ENCODING_UNSUPPORTED`, `SOURCE_TEXT_UNAVAILABLE`, and
+  `SOURCE_EXTRACTION_FAILED` — kept disjoint from the grounding and
+  image-worker codes. A scanned or image-only PDF fails explicitly and there is
+  no OCR fallback; a structurally broken PDF is reported separately from a
+  validly textless one. (#3)
+- A thin ingestion CLI adapter (`skills/agy-ppt/scripts/ingest_source.py`) that
+  delegates entirely to the core module and reports a concise diagnostic with a
+  stable error code instead of a stack trace on ordinary failures. (#3)
+- Documentation for source ingestion
+  (`skills/agy-ppt/docs/source-ingestion.md`), plus a README section and a
+  minimal `SKILL.md` integration describing where deterministic ingestion sits
+  ahead of AGY semantic segmentation. (#3)
+- Official English README documentation (`README_en.md`), newly authored for
+  `agy-ppt`, alongside the primary Traditional Chinese `README.md`, with
+  repository-relative language-switch links and semantic parity between the two.
+  `AGENTS.md` now records the bilingual README parity requirement. (#3)
+
+### Changed
+
+- `skills/agy-ppt/requirements.txt` now includes `pypdf>=4.2.0`, used for
+  deterministic PDF text extraction. (#3)
 
 ## [0.2.0] - 2026-09-04
 
