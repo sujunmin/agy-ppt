@@ -48,11 +48,38 @@ All notable changes to `agy-ppt` will be documented in this file.
   `agy-ppt`, alongside the primary Traditional Chinese `README.md`, with
   repository-relative language-switch links and semantic parity between the two.
   `AGENTS.md` now records the bilingual README parity requirement. (#3)
+- Deterministic DOCX source ingestion, handled through the same
+  `ingest_source()` API and CLI as the existing formats. Extraction is
+  structural: heading hierarchy from built-in Word heading styles, paragraphs,
+  and tables, walked in true document order so interleaved paragraphs and tables
+  keep their original sequence. Tables are flattened row-major, one line per row,
+  and are never silently discarded. (#4)
+- Structural DOCX locators using the existing `section` locator kind, carrying a
+  heading path plus 1-based body element indices for sections and 1-based table
+  and row indices for tables. DOCX is flow-based OOXML with no reliable rendered
+  page boundaries without a layout engine, so no page number is fabricated. (#4)
+- Structural OOXML package detection: a file is treated as DOCX only when the
+  ZIP package actually contains `word/document.xml`, so an ordinary ZIP or a
+  spreadsheet package is not misclassified. A `.docx` file with no ZIP signature,
+  which is how a password-protected document appears, is still routed to DOCX so
+  that extraction reports a DOCX-specific diagnostic. (#4)
+- Deterministic DOCX failure semantics reusing the existing error codes: a
+  document with no body or table text, including an image-only document, reports
+  `SOURCE_TEXT_UNAVAILABLE`, while a corrupted or encrypted package reports
+  `SOURCE_EXTRACTION_FAILED`. Encrypted documents fail without any interactive
+  password prompt, and there is no OCR. (#4)
 
 ### Changed
 
 - `skills/agy-ppt/requirements.txt` now includes `pypdf>=4.2.0`, used for
   deterministic PDF text extraction. (#3)
+- `skills/agy-ppt/requirements.txt` now includes `python-docx>=1.1.0`, used for
+  deterministic DOCX structural extraction. Its own requirements, `lxml` and
+  `typing_extensions`, are already required by the declared `python-pptx`. (#4)
+- The source-ingestion documentation, `SKILL.md`, and both READMEs now describe
+  DOCX support, its structural locator model, and the DOCX features that are
+  deliberately not ingested: headers, footers, footnotes, endnotes, comments,
+  tracked-change reconstruction, and text inside embedded images. (#4)
 
 ## [0.2.0] - 2026-09-04
 
