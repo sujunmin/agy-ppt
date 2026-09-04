@@ -150,7 +150,7 @@ OAuth access token / refresh token。詳見
 - **Codex CLI**：已登入的訂閱 session（見下方「Codex CLI 需求」）
 - **Kiro CLI V3**：已登入的訂閱 session（見下方「Kiro `ppt-engineer` 設定」）
 - 需要組裝 `.pptx` 時，`skills/agy-ppt/requirements.txt` 列出的 Python 套件
-  （`python-pptx`、`Pillow`、`openai`、`filelock`）：
+  （`python-pptx`、`Pillow`、`openai`、`filelock`、`pypdf`、`python-docx`）：
 
   ```bash
   python3 -m pip install -r skills/agy-ppt/requirements.txt
@@ -378,7 +378,7 @@ local source
 | PDF（具可擷取文字層） | 在 `main` 上支援 |
 | Markdown | 在 `main` 上支援 |
 | 純文字 | 在 `main` 上支援 |
-| DOCX | 尚未支援 |
+| DOCX | 在 `main` 上支援 |
 | HTML | 尚未支援 |
 | OCR / 掃描影像 PDF | 不支援 |
 
@@ -391,14 +391,26 @@ Phase 13 deterministic extraction  ≠  semantic source understanding
 ```
 
 Ingestion 只產出 blocks 與 locator（PDF 為 1-based 頁碼、Markdown 為 heading 層級與
-行號、純文字為行號範圍），全部使用 1-based 編號。**它不決定**什麼重要、什麼是 HIGH
-priority、claim 的語意，或 coverage。AGY 負責 semantic segmentation 與所有 grounding
-決策，extracted block 也因此**不是** Phase 12 的 semantic source unit。
+行號、純文字為行號範圍、DOCX 為 heading 層級與結構性元素／表格序號），全部使用
+1-based 編號。**它不決定**什麼重要、什麼是 HIGH priority、claim 的語意，或 coverage。
+AGY 負責 semantic segmentation 與所有 grounding 決策，extracted block 也因此**不是**
+Phase 12 的 semantic source unit。
 
 ### PDF 限制
 
 PDF 支援**需要可擷取文字層**，這不是萬用 PDF 解析。掃描或純影像 PDF 會以
 `SOURCE_TEXT_UNAVAILABLE` 明確失敗，**沒有 OCR fallback**。
+
+### DOCX 限制
+
+DOCX 擷取是**結構性擷取，不是 rendered-page 擷取**。DOCX 是 flow-based OOXML：
+不執行 Word 的排版引擎就沒有穩定的 rendered 頁面邊界，因此 locator 使用結構性元素
+（heading 層級、body 元素序號、表格與列序號）而**不是頁碼**，本專案也不會虛構頁碼。
+
+擷取範圍為 heading 層級、段落與表格，並保留段落與表格的文件順序。Heading 僅依據
+Word 內建 heading style 判定，不從字型大小或粗體推斷。headers、footers、footnotes、
+endnotes、comments、tracked-change 語意還原，以及內嵌圖片內的文字皆**不擷取**；
+受密碼保護的 DOCX 不支援，會明確失敗。
 
 相同來源、相同 extractor version 重複 ingest 會得到相同的 block ID、locator 與順序；
 結果不依賴檔案的絕對路徑。詳見
@@ -460,9 +472,11 @@ AGY_PPT_LIVE_RECOVERY=1 AGY_PPT_LIVE_RECOVERY_INTERRUPT=1 \
 - Source grounding 沒有內建通用 PDF/DOCX/HTML parser：來源文字的擷取與 source
   segmentation 由 AGY 負責，本專案不提供萬用文件解析器。Deterministic validator
   也不取代 Content QA，不會獨立判斷內容的事實真偽。
-- Source ingestion（`main` 上可用）目前只支援本機 PDF（需可擷取文字層）、Markdown
-  與純文字：尚未支援 DOCX、尚未支援 HTML、不支援 OCR，也不支援遠端 URL 抓取。
-  Extraction 不等於 semantic segmentation，AGY 仍是 semantic authority。
+- Source ingestion（`main` 上可用）目前只支援本機 PDF（需可擷取文字層）、Markdown、
+  純文字與 DOCX：尚未支援 HTML、不支援 OCR，也不支援遠端 URL 抓取。DOCX 不提供
+  rendered 頁碼 locator、不還原 Word 視覺版面，headers/footers/footnotes/comments
+  與內嵌圖片文字皆不擷取。Extraction 不等於 semantic segmentation，AGY 仍是
+  semantic authority。
 
 ## Upstream & Attribution
 
