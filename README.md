@@ -275,6 +275,74 @@ Resume 行為：
 與
 [`skills/agy-ppt/docs/recovery-testing.md`](skills/agy-ppt/docs/recovery-testing.md)。
 
+## Source Grounding & Traceability
+
+當簡報是以既有來源文件為依據（source-driven）時，可啟用 Phase 12 的 source
+grounding 機制。這是 **optional capability**：純創意、沒有來源文件的簡報完全不受
+影響，也不需要建立任何下列 artifact。
+
+啟用後，專案 workspace 會多出四個 sidecar artifact：
+
+| Artifact | 用途 |
+| --- | --- |
+| `source_inventory.json` | 來源清單與 source units：穩定 unit id、locator、priority、source fingerprint |
+| `claim_traceability.json` | 每條 slide claim 對應到哪些 source units，以及 AGY 的 support 判斷 |
+| `source_coverage.json` | 每個 source unit 的 coverage accounting |
+| `source_grounded_qa.json` | 最終 grounded QA 報告，明確分離語意與 deterministic findings |
+
+### 兩層分離
+
+- **AGY 是 semantic authority**：source understanding、segmentation、claim support
+  判斷、coverage 判斷，以及 numeric/modal 語意解讀，都由 AGY 決定並原樣保存。
+- **Deterministic validator 只驗證結構**：schema、ID/reference 完整性、coverage
+  accounting、source freshness 與 assembly readiness contract。它**不會**自行證明
+  內容的事實真偽。
+
+### Assembly gate
+
+source-grounding-enabled 的專案在 assembly 前必須通過：
+
+```bash
+python3 scripts/validate_source_grounding.py <workspace>
+```
+
+exit code `0` 表示 grounding 前置條件滿足（或該專案未啟用 source grounding）；
+`1` 表示 grounding precondition failure，assembly **不得**開始，控制權交回 AGY 修補。
+這是可回復的 workflow 問題，與 Phase 9 的 assembly-failure recovery 路徑刻意分開，
+本身也不是 project blocker。
+
+這個 gate 檢查的是結構與已持久化的 AGY 決策，**不代表** validator 獨立證明了內容為真。
+
+### Coverage accounting
+
+每個 source unit 都必須有明確歸屬：`covered`、`speaker_notes_only`、
+`intentionally_omitted`（必須附理由）、`not_applicable`，或 `unaccounted`。HIGH
+priority 的 source unit 不能在 accounting 中無聲消失，重複記帳也不會虛增 coverage。
+
+### Source fingerprint 與 stale evidence
+
+source unit id 由 `(source_id, locator)` deterministic 推導，claim id 由
+`(slide_id, sequence)` 推導，因此同一來源 resume 時不會發生 id 漂移、不會重複累積
+evidence、也不會遺失既有的 support / coverage 決策。
+
+若來源的 SHA-256 指紋與先前記錄的不同，先前的 grounding evidence 會被判定為 stale
+並拒絕沿用，而不是靜默重用。
+
+### Public validation evidence
+
+Phase 12 was validated against public sources including NIST AI RMF 1.0 and
+RFC 2119.
+
+驗證證據依 provenance 分成兩份：
+
+- [`skills/agy-ppt/docs/validation/phase-12.4-public-source-validation.md`](skills/agy-ppt/docs/validation/phase-12.4-public-source-validation.md)
+  — deterministic / engineering validation evidence
+- [`skills/agy-ppt/docs/validation/phase-12.4-agy-semantic-attestation.md`](skills/agy-ppt/docs/validation/phase-12.4-agy-semantic-attestation.md)
+  — independent AGY semantic-authority attestation
+
+設計細節見
+[`skills/agy-ppt/docs/source-grounding.md`](skills/agy-ppt/docs/source-grounding.md)。
+
 ## Testing
 
 一般 unit tests **不會**消耗任何 AI 訂閱額度、不呼叫真實 Codex/Kiro，全部使用
@@ -317,6 +385,10 @@ AGY_PPT_LIVE_RECOVERY=1 AGY_PPT_LIVE_RECOVERY_INTERRUPT=1 \
   stderr）deterministic 判斷；只有出現明確的機器可辨識 usage/quota/rate-limit
   訊號時才會新增專門的錯誤分類，操作人員可以另外用 operator-confirmed 的方式記錄
   額度耗盡，但不會偽造成 worker error code。
+
+- Source grounding 沒有內建通用 PDF/DOCX/HTML parser：來源文字的擷取與 source
+  segmentation 由 AGY 負責，本專案不提供萬用文件解析器。Deterministic validator
+  也不取代 Content QA，不會獨立判斷內容的事實真偽。
 
 ## Upstream & Attribution
 
