@@ -44,7 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Deterministically extract normalized blocks and locators from a "
-            "local PDF (with text layer), Markdown, or plain-text source."
+            "local PDF (with text layer), Markdown, plain-text, or DOCX source."
         )
     )
     parser.add_argument("--source", required=True, help="path to a local source file")

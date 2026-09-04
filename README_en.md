@@ -173,7 +173,7 @@ documents the full resolver design and failure semantics.
   [Kiro `ppt-engineer` Setup](#kiro-ppt-engineer-setup))
 - To assemble `.pptx` files, the Python packages listed in
   `skills/agy-ppt/requirements.txt` (`python-pptx`, `Pillow`, `openai`,
-  `filelock`, `pypdf`):
+  `filelock`, `pypdf`, `python-docx`):
 
   ```bash
   python3 -m pip install -r skills/agy-ppt/requirements.txt
@@ -424,7 +424,7 @@ local source
 | PDF with an extractable text layer | Supported on `main` |
 | Markdown | Supported on `main` |
 | Plain text | Supported on `main` |
-| DOCX | Not yet supported |
+| DOCX | Supported on `main` |
 | HTML | Not yet supported |
 | OCR / scanned PDF | Not supported |
 
@@ -437,17 +437,33 @@ Phase 13 deterministic extraction  !=  semantic source understanding
 ```
 
 Ingestion produces blocks and locators only — 1-based page numbers for PDF,
-heading hierarchy and line numbers for Markdown, line ranges for plain text, all
-using 1-based numbering. It does **not** decide what is important, what counts as
-HIGH priority, what a claim means, or how coverage is judged. AGY performs
-semantic segmentation and every grounding decision, which is why an extracted
-block is **not** a Phase 12 semantic source unit.
+heading hierarchy and line numbers for Markdown, line ranges for plain text, and
+heading hierarchy with structural element and table indices for DOCX, all using
+1-based numbering. It does **not** decide what is important, what counts as HIGH
+priority, what a claim means, or how coverage is judged. AGY performs semantic
+segmentation and every grounding decision, which is why an extracted block is
+**not** a Phase 12 semantic source unit.
 
 ### PDF Limitation
 
 PDF support **requires an extractable text layer**; this is not universal PDF
 parsing. A scanned or image-only PDF fails explicitly with
 `SOURCE_TEXT_UNAVAILABLE`, and there is **no OCR fallback**.
+
+### DOCX Limitation
+
+DOCX extraction is **structural, not rendered-page extraction**. DOCX is
+flow-based OOXML: it does not provide stable rendered page boundaries without a
+layout engine. Locators therefore use structural elements — heading hierarchy,
+body element indices, and table and row indices — rather than page numbers, and
+no page number is ever fabricated.
+
+Extraction covers heading hierarchy, paragraphs, and tables, preserving the
+document order of paragraphs and tables. Headings are identified from built-in
+Word heading styles only, never inferred from font size or boldness. Headers,
+footers, footnotes, endnotes, comments, tracked-change reconstruction, and text
+inside embedded images are **not** ingested. Password-protected DOCX is not
+supported and fails explicitly.
 
 Re-ingesting the same source with the same extractor version reproduces the same
 block ids, locators, and ordering, and the result does not depend on the file's
@@ -521,10 +537,12 @@ To report a security issue, see [`SECURITY.md`](SECURITY.md).
   validator does not replace Content QA and does not independently judge whether
   content is factually true.
 - Source ingestion (available on `main`) currently supports only local PDF with
-  an extractable text layer, Markdown, and plain text. DOCX is not yet supported,
-  HTML is not yet supported, OCR is not supported, and remote URL fetching is not
-  supported. Extraction is not semantic segmentation, and AGY remains the
-  semantic authority.
+  an extractable text layer, Markdown, plain text, and DOCX. HTML is not yet
+  supported, OCR is not supported, and remote URL fetching is not supported.
+  DOCX provides no rendered-page locators and no Word visual-layout
+  reconstruction, and its headers, footers, footnotes, comments, and embedded
+  image text are not ingested. Extraction is not semantic segmentation, and AGY
+  remains the semantic authority.
 
 ## Upstream & Attribution
 

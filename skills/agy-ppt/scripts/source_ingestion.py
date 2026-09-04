@@ -24,9 +24,9 @@ whether a source supports a claim, what belongs on a slide, or how the source
 should be semantically segmented. Those are AGY decisions, and an extracted
 block is therefore **not** a Phase 12 semantic source unit.
 
-Scope of Phase 13.2: PDF with an extractable text layer, Markdown, and plain
-text, all read from the local filesystem. There is no OCR, no network
-acquisition, and no DOCX/HTML support -- each of those fails deterministically
+Scope of Phase 13.2-13.3: PDF with an extractable text layer, Markdown, plain
+text, and DOCX, all read from the local filesystem. There is no OCR, no network
+acquisition, and no HTML support -- each of those fails deterministically
 rather than silently degrading.
 """
 
@@ -67,16 +67,25 @@ EXTRACTOR_VERSION = "1"
 FORMAT_PDF = "pdf"
 FORMAT_MARKDOWN = "markdown"
 FORMAT_TEXT = "text"
+FORMAT_DOCX = "docx"
 FORMAT_UNSUPPORTED = "unsupported"
 
-SUPPORTED_FORMATS = (FORMAT_PDF, FORMAT_MARKDOWN, FORMAT_TEXT)
+SUPPORTED_FORMATS = (FORMAT_PDF, FORMAT_MARKDOWN, FORMAT_TEXT, FORMAT_DOCX)
 
 MARKDOWN_SUFFIXES = (".md", ".markdown", ".mdown")
 TEXT_SUFFIXES = (".txt", ".text")
 PDF_SUFFIXES = (".pdf",)
+DOCX_SUFFIXES = (".docx",)
 
 #: Every PDF must start with this signature; extension alone is never trusted.
 PDF_SIGNATURE = b"%PDF-"
+
+#: A DOCX is an OOXML ZIP package, so it starts with the local-file-header magic.
+ZIP_SIGNATURE = b"PK\x03\x04"
+
+#: The part that distinguishes a word-processing package from any other ZIP or
+#: from a spreadsheet/presentation OOXML package.
+DOCX_BODY_PART = "word/document.xml"
 
 # ---------------------------------------------------------------------------
 # Block types
@@ -84,6 +93,8 @@ PDF_SIGNATURE = b"%PDF-"
 BLOCK_PAGE = "page"
 BLOCK_MARKDOWN_SECTION = "markdown_section"
 BLOCK_PARAGRAPH = "paragraph"
+BLOCK_DOCX_SECTION = "docx_section"
+BLOCK_DOCX_TABLE = "docx_table"
 
 # ---------------------------------------------------------------------------
 # Error taxonomy
@@ -212,6 +223,28 @@ class ExtractionResult:
 # ---------------------------------------------------------------------------
 # Format detection
 # ---------------------------------------------------------------------------
+def _zip_package_format(path: Path) -> str:
+    """Classify a ZIP-signature file without doing any semantic analysis.
+
+    Enough structure is inspected to tell a word-processing OOXML package apart
+    from an ordinary ZIP, a corrupted ZIP, and a non-word Office package
+    (spreadsheet/presentation), which is all detection needs to decide routing.
+    """
+    import zipfile
+
+    try:
+        with zipfile.ZipFile(path) as archive:
+            names = set(archive.namelist())
+    except (zipfile.BadZipFile, OSError):
+        # A broken container. Only claim DOCX when the extension says so, so
+        # that extraction can report a DOCX-specific deterministic failure.
+        return FORMAT_DOCX if path.suffix.lower() in DOCX_SUFFIXES else FORMAT_UNSUPPORTED
+
+    if DOCX_BODY_PART in names:
+        return FORMAT_DOCX
+    return FORMAT_UNSUPPORTED
+
+
 def detect_source_format(path: str | Path) -> str:
     """The single deterministic format authority for Phase 13.
 
@@ -220,9 +253,17 @@ def detect_source_format(path: str | Path) -> str:
     1. If the file begins with the ``%PDF-`` signature it is treated as PDF,
        whatever the extension says. The signature wins so that a mislabelled
        or extension-less PDF is still routed to the PDF extractor.
-    2. Otherwise the extension selects Markdown or plain text, since a text
+    2. If the file begins with the ZIP signature it is inspected as an OOXML
+       package: it is ``docx`` only when it actually contains
+       ``word/document.xml``. An ordinary ZIP, a spreadsheet package, or a
+       presentation package is therefore *not* misclassified as DOCX.
+    3. Otherwise the extension selects Markdown or plain text, since a text
        file has no signature to validate against.
-    3. Anything else -- including a file merely *named* ``.pdf`` without a PDF
+    4. A ``.docx`` extension with no ZIP signature -- which is how a
+       password-protected DOCX appears, since it is wrapped in an OLE/CFB
+       container -- is still routed to DOCX so that extraction can fail with a
+       DOCX-specific diagnostic rather than a vague unsupported-format error.
+    5. Anything else -- including a file merely *named* ``.pdf`` without a PDF
        signature -- is ``unsupported``.
     """
     p = Path(os.path.expanduser(str(path)))
@@ -230,18 +271,22 @@ def detect_source_format(path: str | Path) -> str:
         raise SourceFileNotFound(f"source file not found: {p.name}")
     try:
         with p.open("rb") as fh:
-            head = fh.read(len(PDF_SIGNATURE))
+            head = fh.read(max(len(PDF_SIGNATURE), len(ZIP_SIGNATURE)))
     except OSError as exc:
         raise SourceReadFailed(f"could not read source file: {exc}")
 
-    if head == PDF_SIGNATURE:
+    if head.startswith(PDF_SIGNATURE):
         return FORMAT_PDF
+    if head.startswith(ZIP_SIGNATURE):
+        return _zip_package_format(p)
 
     suffix = p.suffix.lower()
     if suffix in MARKDOWN_SUFFIXES:
         return FORMAT_MARKDOWN
     if suffix in TEXT_SUFFIXES:
         return FORMAT_TEXT
+    if suffix in DOCX_SUFFIXES:
+        return FORMAT_DOCX
     return FORMAT_UNSUPPORTED
 
 
@@ -524,12 +569,237 @@ def _text_block(
 
 
 # ---------------------------------------------------------------------------
+# DOCX
+# ---------------------------------------------------------------------------
+#: Only an explicit built-in Word heading style makes a paragraph a heading.
+_HEADING_STYLE_RE = re.compile(r"^Heading\s+([1-9])$", re.IGNORECASE)
+
+
+def _normalize_docx_text(text: str) -> str:
+    """Normalize DOCX run text without altering meaning.
+
+    Word encodes a soft line break as a vertical tab, and non-breaking spaces
+    are whitespace for reading purposes, so both are folded to their ordinary
+    equivalents. Tabs are preserved because they can carry real structure in a
+    document's content.
+    """
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = text.replace("\v", "\n").replace("\x0b", "\n")
+    text = text.replace("\xa0", " ")
+    lines = [line.rstrip() for line in text.split("\n")]
+    return "\n".join(lines).strip()
+
+
+def _heading_level(paragraph: Any) -> int | None:
+    """The heading level from an explicit heading style, else ``None``.
+
+    Heading identity comes from the paragraph's style only. Font size, weight,
+    colour and visual position are deliberately ignored: inferring a heading
+    from formatting would be heuristic layout interpretation, which belongs to
+    semantic review, not deterministic extraction. Unstyled bold text therefore
+    stays ordinary paragraph content.
+    """
+    try:
+        style_name = paragraph.style.name or ""
+    except Exception:
+        return None
+    match = _HEADING_STYLE_RE.match(style_name.strip())
+    return int(match.group(1)) if match else None
+
+
+def _table_text(table: Any) -> tuple[str, int, int]:
+    """Flatten a table in deterministic row-major reading order.
+
+    Rows top to bottom, cells left to right within each row, one row per output
+    line with cells joined by ``" | "``. A line break *inside* a cell is folded
+    to a space so that one output line always corresponds to exactly one table
+    row; otherwise row boundaries would be ambiguous.
+
+    A cell spanning multiple columns is reported by python-docx once per grid
+    position it covers, so a merged cell's text repeats across the positions it
+    spans rather than being dropped. That is the parser's actual behaviour and
+    is tested as such; no stronger layout fidelity is claimed.
+    """
+    rows: list[str] = []
+    row_count = 0
+    column_count = 0
+    for row in table.rows:
+        row_count += 1
+        cells = [
+            _normalize_docx_text(cell.text).replace("\n", " ").strip()
+            for cell in row.cells
+        ]
+        column_count = max(column_count, len(cells))
+        rows.append(" | ".join(cells))
+    return "\n".join(rows).strip(), row_count, column_count
+
+
+def extract_docx(raw: bytes, source_id: str) -> list[ExtractedBlock]:
+    """Structural extraction from a Word (OOXML) document.
+
+    DOCX is flow-based: it carries no reliable rendered page boundaries without
+    running Word's layout engine. Locators are therefore **structural** and no
+    page number is ever synthesised.
+
+    Body-level elements are walked in true document order, so interleaved
+    paragraphs and tables keep their original sequence. Headings scope the
+    following paragraphs into a section; each table becomes its own block,
+    tagged with the heading path in force where it appears, so tables are never
+    silently discarded.
+
+    Body content only: headers, footers, footnotes, endnotes, comments,
+    tracked-change metadata, and text inside embedded images are not ingested,
+    and there is no OCR.
+    """
+    try:
+        from docx import Document
+        from docx.table import Table
+        from docx.text.paragraph import Paragraph
+    except ImportError as exc:  # pragma: no cover - dependency is declared
+        raise SourceExtractionFailed(f"python-docx is required for DOCX ingestion: {exc}")
+
+    import io
+
+    try:
+        document = Document(io.BytesIO(raw))
+        body = document.element.body
+        children = list(body.iterchildren())
+    except Exception as exc:
+        raise SourceExtractionFailed(
+            "DOCX package could not be parsed (it may be corrupted, or "
+            f"password-protected/encrypted, which is not supported): {exc}"
+        )
+
+    blocks: list[ExtractedBlock] = []
+    ordinal = 0
+    path_stack: list[tuple[int, str]] = []
+    heading_path: list[str] = []
+    # Accumulating section: (heading_path, heading_level, texts, start, end)
+    pending: dict[str, Any] | None = None
+
+    def flush() -> None:
+        nonlocal pending, ordinal
+        if pending is None:
+            return
+        text = "\n\n".join(t for t in pending["texts"] if t).strip()
+        if text:
+            ordinal += 1
+            locator = {
+                "kind": "section",
+                "label": " > ".join(pending["heading_path"]) or "(preamble)",
+                "heading_path": list(pending["heading_path"]),
+                "start_element": pending["start"],
+                "end_element": pending["end"],
+            }
+            blocks.append(
+                ExtractedBlock(
+                    block_id=compute_block_id(source_id, locator, ordinal),
+                    block_type=BLOCK_DOCX_SECTION,
+                    text=text,
+                    locator=locator,
+                    ordinal=ordinal,
+                    metadata={
+                        "heading_level": pending["heading_level"],
+                        "heading_text": pending["heading_text"],
+                    },
+                )
+            )
+        pending = None
+
+    element_index = 0
+    table_index = 0
+    for child in children:
+        tag = child.tag.rsplit("}", 1)[-1]
+        if tag not in ("p", "tbl"):
+            # sectPr and similar layout-only elements carry no source text.
+            continue
+        element_index += 1
+
+        if tag == "p":
+            paragraph = Paragraph(child, document)
+            text = _normalize_docx_text(paragraph.text)
+            level = _heading_level(paragraph)
+            if level is not None:
+                flush()
+                while path_stack and path_stack[-1][0] >= level:
+                    path_stack.pop()
+                path_stack.append((level, text))
+                heading_path = [name for _lvl, name in path_stack]
+                pending = {
+                    "heading_path": list(heading_path),
+                    "heading_level": level,
+                    "heading_text": text,
+                    "texts": [text] if text else [],
+                    "start": element_index,
+                    "end": element_index,
+                }
+                continue
+            if not text:
+                # Layout-only empty paragraph: whitespace or empty runs only.
+                continue
+            if pending is None:
+                pending = {
+                    "heading_path": list(heading_path),
+                    "heading_level": 0 if not heading_path else path_stack[-1][0],
+                    "heading_text": path_stack[-1][1] if path_stack else None,
+                    "texts": [],
+                    "start": element_index,
+                    "end": element_index,
+                }
+            pending["texts"].append(text)
+            pending["end"] = element_index
+            continue
+
+        # tag == "tbl": emit in place so document order is preserved.
+        flush()
+        table_index += 1
+        table = Table(child, document)
+        text, row_count, column_count = _table_text(table)
+        if not text:
+            continue
+        ordinal += 1
+        locator = {
+            "kind": "section",
+            "label": f"Table {table_index}",
+            "heading_path": list(heading_path),
+            "table_index": table_index,
+            "start_row": 1,
+            "end_row": row_count,
+        }
+        blocks.append(
+            ExtractedBlock(
+                block_id=compute_block_id(source_id, locator, ordinal),
+                block_type=BLOCK_DOCX_TABLE,
+                text=text,
+                locator=locator,
+                ordinal=ordinal,
+                metadata={
+                    "table_index": table_index,
+                    "row_count": row_count,
+                    "column_count": column_count,
+                    "element_index": element_index,
+                },
+            )
+        )
+
+    flush()
+
+    if not blocks:
+        raise SourceTextUnavailable(
+            "DOCX has no extractable body or table text; text inside embedded "
+            "images is not ingested and OCR is not supported"
+        )
+    return blocks
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 _EXTRACTORS = {
     FORMAT_PDF: extract_pdf,
     FORMAT_MARKDOWN: extract_markdown,
     FORMAT_TEXT: extract_text,
+    FORMAT_DOCX: extract_docx,
 }
 
 
@@ -551,8 +821,8 @@ def ingest_source(path: str | Path, source_id: str) -> ExtractionResult:
     source_format = detect_source_format(p)
     if source_format not in _EXTRACTORS:
         raise SourceFormatUnsupported(
-            f"unsupported source format for {p.name!r}; Phase 13.2 supports "
-            f"{', '.join(SUPPORTED_FORMATS)} (no DOCX, HTML or OCR)"
+            f"unsupported source format for {p.name!r}; Phase 13 supports "
+            f"{', '.join(SUPPORTED_FORMATS)} (no HTML and no OCR)"
         )
 
     try:
@@ -581,10 +851,11 @@ def phase12_locator(block: ExtractedBlock) -> dict[str, Any]:
     Phase 13 locators are authored using the frozen Phase 12 locator kinds
     (``page``, ``section``, ``line_range``), so handoff needs no translation
     and no change to Phase 12: PDF pages use ``page``, Markdown sections use
-    ``section`` with an additional ``heading_path``/line range, and plain-text
-    paragraphs use ``line_range``. Nothing here contains a filesystem path --
-    a locator describes a position *within* a source, and the source itself is
-    identified by ``source_id``.
+    ``section`` with an additional ``heading_path``/line range, plain-text
+    paragraphs use ``line_range``, and DOCX sections and tables use ``section``
+    with structural element/row ranges. Nothing here contains a filesystem path
+    -- a locator describes a position *within* a source, and the source itself
+    is identified by ``source_id``.
 
     Handing the result to :meth:`SourceInventory.add_unit` remains an AGY
     decision: this returns the locator for a block AGY has *chosen* to promote,

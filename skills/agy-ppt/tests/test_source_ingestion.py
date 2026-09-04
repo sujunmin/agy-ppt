@@ -34,6 +34,18 @@ from synthetic_pdf import (  # noqa: E402
     build_text_pdf,
     build_textless_pdf,
 )
+from synthetic_docx import (  # noqa: E402
+    build_bilingual_docx,
+    build_corrupt_docx,
+    build_empty_docx,
+    build_encrypted_like_docx,
+    build_image_only_docx,
+    build_ordinary_zip,
+    build_structured_docx,
+    build_table_only_docx,
+    build_unstyled_bold_docx,
+    build_xlsx_like_package,
+)
 
 import source_ingestion as si  # noqa: E402
 from source_grounding import (  # noqa: E402
@@ -109,6 +121,9 @@ class IngestionTestCase(unittest.TestCase):
     def text(self, name: str = "plain.txt") -> Path:
         return self.write(name, TEXT_FIXTURE)
 
+    def docx(self, name: str = "structured.docx") -> Path:
+        return self.write(name, build_structured_docx())
+
 
 # ---------------------------------------------------------------------------
 # Format detection
@@ -147,6 +162,25 @@ class TestFormatDetection(IngestionTestCase):
     def test_invalid_source_id_rejected(self) -> None:
         with self.assertRaises(si.SourceIngestionError):
             si.ingest_source(self.markdown(), "not-a-valid-id")
+
+    def test_docx_detected(self) -> None:
+        self.assertEqual(si.detect_source_format(self.docx()), si.FORMAT_DOCX)
+
+    def test_ordinary_zip_not_misclassified_as_docx(self) -> None:
+        """A ZIP signature alone must not make something a DOCX."""
+        plain = self.write("archive.zip", build_ordinary_zip())
+        self.assertEqual(si.detect_source_format(plain), si.FORMAT_UNSUPPORTED)
+        with self.assertRaises(si.SourceFormatUnsupported):
+            si.ingest_source(plain, "src_zip")
+
+    def test_other_ooxml_package_not_misclassified_as_docx(self) -> None:
+        sheet = self.write("book.xlsx", build_xlsx_like_package())
+        self.assertEqual(si.detect_source_format(sheet), si.FORMAT_UNSUPPORTED)
+
+    def test_docx_extension_without_zip_signature_routes_to_docx(self) -> None:
+        """Encrypted DOCX is OLE-wrapped, so it still gets a DOCX diagnostic."""
+        enc = self.write("locked.docx", build_encrypted_like_docx())
+        self.assertEqual(si.detect_source_format(enc), si.FORMAT_DOCX)
 
 
 # ---------------------------------------------------------------------------
@@ -457,6 +491,312 @@ class TestPhase12Compatibility(IngestionTestCase):
 
 
 # ---------------------------------------------------------------------------
+# DOCX (Phase 13.3)
+# ---------------------------------------------------------------------------
+class TestDocxExtraction(IngestionTestCase):
+    def blocks(self):
+        return si.ingest_source(self.docx(), "src_docx").blocks
+
+    def test_paragraphs_extracted(self) -> None:
+        texts = "\n".join(b.text for b in self.blocks())
+        self.assertIn("Synthetic governance overview.", texts)
+        self.assertIn("Paragraph after the table.", texts)
+        self.assertIn("Different repeated-heading section.", texts)
+
+    def test_heading_level_1_hierarchy(self) -> None:
+        top = [b for b in self.blocks() if b.locator["heading_path"][:1] == ["Governance"]]
+        self.assertTrue(top)
+        first = self.blocks()[0]
+        self.assertEqual(first.locator["heading_path"], ["Governance"])
+        self.assertEqual(first.metadata["heading_level"], 1)
+
+    def test_heading_level_2_hierarchy(self) -> None:
+        nested = [
+            b
+            for b in self.blocks()
+            if b.locator["heading_path"] == ["Governance", "Risk Controls"]
+            and b.block_type == si.BLOCK_DOCX_SECTION
+        ]
+        self.assertTrue(nested)
+        self.assertEqual(nested[0].metadata["heading_level"], 2)
+
+    def test_repeated_heading_labels_remain_distinct(self) -> None:
+        """'Risk Controls' under two different H1 parents must not collide."""
+        sections = [
+            b
+            for b in self.blocks()
+            if b.block_type == si.BLOCK_DOCX_SECTION
+            and b.metadata.get("heading_text") == "Risk Controls"
+            and b.metadata.get("heading_level") == 2
+        ]
+        paths = [b.locator["heading_path"] for b in sections]
+        self.assertIn(["Governance", "Risk Controls"], paths)
+        self.assertIn(["Testing", "Risk Controls"], paths)
+        labels = {b.locator["label"] for b in sections}
+        self.assertIn("Governance > Risk Controls", labels)
+        self.assertIn("Testing > Risk Controls", labels)
+        ids = [b.block_id for b in sections]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_traditional_chinese_and_english_preserved(self) -> None:
+        path = self.write("bilingual.docx", build_bilingual_docx())
+        texts = "\n".join(b.text for b in si.ingest_source(path, "src_bi").blocks)
+        self.assertIn("\u6cbb\u7406\u67b6\u69cb\u8207\u98a8\u96aa\u63a7\u5236\u3002", texts)
+        self.assertIn("Governance and Risk Controls", texts)
+        self.assertIn("\u6e2c\u8a66\u6587\u4ef6", texts)
+
+    def test_table_extracted(self) -> None:
+        tables = [b for b in self.blocks() if b.block_type == si.BLOCK_DOCX_TABLE]
+        self.assertEqual(len(tables), 1)
+        table = tables[0]
+        self.assertEqual(table.locator["table_index"], 1)
+        self.assertEqual(table.locator["start_row"], 1)
+        self.assertEqual(table.locator["end_row"], 3)
+        self.assertEqual(table.metadata["row_count"], 3)
+        self.assertEqual(table.metadata["column_count"], 2)
+        for cell in ("Control", "Owner", "Access", "Security", "Review", "Governance"):
+            self.assertIn(cell, table.text)
+
+    def test_table_only_document_is_not_discarded(self) -> None:
+        path = self.write("tableonly.docx", build_table_only_docx())
+        blocks = si.ingest_source(path, "src_tbl").blocks
+        self.assertEqual([b.block_type for b in blocks], [si.BLOCK_DOCX_TABLE])
+        self.assertIn("\u9805\u76ee", blocks[0].text)
+
+    def test_table_reading_order_is_row_major(self) -> None:
+        table = next(b for b in self.blocks() if b.block_type == si.BLOCK_DOCX_TABLE)
+        rows = table.text.split("\n")
+        self.assertEqual(rows, ["Control | Owner", "Access | Security", "Review | Governance"])
+        # Row order top-to-bottom, cell order left-to-right within each row.
+        self.assertLess(rows.index("Control | Owner"), rows.index("Access | Security"))
+
+    def test_merged_cell_behaviour_is_documented_and_stable(self) -> None:
+        """python-docx repeats a merged cell across the positions it spans."""
+        from docx import Document
+
+        import io as _io
+
+        doc = Document()
+        table = doc.add_table(rows=2, cols=3)
+        for r in range(2):
+            for c in range(3):
+                table.cell(r, c).text = f"r{r + 1}c{c + 1}"
+        table.cell(0, 0).merge(table.cell(0, 1))
+        buffer = _io.BytesIO()
+        doc.save(buffer)
+        path = self.write("merged.docx", buffer.getvalue())
+
+        block = si.ingest_source(path, "src_merged").blocks[0]
+        rows = block.text.split("\n")
+        # One output line per table row, even though a merged cell's own text
+        # contains a line break.
+        self.assertEqual(len(rows), 2)
+        # The merged text is present and repeated, never dropped.
+        self.assertEqual(rows[0].count("r1c1"), 2)
+        self.assertEqual(rows[0].count("r1c2"), 2)
+        self.assertIn("r1c3", rows[0])
+        self.assertEqual(rows[1], "r2c1 | r2c2 | r2c3")
+        self.assertEqual(block.metadata["row_count"], 2)
+
+    def test_paragraph_and_table_source_order_preserved(self) -> None:
+        """A table must appear between the paragraphs that surround it."""
+        blocks = self.blocks()
+        kinds = [b.block_type for b in blocks]
+        table_at = kinds.index(si.BLOCK_DOCX_TABLE)
+        before = "\n".join(b.text for b in blocks[:table_at])
+        after = "\n".join(b.text for b in blocks[table_at + 1 :])
+        self.assertIn("Synthetic governance overview.", before)
+        self.assertIn("Paragraph after the table.", after)
+        self.assertNotIn("Paragraph after the table.", before)
+        # Ordinals stay strictly increasing in document order.
+        ordinals = [b.ordinal for b in blocks]
+        self.assertEqual(ordinals, list(range(1, len(blocks) + 1)))
+
+    def test_structural_element_ranges_are_one_based(self) -> None:
+        for block in self.blocks():
+            if block.block_type == si.BLOCK_DOCX_SECTION:
+                self.assertGreaterEqual(block.locator["start_element"], 1)
+                self.assertGreaterEqual(
+                    block.locator["end_element"], block.locator["start_element"]
+                )
+            else:
+                self.assertGreaterEqual(block.locator["start_row"], 1)
+                self.assertGreaterEqual(block.locator["table_index"], 1)
+
+    def test_no_page_locator_is_fabricated(self) -> None:
+        """DOCX is flow-based: no rendered page numbers may be invented."""
+        for block in self.blocks():
+            self.assertEqual(block.locator["kind"], "section")
+            self.assertNotIn("page", block.locator)
+            self.assertNotIn("page", block.metadata)
+            self.assertNotEqual(block.block_type, si.BLOCK_PAGE)
+
+    def test_stable_block_ids_and_repeatability(self) -> None:
+        path = self.docx()
+        first = si.ingest_source(path, "src_docx").to_dict()
+        second = si.ingest_source(path, "src_docx").to_dict()
+        self.assertEqual(first, second)
+        for block in si.ingest_source(path, "src_docx").blocks:
+            self.assertEqual(
+                block.block_id,
+                si.compute_block_id("src_docx", block.locator, block.ordinal),
+            )
+            self.assertTrue(block.block_id.startswith("blk:src_docx:"))
+
+    def test_unstyled_bold_text_is_not_a_heading(self) -> None:
+        """Headings come from styles only, never from font weight or size."""
+        path = self.write("bold.docx", build_unstyled_bold_docx())
+        blocks = si.ingest_source(path, "src_bold").blocks
+        for block in blocks:
+            self.assertEqual(block.locator["heading_path"], [])
+            self.assertEqual(block.metadata.get("heading_level"), 0)
+        self.assertIn("Looks Like A Heading", blocks[0].text)
+
+    def test_empty_docx_fails_with_text_unavailable(self) -> None:
+        path = self.write("empty.docx", build_empty_docx())
+        self.assertEqual(si.detect_source_format(path), si.FORMAT_DOCX)
+        with self.assertRaises(si.SourceTextUnavailable) as ctx:
+            si.ingest_source(path, "src_empty_docx")
+        self.assertEqual(ctx.exception.error_code, si.ERROR_SOURCE_TEXT_UNAVAILABLE)
+
+    def test_corrupt_docx_fails_with_extraction_failed(self) -> None:
+        path = self.write("corrupt.docx", build_corrupt_docx())
+        with self.assertRaises(si.SourceExtractionFailed) as ctx:
+            si.ingest_source(path, "src_corrupt_docx")
+        self.assertEqual(ctx.exception.error_code, si.ERROR_SOURCE_EXTRACTION_FAILED)
+        self.assertNotEqual(
+            ctx.exception.error_code, si.ERROR_SOURCE_TEXT_UNAVAILABLE
+        )
+
+    def test_encrypted_docx_fails_deterministically(self) -> None:
+        """No interactive password prompt, no password handling."""
+        path = self.write("locked.docx", build_encrypted_like_docx())
+        with self.assertRaises(si.SourceExtractionFailed) as ctx:
+            si.ingest_source(path, "src_locked")
+        self.assertEqual(ctx.exception.error_code, si.ERROR_SOURCE_EXTRACTION_FAILED)
+        self.assertIn("encrypted", str(ctx.exception).lower())
+
+    def test_image_only_docx_does_not_trigger_ocr(self) -> None:
+        path = self.write("imageonly.docx", build_image_only_docx())
+        with self.assertRaises(si.SourceTextUnavailable) as ctx:
+            si.ingest_source(path, "src_imageonly")
+        self.assertIn("OCR is not supported", str(ctx.exception))
+        forbidden = {"pytesseract", "tesserocr", "easyocr", "paddleocr"}
+        self.assertEqual(forbidden & set(sys.modules), set())
+
+    def test_layout_only_empty_paragraphs_produce_no_blocks(self) -> None:
+        from docx import Document
+
+        import io as _io
+
+        doc = Document()
+        doc.add_paragraph("   ")
+        doc.add_paragraph("")
+        doc.add_paragraph("Real content.")
+        doc.add_paragraph("\t")
+        buffer = _io.BytesIO()
+        doc.save(buffer)
+        path = self.write("sparse.docx", buffer.getvalue())
+
+        blocks = si.ingest_source(path, "src_sparse").blocks
+        self.assertEqual(len(blocks), 1)
+        self.assertEqual(blocks[0].text, "Real content.")
+
+    def test_no_phase12_artifact_written(self) -> None:
+        si.ingest_source(self.docx(), "src_docx")
+        for artifact in (
+            "source_inventory.json",
+            "claim_traceability.json",
+            "source_coverage.json",
+            "source_grounded_qa.json",
+        ):
+            self.assertFalse((self.root / artifact).exists(), artifact)
+
+    def test_absolute_path_independence(self) -> None:
+        payload = build_structured_docx()
+        with tempfile.TemporaryDirectory() as d1, tempfile.TemporaryDirectory() as d2:
+            p1, p2 = Path(d1) / "a.docx", Path(d2) / "a.docx"
+            p1.write_bytes(payload)
+            p2.write_bytes(payload)
+            r1 = si.ingest_source(p1, "src_same")
+            r2 = si.ingest_source(p2, "src_same")
+            self.assertEqual(r1.to_dict(), r2.to_dict())
+            serialized = json.dumps(r1.to_dict(), ensure_ascii=False)
+            self.assertNotIn(d1, serialized)
+            self.assertNotIn(d2, serialized)
+
+    def test_source_digest_is_raw_bytes(self) -> None:
+        """DOCX must not introduce a competing unzipped/normalized digest."""
+        path = self.docx()
+        result = si.ingest_source(path, "src_docx")
+        self.assertEqual(result.source_digest, compute_source_digest(path.read_bytes()))
+
+    def test_docx_locator_accepted_by_frozen_phase12_validator(self) -> None:
+        result = si.ingest_source(self.docx(), "src_docx")
+        inventory = SourceInventory.initialize(self.root, "proj")
+        inventory.add_source("src_docx", "docx", source_digest=result.source_digest)
+        for block in result.blocks:
+            locator = si.phase12_locator(block)
+            self.assertEqual(locator["kind"], "section")
+            self.assertEqual(validate_locator(locator), [])
+            unit = inventory.add_unit("src_docx", "generic", locator, "MEDIUM")
+            self.assertTrue(unit["unit_id"].startswith("su:src_docx:"))
+        inventory.save()
+        self.assertEqual(len(inventory.data["units"]), result.block_count)
+
+    def test_no_priority_is_assigned_by_extraction(self) -> None:
+        """Heading level is structure, never a semantic priority."""
+        for block in self.blocks():
+            serialized = json.dumps(block.to_dict(), ensure_ascii=False)
+            for word in ("HIGH", "MEDIUM", "LOW"):
+                self.assertNotIn(word, serialized)
+
+
+# ---------------------------------------------------------------------------
+# Cross-format regression: Phase 13.3 must not change earlier extractors
+# ---------------------------------------------------------------------------
+class TestExistingExtractorsUnchanged(IngestionTestCase):
+    def test_pdf_still_uses_one_based_page_locators(self) -> None:
+        result = si.ingest_source(self.pdf(), "src_pdf")
+        self.assertEqual([b.locator["start"] for b in result.blocks], [1, 2, 3])
+        self.assertEqual([b.block_type for b in result.blocks], [si.BLOCK_PAGE] * 3)
+
+    def test_markdown_still_produces_section_blocks(self) -> None:
+        blocks = si.ingest_source(self.markdown(), "src_md").blocks
+        self.assertEqual(len(blocks), 5)
+        self.assertEqual(
+            [b.block_type for b in blocks], [si.BLOCK_MARKDOWN_SECTION] * 5
+        )
+        self.assertEqual(blocks[0].locator["heading_path"], ["Overview"])
+
+    def test_text_still_produces_paragraph_blocks(self) -> None:
+        blocks = si.ingest_source(self.text(), "src_txt").blocks
+        self.assertEqual([b.block_type for b in blocks], [si.BLOCK_PARAGRAPH] * 3)
+        self.assertEqual(
+            [(b.locator["start"], b.locator["end"]) for b in blocks],
+            [(1, 2), (4, 4), (7, 7)],
+        )
+
+    def test_detection_unchanged_for_earlier_formats(self) -> None:
+        self.assertEqual(si.detect_source_format(self.pdf()), si.FORMAT_PDF)
+        self.assertEqual(si.detect_source_format(self.markdown()), si.FORMAT_MARKDOWN)
+        self.assertEqual(si.detect_source_format(self.text()), si.FORMAT_TEXT)
+        fake = self.write("fake.pdf", b"this is not a pdf at all")
+        self.assertEqual(si.detect_source_format(fake), si.FORMAT_UNSUPPORTED)
+
+    def test_extractor_version_unchanged_shape(self) -> None:
+        for path, source_id in (
+            (self.pdf(), "src_pdf"),
+            (self.markdown(), "src_md"),
+            (self.text(), "src_txt"),
+            (self.docx(), "src_docx"),
+        ):
+            result = si.ingest_source(path, source_id)
+            self.assertEqual(result.extractor_version, si.EXTRACTOR_VERSION)
+            self.assertEqual(result.schema_version, si.SCHEMA_VERSION)
+
+
+# ---------------------------------------------------------------------------
 # CLI adapter
 # ---------------------------------------------------------------------------
 class TestCliAdapter(IngestionTestCase):
@@ -522,7 +862,43 @@ class TestCliAdapter(IngestionTestCase):
             ["--source", str(docx), "--source-id", "src_docx"]
         )
         self.assertEqual(code, 1)
-        self.assertTrue(stderr.startswith(si.ERROR_SOURCE_FORMAT_UNSUPPORTED))
+        self.assertTrue(stderr.startswith(si.ERROR_SOURCE_EXTRACTION_FAILED))
+
+    def test_cli_handles_docx_through_same_api(self) -> None:
+        out_path = self.root / "docx.json"
+        code, stdout, _ = self.run_cli(
+            [
+                "--source",
+                str(self.docx()),
+                "--source-id",
+                "src_docx",
+                "--output",
+                str(out_path),
+            ]
+        )
+        self.assertEqual(code, 0)
+        summary = json.loads(stdout)
+        self.assertEqual(summary["source_format"], "docx")
+        self.assertEqual(summary["block_count"], 6)
+        written = json.loads(out_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(written["blocks"]), 6)
+
+    def test_cli_docx_detect_only(self) -> None:
+        code, stdout, _ = self.run_cli(
+            ["--source", str(self.docx()), "--source-id", "src_docx", "--detect-only"]
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(stdout)["source_format"], "docx")
+
+    def test_cli_docx_error_has_no_traceback(self) -> None:
+        path = self.write("empty.docx", build_empty_docx())
+        code, stdout, stderr = self.run_cli(
+            ["--source", str(path), "--source-id", "src_empty"]
+        )
+        self.assertEqual(code, 1)
+        self.assertEqual(stdout, "")
+        self.assertTrue(stderr.startswith(si.ERROR_SOURCE_TEXT_UNAVAILABLE))
+        self.assertNotIn("Traceback", stderr)
 
 
 if __name__ == "__main__":
