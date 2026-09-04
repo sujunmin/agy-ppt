@@ -170,6 +170,18 @@ All notable changes to `agy-ppt` will be documented in this file.
   it is explicitly not a hardened multi-tenant SSRF sandbox: host validation
   checks resolved addresses but does not pin them before connecting, leaving a
   documented DNS-rebinding limitation. (#6)
+- A Phase 13 production baseline summary
+  (`skills/agy-ppt/docs/production-baseline-phase13.md`) covering the
+  acquisition, extraction and semantic layers, the supported and unsupported
+  sources, the per-format locator contract, the single raw-byte digest authority,
+  the security boundary and its honest limitations, the error taxonomy, and the
+  declared dependencies. (#7)
+
+### Fixed
+
+- Corrected a stale statement in `SKILL.md` §9.3 that still described remote URL
+  ingestion as unsupported, which contradicted §9.4 of the same file after public
+  HTTP/HTTPS acquisition was added. (#7)
 
 ## [0.2.0] - 2026-09-04
 
