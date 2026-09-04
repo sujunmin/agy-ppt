@@ -4,6 +4,13 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Repository contribution governance is now versioned in `AGENTS.md`, covering
+  the pull-request flow, a single Conventional Commit PR-title policy, release
+  PR naming, changelog format, real-PR-number-only changelog references, and the
+  release and verification process. (#2)
+
 ## [0.2.0] - 2026-09-04
 
 ### Added
