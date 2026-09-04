@@ -1,5 +1,7 @@
 # agy-ppt
 
+**Language:** 繁體中文 | [English](README_en.md)
+
 以 AGY 為唯一 orchestrator / state owner，Kiro V3 `ppt-engineer` 為專職 engineering
 worker，Codex CLI 為專職 slide-image worker 的圖片式 PPT/PPTX 生成工作流程。
 
@@ -277,6 +279,8 @@ Resume 行為：
 
 ## Source Grounding & Traceability
 
+已於 v0.2.0 發布。
+
 當簡報是以既有來源文件為依據（source-driven）時，可啟用 Phase 12 的 source
 grounding 機制。這是 **optional capability**：純創意、沒有來源文件的簡報完全不受
 影響，也不需要建立任何下列 artifact。
@@ -343,6 +347,63 @@ RFC 2119.
 設計細節見
 [`skills/agy-ppt/docs/source-grounding.md`](skills/agy-ppt/docs/source-grounding.md)。
 
+## Source Ingestion
+
+> **狀態：** v0.2.0 之後在 `main` 上可用（post-v0.2.0 development），**未包含在 v0.2.0**。
+
+Source grounding 需要先有來源文字，AGY 才能做 semantic segmentation。Phase 13 提供
+deterministic ingestion：把**本機**來源檔案轉成正規化的 extraction blocks 與 locator。
+
+```bash
+python3 skills/agy-ppt/scripts/ingest_source.py \
+    --source /path/to/report.pdf \
+    --source-id src_report \
+    --output /path/to/workspace/extraction.json
+```
+
+流程位置：
+
+```text
+local source
+  → deterministic ingestion（Phase 13）
+  → AGY semantic segmentation
+  → source_inventory.json 的 source units
+  → grounding workflow（Phase 12）
+```
+
+### 支援格式
+
+| 格式 | 狀態 |
+| --- | --- |
+| PDF（具可擷取文字層） | 在 `main` 上支援 |
+| Markdown | 在 `main` 上支援 |
+| 純文字 | 在 `main` 上支援 |
+| DOCX | 尚未支援 |
+| HTML | 尚未支援 |
+| OCR / 掃描影像 PDF | 不支援 |
+
+### Extraction 不等於 semantic segmentation
+
+這個邊界很重要：
+
+```text
+Phase 13 deterministic extraction  ≠  semantic source understanding
+```
+
+Ingestion 只產出 blocks 與 locator（PDF 為 1-based 頁碼、Markdown 為 heading 層級與
+行號、純文字為行號範圍），全部使用 1-based 編號。**它不決定**什麼重要、什麼是 HIGH
+priority、claim 的語意，或 coverage。AGY 負責 semantic segmentation 與所有 grounding
+決策，extracted block 也因此**不是** Phase 12 的 semantic source unit。
+
+### PDF 限制
+
+PDF 支援**需要可擷取文字層**，這不是萬用 PDF 解析。掃描或純影像 PDF 會以
+`SOURCE_TEXT_UNAVAILABLE` 明確失敗，**沒有 OCR fallback**。
+
+相同來源、相同 extractor version 重複 ingest 會得到相同的 block ID、locator 與順序；
+結果不依賴檔案的絕對路徑。詳見
+[`skills/agy-ppt/docs/source-ingestion.md`](skills/agy-ppt/docs/source-ingestion.md)。
+
 ## Testing
 
 一般 unit tests **不會**消耗任何 AI 訂閱額度、不呼叫真實 Codex/Kiro，全部使用
@@ -370,6 +431,17 @@ AGY_PPT_LIVE_RECOVERY=1 AGY_PPT_LIVE_RECOVERY_INTERRUPT=1 \
 詳見
 [`skills/agy-ppt/docs/recovery-testing.md`](skills/agy-ppt/docs/recovery-testing.md)。
 
+## Security and Privacy
+
+- 本專案不讀取、不複製、不轉傳任何 OAuth access token / refresh token；各 CLI 自行
+  管理自己的 credential。
+- 請勿提交 OAuth session 資料、API key、機密來源文件，或生成出來的機密簡報。簡報
+  workspace（含 `project_state.json`）一律留在本 repository 之外。
+- Source ingestion 只讀取本機檔案，不發出任何網路請求。
+- 測試 fixture 全為合成資料；不會為了測試而提交任何真實客戶或第三方文件。
+
+回報 security issue 的方式見 [`SECURITY.md`](SECURITY.md)。
+
 ## Limitations
 
 - 第一版是 `sequential_only`：一次只生成一頁，故意不支援平行生成。
@@ -385,10 +457,12 @@ AGY_PPT_LIVE_RECOVERY=1 AGY_PPT_LIVE_RECOVERY_INTERRUPT=1 \
   stderr）deterministic 判斷；只有出現明確的機器可辨識 usage/quota/rate-limit
   訊號時才會新增專門的錯誤分類，操作人員可以另外用 operator-confirmed 的方式記錄
   額度耗盡，但不會偽造成 worker error code。
-
 - Source grounding 沒有內建通用 PDF/DOCX/HTML parser：來源文字的擷取與 source
   segmentation 由 AGY 負責，本專案不提供萬用文件解析器。Deterministic validator
   也不取代 Content QA，不會獨立判斷內容的事實真偽。
+- Source ingestion（`main` 上可用）目前只支援本機 PDF（需可擷取文字層）、Markdown
+  與純文字：尚未支援 DOCX、尚未支援 HTML、不支援 OCR，也不支援遠端 URL 抓取。
+  Extraction 不等於 semantic segmentation，AGY 仍是 semantic authority。
 
 ## Upstream & Attribution
 
