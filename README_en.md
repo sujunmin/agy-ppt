@@ -173,7 +173,7 @@ documents the full resolver design and failure semantics.
   [Kiro `ppt-engineer` Setup](#kiro-ppt-engineer-setup))
 - To assemble `.pptx` files, the Python packages listed in
   `skills/agy-ppt/requirements.txt` (`python-pptx`, `Pillow`, `openai`,
-  `filelock`, `pypdf`, `python-docx`):
+  `filelock`, `pypdf`, `python-docx`, `lxml`):
 
   ```bash
   python3 -m pip install -r skills/agy-ppt/requirements.txt
@@ -425,7 +425,8 @@ local source
 | Markdown | Supported on `main` |
 | Plain text | Supported on `main` |
 | DOCX | Supported on `main` |
-| HTML | Not yet supported |
+| Local static HTML | Supported on `main` |
+| Remote URL ingestion | Not supported |
 | OCR / scanned PDF | Not supported |
 
 ### Extraction Is Not Semantic Segmentation
@@ -438,11 +439,11 @@ Phase 13 deterministic extraction  !=  semantic source understanding
 
 Ingestion produces blocks and locators only — 1-based page numbers for PDF,
 heading hierarchy and line numbers for Markdown, line ranges for plain text, and
-heading hierarchy with structural element and table indices for DOCX, all using
-1-based numbering. It does **not** decide what is important, what counts as HIGH
-priority, what a claim means, or how coverage is judged. AGY performs semantic
-segmentation and every grounding decision, which is why an extracted block is
-**not** a Phase 12 semantic source unit.
+heading hierarchy with structural element, list and table indices for DOCX and
+HTML, all using 1-based numbering. It does **not** decide what is important, what
+counts as HIGH priority, what a claim means, or how coverage is judged. AGY
+performs semantic segmentation and every grounding decision, which is why an
+extracted block is **not** a Phase 12 semantic source unit.
 
 ### PDF Limitation
 
@@ -464,6 +465,34 @@ Word heading styles only, never inferred from font size or boldness. Headers,
 footers, footnotes, endnotes, comments, tracked-change reconstruction, and text
 inside embedded images are **not** ingested. Password-protected DOCX is not
 supported and fails explicitly.
+
+### HTML Limitation
+
+HTML ingestion is static local-file extraction, not browser rendering.
+
+Not supported:
+
+```text
+JavaScript-rendered content
+browser rendering
+remote resource loading
+URL fetching
+CSS visibility/layout reconstruction
+```
+
+Only local `.html` and `.htm` files are read. Extraction covers headings,
+paragraphs, lists and tables in DOM document order. **No JavaScript is executed,
+no browser or headless engine is used, no CSS is applied, no remote or
+locally-referenced resource is downloaded, no hyperlink is followed, and no
+iframe is fetched.** Network activity is zero, and this is proven by tests that
+intercept socket and HTTP APIs rather than by relying on the network being
+unavailable.
+
+`script`, `style`, `template`, `noscript`, HTML comments and JSON-LD are
+excluded. Visible hyperlink text is kept, while the link destination is never
+followed or treated as source evidence. Tables do not expand `rowspan` or
+`colspan`. Locators are structural: no page number or screen position is
+fabricated.
 
 Re-ingesting the same source with the same extractor version reproduces the same
 block ids, locators, and ordering, and the result does not depend on the file's
@@ -537,12 +566,14 @@ To report a security issue, see [`SECURITY.md`](SECURITY.md).
   validator does not replace Content QA and does not independently judge whether
   content is factually true.
 - Source ingestion (available on `main`) currently supports only local PDF with
-  an extractable text layer, Markdown, plain text, and DOCX. HTML is not yet
-  supported, OCR is not supported, and remote URL fetching is not supported.
+  an extractable text layer, Markdown, plain text, DOCX, and static HTML. Remote
+  URL ingestion, web crawling, browser rendering, and OCR are not supported.
   DOCX provides no rendered-page locators and no Word visual-layout
   reconstruction, and its headers, footers, footnotes, comments, and embedded
-  image text are not ingested. Extraction is not semantic segmentation, and AGY
-  remains the semantic authority.
+  image text are not ingested. HTML executes no JavaScript, applies no CSS, and
+  loads no external resources, so JavaScript-generated content is not ingested.
+  Extraction is not semantic segmentation, and AGY remains the semantic
+  authority.
 
 ## Upstream & Attribution
 

@@ -93,6 +93,42 @@ TEXT_FIXTURE = (
     "Third paragraph here.\n"
 )
 
+#: Synthetic HTML only. No real website snapshot, and every external reference
+#: points at the reserved ``.invalid`` TLD so it can never resolve.
+HTML_FIXTURE = """<!DOCTYPE html>
+<html><head><title>Ignored Title</title>
+<style>.hidden{display:none}</style>
+<script>var a = 1;</script>
+<script type="application/ld+json">{"@type":"Article","headline":"JSONLD Headline"}</script>
+</head>
+<body>
+<h1>Architecture</h1>
+<p>Intro with <strong>bold</strong>, <em>emphasis</em> and
+<a href="https://example.invalid/page">Example Link</a>.</p>
+<!-- this comment must never be ingested -->
+<h2>Overview</h2>
+<p>\u6cbb\u7406\u67b6\u69cb and Governance Architecture.</p>
+<ul><li>alpha</li><li>beta<ul><li>beta-nested</li></ul></li></ul>
+<ol><li>first</li><li>second</li></ol>
+<table>
+<tr><th>Control</th><th>Owner</th></tr>
+<tr><td rowspan="2">Access</td><td>Security</td></tr>
+<tr><td>Review</td></tr>
+<tr><td colspan="2">Wide cell</td></tr>
+</table>
+<p>After table</p>
+<noscript>noscript content</noscript>
+<iframe src="https://example.invalid/frame"></iframe>
+<img src="https://example.invalid/image.png">
+<script src="https://example.invalid/app.js"></script>
+<h1>Testing</h1>
+<h3>Deep Jump</h3>
+<p>tail</p>
+<h2>Overview</h2>
+<p>second overview</p>
+</body></html>
+"""
+
 
 class IngestionTestCase(unittest.TestCase):
     """Shared temporary workspace; every fixture is synthetic."""
@@ -123,6 +159,9 @@ class IngestionTestCase(unittest.TestCase):
 
     def docx(self, name: str = "structured.docx") -> Path:
         return self.write(name, build_structured_docx())
+
+    def html(self, name: str = "doc.html") -> Path:
+        return self.write(name, HTML_FIXTURE)
 
 
 # ---------------------------------------------------------------------------
@@ -181,6 +220,39 @@ class TestFormatDetection(IngestionTestCase):
         """Encrypted DOCX is OLE-wrapped, so it still gets a DOCX diagnostic."""
         enc = self.write("locked.docx", build_encrypted_like_docx())
         self.assertEqual(si.detect_source_format(enc), si.FORMAT_DOCX)
+
+    def test_html_detected(self) -> None:
+        self.assertEqual(si.detect_source_format(self.html()), si.FORMAT_HTML)
+
+    def test_htm_extension_detected(self) -> None:
+        path = self.write("page.htm", HTML_FIXTURE)
+        self.assertEqual(si.detect_source_format(path), si.FORMAT_HTML)
+
+    def test_text_with_angle_brackets_is_not_html(self) -> None:
+        """A .txt file mentioning <div> must stay plain text."""
+        path = self.write(
+            "notes.txt", "Use a <div> and a <p> tag in your markup.\nSecond line.\n"
+        )
+        self.assertEqual(si.detect_source_format(path), si.FORMAT_TEXT)
+        blocks = si.ingest_source(path, "src_txtangle").blocks
+        self.assertEqual(blocks[0].block_type, si.BLOCK_PARAGRAPH)
+
+    def test_xml_is_not_detected_as_html(self) -> None:
+        path = self.write("data.xml", '<?xml version="1.0"?><root><item>x</item></root>\n')
+        self.assertEqual(si.detect_source_format(path), si.FORMAT_UNSUPPORTED)
+
+    def test_html_extension_without_markup_is_unsupported(self) -> None:
+        """Content clearly contradicting the extension is not trusted."""
+        path = self.write("prose.html", "just prose, no markup at all\n")
+        self.assertEqual(si.detect_source_format(path), si.FORMAT_UNSUPPORTED)
+
+    def test_extensionless_html_detected_by_marker(self) -> None:
+        path = self.write("page", "<!DOCTYPE html><html><body><p>hi</p></body></html>\n")
+        self.assertEqual(si.detect_source_format(path), si.FORMAT_HTML)
+
+    def test_empty_file_is_unsupported(self) -> None:
+        path = self.write("zero.html", "")
+        self.assertEqual(si.detect_source_format(path), si.FORMAT_UNSUPPORTED)
 
 
 # ---------------------------------------------------------------------------
@@ -753,6 +825,384 @@ class TestDocxExtraction(IngestionTestCase):
 
 
 # ---------------------------------------------------------------------------
+# HTML (Phase 13.4)
+# ---------------------------------------------------------------------------
+class TestHtmlExtraction(IngestionTestCase):
+    def blocks(self):
+        return si.ingest_source(self.html(), "src_html").blocks
+
+    def test_heading_hierarchy_extracted(self) -> None:
+        sections = [b for b in self.blocks() if b.block_type == si.BLOCK_HTML_SECTION]
+        paths = [b.locator["heading_path"] for b in sections]
+        self.assertIn(["Architecture"], paths)
+        self.assertIn(["Architecture", "Overview"], paths)
+        self.assertIn(["Testing"], paths)
+        first = sections[0]
+        self.assertEqual(first.metadata["heading_level"], 1)
+
+    def test_repeated_headings_remain_distinct(self) -> None:
+        """'Overview' under two different h1 parents must not collide.
+
+        Note a heading's content can span more than one block: when a list or
+        table interrupts, the following paragraphs form a further block under the
+        same heading path, which is what preserves document order.
+        """
+        overviews = [
+            b
+            for b in self.blocks()
+            if b.metadata.get("heading_text") == "Overview"
+            and b.block_type == si.BLOCK_HTML_SECTION
+        ]
+        paths = {tuple(b.locator["heading_path"]) for b in overviews}
+        self.assertEqual(
+            paths, {("Architecture", "Overview"), ("Testing", "Overview")}
+        )
+        labels = {b.locator["label"] for b in overviews}
+        self.assertIn("Architecture > Overview", labels)
+        self.assertIn("Testing > Overview", labels)
+        ids = [b.block_id for b in overviews]
+        self.assertEqual(len(ids), len(set(ids)), "block ids must stay unique")
+        # The two headings' own sections carry different text.
+        arch = next(
+            b for b in overviews if b.locator["heading_path"] == ["Architecture", "Overview"]
+        )
+        test = next(
+            b for b in overviews if b.locator["heading_path"] == ["Testing", "Overview"]
+        )
+        self.assertNotEqual(arch.block_id, test.block_id)
+        self.assertIn("Governance Architecture", arch.text)
+        self.assertIn("second overview", test.text)
+
+    def test_heading_level_jump_invents_nothing(self) -> None:
+        """h1 -> h3 nests one deeper; no missing h2 is fabricated."""
+        deep = next(
+            b for b in self.blocks() if b.metadata.get("heading_text") == "Deep Jump"
+        )
+        self.assertEqual(deep.locator["heading_path"], ["Testing", "Deep Jump"])
+        self.assertEqual(deep.metadata["heading_level"], 3)
+
+    def test_paragraphs_extracted(self) -> None:
+        texts = "\n".join(b.text for b in self.blocks())
+        self.assertIn("Intro with bold, emphasis and Example Link.", texts)
+        self.assertIn("After table", texts)
+        self.assertIn("second overview", texts)
+
+    def test_traditional_chinese_and_english_preserved(self) -> None:
+        texts = "\n".join(b.text for b in self.blocks())
+        self.assertIn("\u6cbb\u7406\u67b6\u69cb", texts)
+        self.assertIn("Governance Architecture", texts)
+
+    def test_unordered_list_extracted(self) -> None:
+        lists = [b for b in self.blocks() if b.block_type == si.BLOCK_HTML_LIST]
+        unordered = next(b for b in lists if b.metadata["list_type"] == "unordered")
+        self.assertIn("- alpha", unordered.text)
+        self.assertIn("- beta", unordered.text)
+
+    def test_ordered_list_preserves_numbering(self) -> None:
+        lists = [b for b in self.blocks() if b.block_type == si.BLOCK_HTML_LIST]
+        ordered = next(b for b in lists if b.metadata["list_type"] == "ordered")
+        self.assertEqual(ordered.text, "1. first\n2. second")
+
+    def test_nested_list_is_deterministic_and_not_duplicated(self) -> None:
+        lists = [b for b in self.blocks() if b.block_type == si.BLOCK_HTML_LIST]
+        unordered = next(b for b in lists if b.metadata["list_type"] == "unordered")
+        self.assertEqual(unordered.text, "- alpha\n- beta\n  - beta-nested")
+        # The nested list must not also appear as its own block.
+        all_text = "\n".join(b.text for b in self.blocks())
+        self.assertEqual(all_text.count("beta-nested"), 1)
+
+    def test_table_extracted(self) -> None:
+        table = next(b for b in self.blocks() if b.block_type == si.BLOCK_HTML_TABLE)
+        self.assertEqual(table.locator["table_index"], 1)
+        self.assertEqual(table.locator["start_row"], 1)
+        self.assertEqual(table.locator["end_row"], 4)
+        for cell in ("Control", "Owner", "Access", "Security", "Review", "Wide cell"):
+            self.assertIn(cell, table.text)
+
+    def test_table_row_order_is_deterministic(self) -> None:
+        table = next(b for b in self.blocks() if b.block_type == si.BLOCK_HTML_TABLE)
+        rows = table.text.split("\n")
+        self.assertEqual(rows[0], "Control | Owner")
+        self.assertEqual(rows[1], "Access | Security")
+        self.assertEqual(len(rows), 4)
+
+    def test_rowspan_colspan_are_not_expanded_into_a_grid(self) -> None:
+        """DOM cell order is reported; no visual spreadsheet model is invented."""
+        table = next(b for b in self.blocks() if b.block_type == si.BLOCK_HTML_TABLE)
+        rows = table.text.split("\n")
+        # The rowspan cell appears once, on the row where it is declared.
+        self.assertEqual(rows[1], "Access | Security")
+        self.assertEqual(rows[2], "Review")
+        self.assertEqual(table.text.count("Access"), 1)
+        # The colspan cell is a single cell, not duplicated across columns.
+        self.assertEqual(rows[3], "Wide cell")
+        self.assertEqual(table.metadata["row_count"], 4)
+
+    def test_mixed_document_order_preserved(self) -> None:
+        blocks = self.blocks()
+        kinds = [b.block_type for b in blocks]
+        table_at = kinds.index(si.BLOCK_HTML_TABLE)
+        first_list_at = kinds.index(si.BLOCK_HTML_LIST)
+        before = "\n".join(b.text for b in blocks[:table_at])
+        after = "\n".join(b.text for b in blocks[table_at + 1 :])
+        self.assertLess(first_list_at, table_at, "lists precede the table in source")
+        self.assertIn("Governance Architecture", before)
+        self.assertIn("After table", after)
+        self.assertNotIn("After table", before)
+        self.assertEqual([b.ordinal for b in blocks], list(range(1, len(blocks) + 1)))
+
+    def test_visible_hyperlink_text_retained(self) -> None:
+        texts = "\n".join(b.text for b in self.blocks())
+        self.assertIn("Example Link", texts)
+
+    def test_hyperlink_target_is_not_source_evidence(self) -> None:
+        """Link text is kept; the destination is never followed or ingested."""
+        serialized = json.dumps(
+            si.ingest_source(self.html(), "src_html").to_dict(), ensure_ascii=False
+        )
+        self.assertNotIn("example.invalid/page", serialized)
+
+    def test_script_content_excluded(self) -> None:
+        texts = "\n".join(b.text for b in self.blocks())
+        self.assertNotIn("var a = 1", texts)
+        self.assertNotIn("app.js", texts)
+
+    def test_style_content_excluded(self) -> None:
+        texts = "\n".join(b.text for b in self.blocks())
+        self.assertNotIn("display:none", texts)
+        self.assertNotIn(".hidden", texts)
+
+    def test_comments_excluded(self) -> None:
+        texts = "\n".join(b.text for b in self.blocks())
+        self.assertNotIn("must never be ingested", texts)
+
+    def test_json_ld_excluded(self) -> None:
+        texts = "\n".join(b.text for b in self.blocks())
+        self.assertNotIn("JSONLD Headline", texts)
+        self.assertNotIn("@type", texts)
+
+    def test_noscript_not_ingested(self) -> None:
+        texts = "\n".join(b.text for b in self.blocks())
+        self.assertNotIn("noscript content", texts)
+
+    def test_title_and_head_not_ingested(self) -> None:
+        texts = "\n".join(b.text for b in self.blocks())
+        self.assertNotIn("Ignored Title", texts)
+
+    def test_iframe_and_image_references_not_resolved(self) -> None:
+        serialized = json.dumps(
+            si.ingest_source(self.html(), "src_html").to_dict(), ensure_ascii=False
+        )
+        for reference in ("example.invalid/frame", "example.invalid/image.png"):
+            self.assertNotIn(reference, serialized)
+
+    def test_empty_html_fails_with_text_unavailable(self) -> None:
+        path = self.write("empty.html", "<html><head></head><body></body></html>\n")
+        self.assertEqual(si.detect_source_format(path), si.FORMAT_HTML)
+        with self.assertRaises(si.SourceTextUnavailable) as ctx:
+            si.ingest_source(path, "src_emptyhtml")
+        self.assertEqual(ctx.exception.error_code, si.ERROR_SOURCE_TEXT_UNAVAILABLE)
+
+    def test_script_only_html_fails_without_javascript(self) -> None:
+        path = self.write(
+            "scriptonly.html",
+            '<html><body><script>document.write("content")</script></body></html>\n',
+        )
+        with self.assertRaises(si.SourceTextUnavailable) as ctx:
+            si.ingest_source(path, "src_scriptonly")
+        self.assertIn("JavaScript is not executed", str(ctx.exception))
+
+    def test_malformed_recoverable_html_is_deterministic(self) -> None:
+        path = self.write(
+            "malformed.htm", "<html><body><p>unclosed<div>mixed</p></body>\n"
+        )
+        first = si.ingest_source(path, "src_bad").to_dict()
+        second = si.ingest_source(path, "src_bad").to_dict()
+        self.assertEqual(first, second)
+        self.assertIn("unclosed", first["blocks"][0]["text"])
+
+    def test_stable_block_ids_and_repeatability(self) -> None:
+        path = self.html()
+        first = si.ingest_source(path, "src_html").to_dict()
+        second = si.ingest_source(path, "src_html").to_dict()
+        self.assertEqual(first, second)
+        for block in si.ingest_source(path, "src_html").blocks:
+            self.assertEqual(
+                block.block_id,
+                si.compute_block_id("src_html", block.locator, block.ordinal),
+            )
+            self.assertTrue(block.block_id.startswith("blk:src_html:"))
+
+    def test_structural_ordinals_are_one_based(self) -> None:
+        for block in self.blocks():
+            self.assertGreaterEqual(block.locator["start_element"], 1)
+            self.assertGreaterEqual(
+                block.locator["end_element"], block.locator["start_element"]
+            )
+
+    def test_no_page_locator_is_fabricated(self) -> None:
+        for block in self.blocks():
+            self.assertEqual(block.locator["kind"], "section")
+            for forbidden in ("page", "scroll", "pixel", "offset"):
+                self.assertNotIn(forbidden, block.locator)
+                self.assertNotIn(forbidden, block.metadata)
+
+    def test_absolute_path_independence(self) -> None:
+        with tempfile.TemporaryDirectory() as d1, tempfile.TemporaryDirectory() as d2:
+            p1, p2 = Path(d1) / "a.html", Path(d2) / "a.html"
+            p1.write_text(HTML_FIXTURE, encoding="utf-8")
+            p2.write_text(HTML_FIXTURE, encoding="utf-8")
+            r1 = si.ingest_source(p1, "src_same")
+            r2 = si.ingest_source(p2, "src_same")
+            self.assertEqual(r1.to_dict(), r2.to_dict())
+            serialized = json.dumps(r1.to_dict(), ensure_ascii=False)
+            self.assertNotIn(d1, serialized)
+            self.assertNotIn(d2, serialized)
+
+    def test_source_digest_is_raw_bytes(self) -> None:
+        path = self.html()
+        result = si.ingest_source(path, "src_html")
+        self.assertEqual(result.source_digest, compute_source_digest(path.read_bytes()))
+
+    def test_equivalent_dom_different_bytes_may_differ_in_digest(self) -> None:
+        """Whitespace-only markup differences keep Phase 12 change semantics."""
+        tight = self.write("a.html", "<html><body><p>Hello</p></body></html>")
+        loose = self.write("b.html", "<html><body><p>\n  Hello\n</p></body></html>")
+        a = si.ingest_source(tight, "src_eq")
+        b = si.ingest_source(loose, "src_eq")
+        self.assertEqual(a.blocks[0].text, b.blocks[0].text)
+        self.assertNotEqual(a.source_digest, b.source_digest)
+
+    def test_utf8_bom_handled(self) -> None:
+        raw = b"\xef\xbb\xbf" + HTML_FIXTURE.encode("utf-8")
+        path = self.write("bom.html", raw)
+        blocks = si.ingest_source(path, "src_bomhtml").blocks
+        self.assertIn("\u6cbb\u7406\u67b6\u69cb", "\n".join(b.text for b in blocks))
+
+    def test_unsupported_encoding_fails_clearly(self) -> None:
+        path = self.write("latin1.html", b"<html><body><p>caf\xe9</p></body></html>")
+        with self.assertRaises(si.SourceEncodingUnsupported) as ctx:
+            si.ingest_source(path, "src_latinhtml")
+        self.assertEqual(ctx.exception.error_code, si.ERROR_SOURCE_ENCODING_UNSUPPORTED)
+
+    def test_html_locator_accepted_by_frozen_phase12_validator(self) -> None:
+        result = si.ingest_source(self.html(), "src_html")
+        inventory = SourceInventory.initialize(self.root, "proj")
+        inventory.add_source("src_html", "html", source_digest=result.source_digest)
+        for block in result.blocks:
+            locator = si.phase12_locator(block)
+            self.assertEqual(locator["kind"], "section")
+            self.assertEqual(validate_locator(locator), [])
+            unit = inventory.add_unit("src_html", "generic", locator, "MEDIUM")
+            self.assertTrue(unit["unit_id"].startswith("su:src_html:"))
+        inventory.save()
+        self.assertEqual(len(inventory.data["units"]), result.block_count)
+
+    def test_no_phase12_artifact_written(self) -> None:
+        si.ingest_source(self.html(), "src_html")
+        for artifact in (
+            "source_inventory.json",
+            "claim_traceability.json",
+            "source_coverage.json",
+            "source_grounded_qa.json",
+        ):
+            self.assertFalse((self.root / artifact).exists(), artifact)
+
+    def test_no_priority_is_assigned_by_extraction(self) -> None:
+        for block in self.blocks():
+            serialized = json.dumps(block.to_dict(), ensure_ascii=False)
+            for word in ("HIGH", "MEDIUM", "LOW"):
+                self.assertNotIn(word, serialized)
+
+
+# ---------------------------------------------------------------------------
+# HTML network-safety contract (Phase 13.4)
+# ---------------------------------------------------------------------------
+class TestHtmlNetworkSafety(IngestionTestCase):
+    """Prove no network access, rather than relying on the network being down."""
+
+    def test_no_socket_is_opened_during_html_ingestion(self) -> None:
+        import socket
+
+        calls: list[str] = []
+
+        def deny(*args: object, **kwargs: object):
+            calls.append("socket")
+            raise AssertionError("HTML ingestion attempted to open a socket")
+
+        originals = {
+            "socket": socket.socket,
+            "create_connection": socket.create_connection,
+            "getaddrinfo": socket.getaddrinfo,
+        }
+        socket.socket = deny  # type: ignore[assignment]
+        socket.create_connection = deny  # type: ignore[assignment]
+        socket.getaddrinfo = deny  # type: ignore[assignment]
+        try:
+            result = si.ingest_source(self.html(), "src_nonet")
+        finally:
+            socket.socket = originals["socket"]  # type: ignore[assignment]
+            socket.create_connection = originals["create_connection"]  # type: ignore[assignment]
+            socket.getaddrinfo = originals["getaddrinfo"]  # type: ignore[assignment]
+
+        self.assertEqual(calls, [])
+        self.assertGreater(result.block_count, 0)
+
+    def test_no_urlopen_during_html_ingestion(self) -> None:
+        import urllib.request
+
+        calls: list[str] = []
+
+        def deny(*args: object, **kwargs: object):
+            calls.append("urlopen")
+            raise AssertionError("HTML ingestion attempted an HTTP request")
+
+        original = urllib.request.urlopen
+        urllib.request.urlopen = deny  # type: ignore[assignment]
+        try:
+            si.ingest_source(self.html(), "src_nonet2")
+        finally:
+            urllib.request.urlopen = original  # type: ignore[assignment]
+        self.assertEqual(calls, [])
+
+    def test_local_relative_assets_are_not_read(self) -> None:
+        """A referenced local file must never be opened by the parser."""
+        secret = self.root / "secret.txt"
+        secret.write_text("SHOULD-NEVER-BE-READ", encoding="utf-8")
+        sibling = self.root / "other.html"
+        sibling.write_text(
+            "<html><body><p>SIBLING-CONTENT</p></body></html>", encoding="utf-8"
+        )
+        page = self.write(
+            "page.html",
+            "<html><body>"
+            '<h1>Main</h1><p>Only this counts.</p>'
+            '<img src="secret.txt">'
+            '<iframe src="other.html"></iframe>'
+            '<link rel="stylesheet" href="secret.txt">'
+            "</body></html>",
+        )
+        serialized = json.dumps(
+            si.ingest_source(page, "src_local").to_dict(), ensure_ascii=False
+        )
+        self.assertIn("Only this counts.", serialized)
+        self.assertNotIn("SHOULD-NEVER-BE-READ", serialized)
+        self.assertNotIn("SIBLING-CONTENT", serialized)
+
+    def test_no_browser_or_ocr_module_is_imported(self) -> None:
+        si.ingest_source(self.html(), "src_nobrowser")
+        forbidden = {
+            "playwright",
+            "selenium",
+            "pyppeteer",
+            "pytesseract",
+            "tesserocr",
+            "easyocr",
+        }
+        self.assertEqual(forbidden & set(sys.modules), set())
+
+
+# ---------------------------------------------------------------------------
 # Cross-format regression: Phase 13.3 must not change earlier extractors
 # ---------------------------------------------------------------------------
 class TestExistingExtractorsUnchanged(IngestionTestCase):
@@ -781,8 +1231,31 @@ class TestExistingExtractorsUnchanged(IngestionTestCase):
         self.assertEqual(si.detect_source_format(self.pdf()), si.FORMAT_PDF)
         self.assertEqual(si.detect_source_format(self.markdown()), si.FORMAT_MARKDOWN)
         self.assertEqual(si.detect_source_format(self.text()), si.FORMAT_TEXT)
+        self.assertEqual(si.detect_source_format(self.docx()), si.FORMAT_DOCX)
         fake = self.write("fake.pdf", b"this is not a pdf at all")
         self.assertEqual(si.detect_source_format(fake), si.FORMAT_UNSUPPORTED)
+
+    def test_docx_behaviour_unchanged(self) -> None:
+        """Phase 13.4 must not alter the DOCX block or locator shape."""
+        blocks = si.ingest_source(self.docx(), "src_docx").blocks
+        self.assertEqual(len(blocks), 6)
+        self.assertEqual(
+            [b.block_type for b in blocks],
+            [
+                si.BLOCK_DOCX_SECTION,
+                si.BLOCK_DOCX_SECTION,
+                si.BLOCK_DOCX_TABLE,
+                si.BLOCK_DOCX_SECTION,
+                si.BLOCK_DOCX_SECTION,
+                si.BLOCK_DOCX_SECTION,
+            ],
+        )
+        table = blocks[2]
+        self.assertEqual(table.locator["table_index"], 1)
+        self.assertEqual(table.locator["end_row"], 3)
+        # DOCX table locators intentionally keep their existing shape.
+        self.assertNotIn("start_element", table.locator)
+        self.assertEqual(blocks[0].locator["heading_path"], ["Governance"])
 
     def test_extractor_version_unchanged_shape(self) -> None:
         for path, source_id in (
@@ -790,6 +1263,7 @@ class TestExistingExtractorsUnchanged(IngestionTestCase):
             (self.markdown(), "src_md"),
             (self.text(), "src_txt"),
             (self.docx(), "src_docx"),
+            (self.html(), "src_html"),
         ):
             result = si.ingest_source(path, source_id)
             self.assertEqual(result.extractor_version, si.EXTRACTOR_VERSION)
@@ -894,6 +1368,43 @@ class TestCliAdapter(IngestionTestCase):
         path = self.write("empty.docx", build_empty_docx())
         code, stdout, stderr = self.run_cli(
             ["--source", str(path), "--source-id", "src_empty"]
+        )
+        self.assertEqual(code, 1)
+        self.assertEqual(stdout, "")
+        self.assertTrue(stderr.startswith(si.ERROR_SOURCE_TEXT_UNAVAILABLE))
+        self.assertNotIn("Traceback", stderr)
+
+    def test_cli_handles_html_through_same_api(self) -> None:
+        out_path = self.root / "html.json"
+        code, stdout, _ = self.run_cli(
+            [
+                "--source",
+                str(self.html()),
+                "--source-id",
+                "src_html",
+                "--output",
+                str(out_path),
+            ]
+        )
+        self.assertEqual(code, 0)
+        summary = json.loads(stdout)
+        self.assertEqual(summary["source_format"], "html")
+        self.assertEqual(summary["block_count"], 9)
+        written = json.loads(out_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(written["blocks"]), 9)
+
+    def test_cli_has_no_url_option(self) -> None:
+        """Phase 13.4 is local-file only: no --url input exists."""
+        import ingest_source as cli
+
+        actions = {a.option_strings[0] for a in cli.build_parser()._actions if a.option_strings}
+        self.assertNotIn("--url", actions)
+        self.assertIn("--source", actions)
+
+    def test_cli_html_error_has_no_traceback(self) -> None:
+        path = self.write("empty.html", "<html><head></head><body></body></html>")
+        code, stdout, stderr = self.run_cli(
+            ["--source", str(path), "--source-id", "src_eh"]
         )
         self.assertEqual(code, 1)
         self.assertEqual(stdout, "")

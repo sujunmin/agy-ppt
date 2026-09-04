@@ -24,10 +24,10 @@ whether a source supports a claim, what belongs on a slide, or how the source
 should be semantically segmented. Those are AGY decisions, and an extracted
 block is therefore **not** a Phase 12 semantic source unit.
 
-Scope of Phase 13.2-13.3: PDF with an extractable text layer, Markdown, plain
-text, and DOCX, all read from the local filesystem. There is no OCR, no network
-acquisition, and no HTML support -- each of those fails deterministically
-rather than silently degrading.
+Scope of Phase 13.2-13.4: PDF with an extractable text layer, Markdown, plain
+text, DOCX, and local static HTML, all read from the local filesystem. There is
+no OCR, no network acquisition, no browser and no JavaScript execution -- each
+unsupported case fails deterministically rather than silently degrading.
 """
 
 from __future__ import annotations
@@ -68,14 +68,22 @@ FORMAT_PDF = "pdf"
 FORMAT_MARKDOWN = "markdown"
 FORMAT_TEXT = "text"
 FORMAT_DOCX = "docx"
+FORMAT_HTML = "html"
 FORMAT_UNSUPPORTED = "unsupported"
 
-SUPPORTED_FORMATS = (FORMAT_PDF, FORMAT_MARKDOWN, FORMAT_TEXT, FORMAT_DOCX)
+SUPPORTED_FORMATS = (
+    FORMAT_PDF,
+    FORMAT_MARKDOWN,
+    FORMAT_TEXT,
+    FORMAT_DOCX,
+    FORMAT_HTML,
+)
 
 MARKDOWN_SUFFIXES = (".md", ".markdown", ".mdown")
 TEXT_SUFFIXES = (".txt", ".text")
 PDF_SUFFIXES = (".pdf",)
 DOCX_SUFFIXES = (".docx",)
+HTML_SUFFIXES = (".html", ".htm")
 
 #: Every PDF must start with this signature; extension alone is never trusted.
 PDF_SIGNATURE = b"%PDF-"
@@ -87,6 +95,13 @@ ZIP_SIGNATURE = b"PK\x03\x04"
 #: from a spreadsheet/presentation OOXML package.
 DOCX_BODY_PART = "word/document.xml"
 
+#: Markers that identify an HTML document by content rather than by extension.
+#: Deliberately conservative: a stray ``<div>`` inside a text file is not enough.
+HTML_MARKERS = (b"<!doctype html", b"<html", b"<head", b"<body")
+
+#: How many leading bytes are inspected when sniffing for HTML markers.
+HTML_SNIFF_BYTES = 4096
+
 # ---------------------------------------------------------------------------
 # Block types
 # ---------------------------------------------------------------------------
@@ -95,6 +110,9 @@ BLOCK_MARKDOWN_SECTION = "markdown_section"
 BLOCK_PARAGRAPH = "paragraph"
 BLOCK_DOCX_SECTION = "docx_section"
 BLOCK_DOCX_TABLE = "docx_table"
+BLOCK_HTML_SECTION = "html_section"
+BLOCK_HTML_LIST = "html_list"
+BLOCK_HTML_TABLE = "html_table"
 
 # ---------------------------------------------------------------------------
 # Error taxonomy
@@ -271,7 +289,7 @@ def detect_source_format(path: str | Path) -> str:
         raise SourceFileNotFound(f"source file not found: {p.name}")
     try:
         with p.open("rb") as fh:
-            head = fh.read(max(len(PDF_SIGNATURE), len(ZIP_SIGNATURE)))
+            head = fh.read(HTML_SNIFF_BYTES)
     except OSError as exc:
         raise SourceReadFailed(f"could not read source file: {exc}")
 
@@ -287,6 +305,17 @@ def detect_source_format(path: str | Path) -> str:
         return FORMAT_TEXT
     if suffix in DOCX_SUFFIXES:
         return FORMAT_DOCX
+
+    lowered = head.lower()
+    if suffix in HTML_SUFFIXES:
+        # Trust the extension only when the content does not contradict it:
+        # a file named .html with no element markup at all is not HTML.
+        return FORMAT_HTML if _HTML_TAG_RE.search(head) else FORMAT_UNSUPPORTED
+    if any(marker in lowered for marker in HTML_MARKERS):
+        # Extension-less or oddly named HTML is still routed to HTML, but only
+        # on an html-specific marker -- never on the presence of any tag, so
+        # generic XML is not misclassified.
+        return FORMAT_HTML
     return FORMAT_UNSUPPORTED
 
 
@@ -793,6 +822,322 @@ def extract_docx(raw: bytes, source_id: str) -> list[ExtractedBlock]:
 
 
 # ---------------------------------------------------------------------------
+# HTML
+# ---------------------------------------------------------------------------
+#: Matches the start of any element tag, used only to confirm that a file named
+#: ``.html`` actually contains markup.
+_HTML_TAG_RE = re.compile(rb"<[A-Za-z]")
+
+#: Elements whose contents are code, styling, or browser-execution state rather
+#: than document text. Their entire subtree is skipped.
+HTML_EXCLUDED_TAGS = frozenset(
+    {"script", "style", "template", "noscript", "head", "svg", "math"}
+)
+
+#: Elements that become their own extraction block, in document order.
+_HTML_HEADINGS = ("h1", "h2", "h3", "h4", "h5", "h6")
+_HTML_BLOCK_TAGS = frozenset(_HTML_HEADINGS) | {"p", "ul", "ol", "table"}
+
+
+def _html_excluded(element: Any) -> bool:
+    """True when an element sits inside excluded, tabular, or nested-list content."""
+    for ancestor in element.iterancestors():
+        tag = ancestor.tag
+        if not isinstance(tag, str):
+            continue
+        if tag in HTML_EXCLUDED_TAGS:
+            return True
+        if tag == "table":
+            # Text inside a table belongs to that table's block.
+            return True
+        if tag in ("ul", "ol"):
+            # Nested list content is rendered inside its outermost list block.
+            return True
+    return False
+
+
+def _html_inline_text(element: Any) -> str:
+    """Visible text of an element, excluding excluded subtrees and nested lists.
+
+    Inline markup such as ``strong``, ``em``, ``span``, ``code`` and ``a``
+    contributes its text here rather than becoming a separate block, so a bold
+    phrase never fragments a paragraph.
+    """
+    parts: list[str] = []
+
+    def walk(node: Any, is_root: bool) -> None:
+        tag = node.tag
+        if isinstance(tag, str):
+            if tag in HTML_EXCLUDED_TAGS:
+                return
+            if not is_root and tag in ("ul", "ol"):
+                return
+        if node.text:
+            parts.append(node.text)
+        for child in node:
+            walk(child, False)
+            if child.tail:
+                parts.append(child.tail)
+
+    walk(element, True)
+    return _normalize_html_text("".join(parts))
+
+
+def _normalize_html_text(text: str) -> str:
+    """Collapse HTML whitespace deterministically without rewriting content."""
+    text = text.replace("\xa0", " ")
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _html_list_lines(element: Any, depth: int = 0) -> list[str]:
+    """Render a list, and any nested lists, as deterministic indented lines.
+
+    Nested items appear once, indented under their parent item, so an outer list
+    block never duplicates the text of a list nested inside it. List depth
+    carries no priority meaning.
+    """
+    lines: list[str] = []
+    ordered = element.tag == "ol"
+    counter = 0
+    for item in element:
+        if not isinstance(item.tag, str) or item.tag != "li":
+            continue
+        counter += 1
+        marker = f"{counter}." if ordered else "-"
+        own = _html_inline_text(item)
+        lines.append(f"{'  ' * depth}{marker} {own}".rstrip())
+        for child in item:
+            if isinstance(child.tag, str) and child.tag in ("ul", "ol"):
+                lines.extend(_html_list_lines(child, depth + 1))
+    return lines
+
+
+def _html_table_text(element: Any) -> tuple[str, int, int]:
+    """Flatten an HTML table in DOM row-major order.
+
+    One output line per ``tr``, cells joined with ``" | "``. Cells are taken in
+    the order they actually appear in the DOM.
+
+    ``rowspan`` and ``colspan`` attributes are **not** expanded into a visual
+    grid: no spreadsheet model is reconstructed, so a spanned cell appears once,
+    on the row where it is declared, and later rows show only the cells they
+    actually contain. This is the real DOM cell order and is tested as such.
+    """
+    rows: list[str] = []
+    row_count = 0
+    column_count = 0
+    for row in element.iter("tr"):
+        cells = [c for c in row if isinstance(c.tag, str) and c.tag in ("td", "th")]
+        if not cells:
+            continue
+        row_count += 1
+        texts = [_html_inline_text(c).replace("\n", " ").strip() for c in cells]
+        column_count = max(column_count, len(texts))
+        rows.append(" | ".join(texts))
+    return "\n".join(rows).strip(), row_count, column_count
+
+
+def extract_html(raw: bytes, source_id: str) -> list[ExtractedBlock]:
+    """Static structural extraction from a local HTML file.
+
+    This is **not** browser rendering. No JavaScript is executed, no CSS is
+    applied, no browser or headless engine is involved, and nothing is fetched:
+    ``img``/``script``/``link`` sources, stylesheets, iframes and hyperlinks are
+    never resolved or downloaded. Content that only exists after JavaScript runs
+    is therefore not ingested.
+
+    Because CSS is not evaluated, this is described as static structural text
+    extraction with non-content elements excluded -- not as "only
+    browser-visible text". An element hidden purely by CSS is not detected as
+    hidden.
+
+    ``script``, ``style``, ``template``, ``noscript``, ``svg`` and ``math``
+    subtrees are skipped, as are HTML comments and processing instructions, so
+    embedded JSON-LD never reaches ordinary source text. Headings, paragraphs,
+    lists and tables become blocks in DOM document order.
+    """
+    try:
+        import lxml.html as lxml_html
+    except ImportError as exc:  # pragma: no cover - dependency is declared
+        raise SourceExtractionFailed(f"lxml is required for HTML ingestion: {exc}")
+
+    text = _decode_text(raw)
+    if not text.strip():
+        raise SourceTextUnavailable("HTML source is empty")
+
+    # no_network hard-disables any external access the parser could attempt;
+    # comments and processing instructions are dropped before the tree is built.
+    parser = lxml_html.HTMLParser(
+        no_network=True,
+        remove_comments=True,
+        remove_pis=True,
+        huge_tree=False,
+    )
+    try:
+        document = lxml_html.document_fromstring(text, parser=parser)
+    except Exception as exc:
+        raise SourceExtractionFailed(f"HTML could not be parsed: {exc}")
+
+    blocks: list[ExtractedBlock] = []
+    ordinal = 0
+    element_index = 0
+    table_index = 0
+    list_index = 0
+    path_stack: list[tuple[int, str]] = []
+    heading_path: list[str] = []
+    pending: dict[str, Any] | None = None
+
+    def flush() -> None:
+        nonlocal pending, ordinal
+        if pending is None:
+            return
+        body = "\n\n".join(t for t in pending["texts"] if t).strip()
+        if body:
+            ordinal += 1
+            locator = {
+                "kind": "section",
+                "label": " > ".join(pending["heading_path"]) or "(preamble)",
+                "heading_path": list(pending["heading_path"]),
+                "start_element": pending["start"],
+                "end_element": pending["end"],
+            }
+            blocks.append(
+                ExtractedBlock(
+                    block_id=compute_block_id(source_id, locator, ordinal),
+                    block_type=BLOCK_HTML_SECTION,
+                    text=body,
+                    locator=locator,
+                    ordinal=ordinal,
+                    metadata={
+                        "heading_level": pending["heading_level"],
+                        "heading_text": pending["heading_text"],
+                    },
+                )
+            )
+        pending = None
+
+    for element in document.iter():
+        tag = element.tag
+        if not isinstance(tag, str) or tag not in _HTML_BLOCK_TAGS:
+            continue
+        if _html_excluded(element):
+            continue
+        element_index += 1
+
+        if tag in _HTML_HEADINGS:
+            level = int(tag[1])
+            content = _html_inline_text(element)
+            flush()
+            # A jumped level (h1 -> h3) simply nests one deeper; no missing
+            # intermediate heading is ever invented.
+            while path_stack and path_stack[-1][0] >= level:
+                path_stack.pop()
+            path_stack.append((level, content))
+            heading_path = [name for _lvl, name in path_stack]
+            pending = {
+                "heading_path": list(heading_path),
+                "heading_level": level,
+                "heading_text": content,
+                "texts": [content] if content else [],
+                "start": element_index,
+                "end": element_index,
+            }
+            continue
+
+        if tag == "p":
+            content = _html_inline_text(element)
+            if not content:
+                continue
+            if pending is None:
+                pending = {
+                    "heading_path": list(heading_path),
+                    "heading_level": path_stack[-1][0] if path_stack else 0,
+                    "heading_text": path_stack[-1][1] if path_stack else None,
+                    "texts": [],
+                    "start": element_index,
+                    "end": element_index,
+                }
+            pending["texts"].append(content)
+            pending["end"] = element_index
+            continue
+
+        if tag in ("ul", "ol"):
+            flush()
+            lines = _html_list_lines(element)
+            body = "\n".join(line for line in lines if line.strip("- ").strip())
+            if not body.strip():
+                continue
+            list_index += 1
+            ordinal += 1
+            locator = {
+                "kind": "section",
+                "label": f"List {list_index}",
+                "heading_path": list(heading_path),
+                "list_index": list_index,
+                "start_element": element_index,
+                "end_element": element_index,
+            }
+            blocks.append(
+                ExtractedBlock(
+                    block_id=compute_block_id(source_id, locator, ordinal),
+                    block_type=BLOCK_HTML_LIST,
+                    text=body,
+                    locator=locator,
+                    ordinal=ordinal,
+                    metadata={
+                        "list_index": list_index,
+                        "list_type": "ordered" if tag == "ol" else "unordered",
+                        "item_count": len(lines),
+                        "element_index": element_index,
+                    },
+                )
+            )
+            continue
+
+        # tag == "table"
+        flush()
+        body, row_count, column_count = _html_table_text(element)
+        if not body:
+            continue
+        table_index += 1
+        ordinal += 1
+        locator = {
+            "kind": "section",
+            "label": f"Table {table_index}",
+            "heading_path": list(heading_path),
+            "table_index": table_index,
+            "start_row": 1,
+            "end_row": row_count,
+            "start_element": element_index,
+            "end_element": element_index,
+        }
+        blocks.append(
+            ExtractedBlock(
+                block_id=compute_block_id(source_id, locator, ordinal),
+                block_type=BLOCK_HTML_TABLE,
+                text=body,
+                locator=locator,
+                ordinal=ordinal,
+                metadata={
+                    "table_index": table_index,
+                    "row_count": row_count,
+                    "column_count": column_count,
+                    "element_index": element_index,
+                },
+            )
+        )
+
+    flush()
+
+    if not blocks:
+        raise SourceTextUnavailable(
+            "HTML has no extractable static text; JavaScript is not executed and "
+            "no browser rendering, remote resource loading or OCR is performed"
+        )
+    return blocks
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 _EXTRACTORS = {
@@ -800,6 +1145,7 @@ _EXTRACTORS = {
     FORMAT_MARKDOWN: extract_markdown,
     FORMAT_TEXT: extract_text,
     FORMAT_DOCX: extract_docx,
+    FORMAT_HTML: extract_html,
 }
 
 
@@ -822,7 +1168,8 @@ def ingest_source(path: str | Path, source_id: str) -> ExtractionResult:
     if source_format not in _EXTRACTORS:
         raise SourceFormatUnsupported(
             f"unsupported source format for {p.name!r}; Phase 13 supports "
-            f"{', '.join(SUPPORTED_FORMATS)} (no HTML and no OCR)"
+            f"{', '.join(SUPPORTED_FORMATS)} (local files only; no remote URL "
+            "ingestion and no OCR)"
         )
 
     try:
@@ -852,10 +1199,10 @@ def phase12_locator(block: ExtractedBlock) -> dict[str, Any]:
     (``page``, ``section``, ``line_range``), so handoff needs no translation
     and no change to Phase 12: PDF pages use ``page``, Markdown sections use
     ``section`` with an additional ``heading_path``/line range, plain-text
-    paragraphs use ``line_range``, and DOCX sections and tables use ``section``
-    with structural element/row ranges. Nothing here contains a filesystem path
-    -- a locator describes a position *within* a source, and the source itself
-    is identified by ``source_id``.
+    paragraphs use ``line_range``, and DOCX and HTML sections, lists and tables
+    use ``section`` with structural element/row ranges. Nothing here contains a
+    filesystem path -- a locator describes a position *within* a source, and the
+    source itself is identified by ``source_id``.
 
     Handing the result to :meth:`SourceInventory.add_unit` remains an AGY
     decision: this returns the locator for a block AGY has *chosen* to promote,

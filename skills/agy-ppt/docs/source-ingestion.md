@@ -76,10 +76,11 @@ python3 skills/agy-ppt/scripts/ingest_source.py \
 | Markdown | 支援 |
 | Plain text | 支援 |
 | DOCX | 支援 |
-| HTML | 尚未支援 |
+| 本機靜態 HTML | 支援 |
+| 遠端 URL ingestion | 不支援 |
 | OCR / 掃描影像 PDF | 不支援 |
 | PowerPoint / 試算表 | 不支援 |
-| 遠端 URL / 網頁抓取 | 不支援 |
+| 網頁抓取 / crawler | 不支援 |
 
 Phase 13 只處理**本機檔案**。來源取得（下載、認證、網路）屬 orchestration 層行為，
 不在本模組內。
@@ -107,6 +108,16 @@ Codex OCR 或任何 image-to-text API。沒有隱形 fallback。
    容器裡，正是這種情況）仍路由到 DOCX，讓 extraction 能給出 DOCX 專屬的明確
    失敗訊息，而不是含糊的「格式不支援」。
 5. 其餘皆為 `unsupported`，包含只是**取名**為 `.pdf` 但沒有 PDF signature 的檔案。
+
+HTML 的判定刻意保守：
+
+- 副檔名為 `.html`／`.htm`：只有內容確實含有元素標記（`<` 緊接字母）才視為 HTML。
+  一個叫 `.html` 但完全沒有標記的純文字檔會是 `unsupported`——內容明確與副檔名矛盾。
+- 沒有可辨識副檔名時，只有出現 HTML 專屬標記
+  （`<!doctype html`、`<html`、`<head`、`<body`）才視為 HTML。因此一般 XML
+  **不會**被誤判為 HTML。
+- `.txt` 的判定在 HTML 之前，所以一個提到 `<div>` 的純文字檔仍然是 `text`，
+  不會被誤轉成 HTML。
 
 ## 5. Locator 語意
 
@@ -191,11 +202,65 @@ Heading 段落所涵蓋的區段：
 
 `sectPr` 這類純版面元素不計入 `element` 序號，因為它們不含來源文字。
 
+### HTML
+
+HTML locator 一律是**結構性**的：不虛構頁碼、螢幕位置、捲動位置或 CSS 像素位移。
+
+Heading 涵蓋的區段：
+
+```json
+{
+  "kind": "section",
+  "label": "Architecture > Source Ingestion",
+  "heading_path": ["Architecture", "Source Ingestion"],
+  "start_element": 12,
+  "end_element": 17
+}
+```
+
+清單：
+
+```json
+{
+  "kind": "section",
+  "label": "List 1",
+  "heading_path": ["Architecture"],
+  "list_index": 1,
+  "start_element": 5,
+  "end_element": 5
+}
+```
+
+表格：
+
+```json
+{
+  "kind": "section",
+  "label": "Table 1",
+  "heading_path": ["Architecture"],
+  "table_index": 1,
+  "start_row": 1,
+  "end_row": 4,
+  "start_element": 7,
+  "end_element": 7
+}
+```
+
+數值欄位的意義（全部 1-based）：
+
+| 欄位 | 意義 |
+| --- | --- |
+| `start_element` / `end_element` | **可擷取 block 元素**（heading、段落、最外層清單、表格）依文件順序的序號範圍。這是 extraction-order 序號，**不是** parser 內部 node index，也不是頁碼。 |
+| `list_index` | 這是文件中第幾個最外層清單。 |
+| `table_index` | 這是文件中第幾個表格。 |
+| `start_row` / `end_row` | 表格內的列序號範圍。 |
+
 ## 6. Block 契約
 
 ```text
 block_id
 block_type      page | markdown_section | paragraph | docx_section | docx_table
+                | html_section | html_list | html_table
 text
 locator
 ordinal
@@ -282,6 +347,119 @@ Phase 13 仍然只做本機檔案擷取。
 受密碼保護／加密的 DOCX 無法讀取，會 deterministic 失敗，**不會**互動式詢問密碼，
 Phase 13.3 也不加入任何密碼處理。
 
+## 6.2 HTML 結構擷取模型
+
+# HTML extraction ≠ browser rendering。
+
+Phase 13.4 只處理**本機** `.html` / `.htm` 靜態檔案。
+
+### 絕對不做的事
+
+```text
+JavaScript 執行：      NO
+browser / headless：   NO
+CSS 排版引擎：         NO
+遠端 URL 下載：        NO
+HTTP client：          NO
+crawler：              NO
+抓取 <img src>：       NO
+抓取 <script src>：    NO
+抓取 stylesheet：      NO
+解析 iframe 內容：     NO
+追蹤超連結：           NO
+OCR：                  NO
+```
+
+HTML ingestion 的網路活動為 **ZERO**。parser 以 `no_network=True` 建構，測試也會
+攔截 socket 與 `urlopen` 來證明沒有任何網路嘗試，而不是依賴「剛好連不上網」。
+
+本機相對資源同樣不會被讀取：`<img src="secret.txt">`、`<iframe src="other.html">`
+或 `<link href="...">` **不會**讓 parser 去開啟那些檔案。沒有遞迴取得來源。
+
+### 產生的 block
+
+| 內容 | 產生的 block |
+| --- | --- |
+| `h1`–`h6` + 其後的段落 | 一個 `html_section` |
+| 第一個 heading 之前的段落 | 一個 `html_section`，`heading_path` 為 `[]`，label 為 `(preamble)` |
+| 最外層的 `ul` / `ol` | 一個 `html_list`（**每個清單一個 block**，不是每個項目一個） |
+| 每個 `table` | 一個 `html_table` |
+
+Block 依 DOM 文件順序產生，因此
+`heading → 段落 → 表格 → 段落 → 清單` 不會變成「先全部段落、再全部表格、再清單」。
+
+當清單或表格插入其中時，之後的段落會形成同一個 `heading_path` 底下的新一個
+`html_section` block——這正是保留文件順序的方式。
+
+### Heading 只看真正的 heading 元素
+
+只有 `<h1>`–`<h6>` 元素會構成 heading path。**不會**從 font-size、粗體、CSS class、
+ARIA label 或視覺外觀推斷 heading。
+
+重複 heading 不會碰撞：`Architecture > Overview` 與 `Testing > Overview` 的
+`heading_path`、label 與 `block_id` 都不同。
+
+層級跳躍（`h1 → h3`）會直接多嵌一層，**不會**憑空補出中間缺少的 `h2`。
+
+### 行內元素
+
+`strong`、`em`、`span`、`code`、`a` 等行內元素的文字會併入所在段落，**不會**只因為
+某段文字是粗體或強調就切出獨立 block。
+
+超連結的**可見文字**會保留；`href` 目標**不會**被記錄成來源證據、不會被追蹤、
+也不會被下載。
+
+### 清單
+
+支援有序與無序清單，保留項目順序。巢狀清單的項目會縮排顯示在父項目底下，
+只出現一次，因此最外層清單的 block **不會**重複巢狀內容。清單深度不代表任何 priority。
+
+### 表格
+
+Row-major：依 DOM 順序逐 `tr`，每列輸出一行，儲存格以 `" | "` 分隔。
+
+`rowspan` / `colspan` **不會**被展開成視覺格線：本模組不重建 spreadsheet 模型，
+所以被合併的儲存格只會出現在它被宣告的那一列，後續列只顯示它實際包含的儲存格。
+這是真實的 DOM 儲存格順序，測試也照此驗證。不重建 CSS 欄寬或版面。
+
+### 排除的內容
+
+| 項目 | 狀態 |
+| --- | --- |
+| `script` 內容（含 JSON-LD） | 排除 |
+| `style` 內容 | 排除 |
+| `template` | 排除 |
+| `noscript` | **不擷取**（不假裝模擬瀏覽器執行狀態） |
+| HTML 註解 / processing instruction | 排除 |
+| `head`、`<title>`、`meta`、stylesheet `link` | 不作為來源內容擷取 |
+| `svg`、`math` | 排除 |
+| JavaScript 產生的內容 | **不擷取** |
+
+### 隱藏內容的限制
+
+本模組**不計算 CSS 可見性**。因此不聲稱「只擷取瀏覽器可見文字」，而是準確描述為：
+
+```text
+static structural HTML text extraction with excluded non-content elements
+```
+
+僅以 CSS `display:none` 隱藏的元素，Phase 13.4 不會判定為隱藏。
+
+### 未擷取的容器
+
+只有 `h1`–`h6`、`p`、`ul`、`ol`、`table` 會成為 block。放在裸 `div`、`span` 或其他
+容器內、且不在上述元素中的文字**不會**被擷取。這是刻意的取捨：把 `div` 當成 block
+會在真實 HTML 的深層嵌套中造成大量重複內容。
+
+### Malformed HTML
+
+lxml 提供 deterministic 的錯誤復原，因此合理但不完整的 HTML 仍可擷取，且重複執行
+結果一致。完全無法解析的輸入會以 `SOURCE_EXTRACTION_FAILED` 失敗，parser 例外
+不會外漏。
+
+空 HTML（`<html><head></head><body></body></html>`）或只有 `<script>` 的頁面會以
+`SOURCE_TEXT_UNAVAILABLE` 失敗，不會回傳「成功但零 block」。
+
 ## 7. 穩定 block_id 與 determinism
 
 `block_id` 形如 `blk:<source_id>:<hex12>`，由下列輸入 deterministic 推導：
@@ -324,6 +502,7 @@ Digest 一律計算在**原始 bytes** 上，不做前置正規化，因此與 P
 | `source_digest` | 原始 bytes，未正規化 |
 | extracted text | CRLF 與單獨 CR 正規化為 LF |
 | Markdown/TXT encoding | UTF-8 與 UTF-8 with BOM（BOM 會被去除） |
+| HTML encoding | UTF-8 與 UTF-8 with BOM；不支援的 encoding 會明確失敗，不產生亂碼 |
 | 不支援的 encoding | `SOURCE_ENCODING_UNSUPPORTED`，不產生亂碼 |
 | DOCX encoding | 由 OOXML 容器自行處理，Unicode 原樣保留 |
 
@@ -347,6 +526,26 @@ extraction normalization = deterministic 結構性文字擷取
 
 本模組不引入 `DOCX semantic digest`、`unzipped XML digest` 或
 `normalized Word digest` 之類的競爭性 fingerprint。
+
+### HTML 與 DOM 等價性
+
+下列兩份 HTML 會擷取出相同的文字：
+
+```html
+<p>Hello</p>
+```
+
+```html
+<p>
+  Hello
+</p>
+```
+
+但原始 bytes 不同，因此 `source_digest` **會**不同。這是正確的：Phase 12 的
+source-change 語意不因 DOM 等價而重新定義。
+
+同樣地，本模組不引入 `DOM digest`、`normalized HTML digest` 或
+`rendered-page digest` 之類的競爭性 fingerprint。
 
 ## 10. Extractor version
 
@@ -401,7 +600,7 @@ Phase 12 是 **COMPLETE / FROZEN**：Phase 13 沒有、也不需要修改 Phase 
 
 ## 14. 已知限制
 
-- 尚未支援 HTML ingestion。
+- 不支援遠端 URL ingestion、HTTP client、web crawler 或 browser。
 - 不支援 OCR；掃描或純影像 PDF 會明確失敗。
 - PDF 需要可擷取文字層。
 - PDF granularity 目前為 page 層級，不做版面語意重建。
@@ -411,5 +610,12 @@ Phase 12 是 **COMPLETE / FROZEN**：Phase 13 沒有、也不需要修改 Phase 
 - DOCX heading 判定只依賴內建 heading style；若文件改用自訂樣式或本地化樣式名稱，
   該段落會被視為普通段落。
 - 受密碼保護／加密的 DOCX 不支援，會 deterministic 失敗。
+- HTML 不執行 JavaScript、不套用 CSS、不使用 browser，因此 JavaScript 產生的內容
+  不會被擷取。
+- HTML 不計算 CSS 可見性，僅以 CSS 隱藏的元素不會被判定為隱藏。
+- HTML 只有 `h1`–`h6`、`p`、`ul`、`ol`、`table` 會成為 block；放在裸 `div` 等容器中
+  的文字不會被擷取。
+- HTML 表格不展開 `rowspan` / `colspan`，也不重建 CSS 欄寬或版面。
+- HTML 的 `<title>` 與 `meta` 不作為來源內容擷取。
 - Plain text 只做空行切分，不做 semantic chunking。
 - Extraction 不等於 semantic segmentation；AGY 仍是 semantic authority。
