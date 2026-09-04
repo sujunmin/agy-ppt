@@ -405,8 +405,29 @@ class AssemblyGateTests(SourceGroundingTestCase):
         cov.upsert_entry(self.high_unit["unit_id"], "HIGH", "covered", covered_by_slide_ids=["slide_01"])
         cov.save(known_unit_ids=self.inv.unit_ids())
 
-        errors = sg.assembly_precondition_errors(self.ws, {"slide_01"})
-        self.assertEqual(errors, [])
+        # Structural checks alone are satisfied at this point. Phase 12.3
+        # integrated the gate into the AGY workflow, so the *full* gate now
+        # additionally requires a grounded QA report carrying AGY's accepted
+        # Content-QA outcome -- see the assertion below.
+        structural_only = sg.assembly_precondition_errors(
+            self.ws, {"slide_01"}, require_grounded_qa=False
+        )
+        self.assertEqual(structural_only, [])
+
+        # Without AGY's Content-QA outcome the full gate must refuse.
+        self.assertTrue(sg.assembly_precondition_errors(self.ws, {"slide_01"}))
+
+        report = sg.build_grounded_qa_report(
+            "ppt_demo", self.inv, trace, cov, {"slide_01"},
+            semantic_findings={
+                "unsupported_claims": [],
+                "numeric_findings": [],
+                "modal_findings": [],
+                "agy_qa_outcome": "passed",
+            },
+        )
+        sg.save_grounded_qa_report(self.ws, report)
+        self.assertEqual(sg.assembly_precondition_errors(self.ws, {"slide_01"}), [])
 
 
 # ===========================================================================
