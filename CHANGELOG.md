@@ -95,6 +95,54 @@ All notable changes to `agy-ppt` will be documented in this file.
   An empty document or a page whose content exists only after JavaScript reports
   `SOURCE_TEXT_UNAVAILABLE`, while malformed but recoverable HTML is extracted
   deterministically. (#5)
+- Bounded public HTTP/HTTPS source acquisition
+  (`skills/agy-ppt/scripts/source_acquisition.py`) with a thin CLI
+  (`skills/agy-ppt/scripts/acquire_source.py`), for fetching one explicitly
+  supplied public URL into a repository-external local payload and handing it to
+  the existing source ingestion. Acquisition owns network behaviour only: it
+  never parses the payload, never decides its format, and never makes a semantic
+  judgement. (#6)
+- Redirect validation: every redirect hop is revalidated for scheme, embedded
+  credentials, hostname and resolved address, so a public URL that redirects to a
+  local, private, link-local or non-HTTP destination is refused. A finite
+  five-hop limit prevents redirect loops. (#6)
+- Destination guardrails: only `http` and `https` are eligible, URLs carrying
+  embedded credentials are rejected, local aliases are refused, and a hostname is
+  refused outright if any address it resolves to is loopback, private,
+  link-local, multicast, unspecified or reserved. IPv4-mapped IPv6 addresses are
+  unwrapped before classification. The HTTP opener installs no proxy handler and
+  no local-protocol handlers, so ambient proxy settings cannot reroute
+  acquisition and `file:`, `ftp:` and `data:` are unreachable. TLS certificate
+  verification is preserved and no option disables it. (#6)
+- Response bounds: a 25 MiB default size limit enforced both from
+  `Content-Length` and independently while streaming, a 30-second timeout, `GET`
+  only, and incremental reads rather than an unbounded read into memory. (#6)
+- Safe payload handling: the local filename is derived from the validated
+  `source_id` plus an allowlisted suffix, never from a `Content-Disposition`
+  filename or URL basename, and the resolved path is confirmed to stay inside the
+  caller's output directory. Downloads are written to a temporary file and
+  atomically renamed only after status, size and digest are settled, so a failed
+  attempt leaves no truncated payload. (#6)
+- Acquisition provenance recording the requested URL, final URL after redirects,
+  declared `Content-Type`, declared and actual sizes, redirect count, raw-byte
+  source digest and retrieval timestamp. The server-declared `Content-Type` is
+  advisory metadata and never overrides format detection, and the retrieval
+  timestamp influences no digest or identifier. (#6)
+- A dedicated acquisition error taxonomy — `REMOTE_URL_INVALID`,
+  `REMOTE_SCHEME_UNSUPPORTED`, `REMOTE_CREDENTIALS_UNSUPPORTED`,
+  `REMOTE_HOST_BLOCKED`, `REMOTE_REDIRECT_BLOCKED`,
+  `REMOTE_TOO_MANY_REDIRECTS`, `REMOTE_HTTP_ERROR`, `REMOTE_TIMEOUT`,
+  `REMOTE_RESPONSE_TOO_LARGE`, `REMOTE_CONTENT_ENCODING_UNSUPPORTED`,
+  `REMOTE_TLS_FAILED` and `REMOTE_ACQUISITION_FAILED` — kept disjoint from the
+  extraction and grounding codes. An HTTP error page is never passed into
+  ingestion as though it were the requested source. (#6)
+- Acquisition documentation
+  (`skills/agy-ppt/docs/source-acquisition.md`) covering the local-versus-remote
+  architecture, the public unauthenticated scope, the guardrails and their
+  limits, digest semantics, the acquisition-to-ingestion handoff, and an opt-in
+  bounded live validation against one small public document. Deterministic tests
+  inject the HTTP transport and DNS resolver so the ordinary suite never depends
+  on network availability. (#6)
 
 ### Changed
 
@@ -117,6 +165,11 @@ All notable changes to `agy-ppt` will be documented in this file.
   CSS visibility and layout are not reconstructed, `rowspan` and `colspan` are
   not expanded, and only heading, paragraph, list and table elements become
   blocks. (#5)
+- `SKILL.md` and both READMEs now describe the remote acquisition step ahead of
+  ingestion, its public unauthenticated scope, its guardrails, and the fact that
+  it is explicitly not a hardened multi-tenant SSRF sandbox: host validation
+  checks resolved addresses but does not pin them before connecting, leaving a
+  documented DNS-rebinding limitation. (#6)
 
 ## [0.2.0] - 2026-09-04
 
