@@ -77,13 +77,14 @@ python3 skills/agy-ppt/scripts/ingest_source.py \
 | Plain text | 支援 |
 | DOCX | 支援 |
 | 本機靜態 HTML | 支援 |
-| 遠端 URL ingestion | 不支援 |
+| 明確指定的公開 HTTP/HTTPS 來源取得 | 支援（Phase 13.5） |
+| 需認證／私有網站 | 不支援 |
 | OCR / 掃描影像 PDF | 不支援 |
 | PowerPoint / 試算表 | 不支援 |
 | 網頁抓取 / crawler | 不支援 |
 
-Phase 13 只處理**本機檔案**。來源取得（下載、認證、網路）屬 orchestration 層行為，
-不在本模組內。
+Extraction 只處理**本機檔案**。若來源在網路上，必須先由 Phase 13.5 的 acquisition
+層明確取得成本機 payload，再交給 extraction。
 
 ### PDF 需要可擷取文字層
 

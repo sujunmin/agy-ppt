@@ -507,6 +507,42 @@ python3 scripts/ingest_source.py \
 
 詳見 `docs/source-ingestion.md`。
 
+## 9.4 Remote Source Acquisition（optional，明確指定的公開 URL 適用）
+
+若來源不在本機，而是一個**明確指定的公開 URL**，可先用
+`scripts/acquire_source.py` 取得成本機 payload，再交給 9.3 的 ingestion：
+
+```text
+明確指定的公開 URL
+  → scripts/acquire_source.py（bounded acquisition）
+  → repository 外部的本機 payload
+  → Phase 13 ingestion
+  → AGY semantic segmentation
+  → source_inventory.json 的 source units
+  → 9.2 的 grounding workflow
+```
+
+```bash
+python3 scripts/acquire_source.py \
+    --url https://example.org/source.pdf \
+    --source-id <src_id> --output-dir <workspace> --ingest
+```
+
+- **Acquisition 不等於 extraction**：本層只負責取得位元組，不解析、不判斷格式、
+  不做語意判斷。`Content-Type` 只是 metadata，格式判定仍由既有 detection 決定。
+- **只支援公開未認證來源**：只允許 `http`/`https`，拒絕 URL 內嵌帳密，不使用 cookie、
+  `.netrc`、雲端憑證或任何 token。**沒有** browser、**沒有** JavaScript、
+  **沒有** crawler，也不會遞迴抓取 asset／iframe／連結。
+- **SSRF 護欄**：拒絕 `localhost` 與解析到 loopback／private／link-local／reserved
+  的目的位址，**每一個 redirect 跳點都重新驗證**，redirect 上限 5，response 上限
+  25 MiB，TLS 正常驗證。**這不是 hardened SSRF sandbox**，仍有 DNS-rebinding 殘餘
+  風險，詳見 `docs/source-acquisition.md`。
+- **Payload 落在 repository 之外**：由呼叫者指定 output directory，不建立隱性永久快取。
+- `source_digest` 仍是 Phase 12 的 `compute_source_digest()`，對取得的原始位元組計算；
+  `retrieved_at` 只供稽核，不影響任何 ID。
+
+詳見 `docs/source-acquisition.md`。
+
 ## 10. 必讀檔案
 
 - `docs/architecture-and-design-rationale.md`
@@ -519,4 +555,5 @@ python3 scripts/ingest_source.py \
 - `docs/slide-generation-and-subagents.md`
 - `docs/project-assembly-and-reporting.md`
 - `docs/source-grounding.md`（optional，僅適用於有 source document 的 source-driven 專案）
-- `docs/source-ingestion.md`（optional，僅適用於需要擷取本機 PDF/Markdown/純文字來源的專案）
+- `docs/source-ingestion.md`（optional，僅適用於需要擷取本機 PDF/Markdown/純文字/DOCX/HTML 來源的專案）
+- `docs/source-acquisition.md`（optional，僅適用於需要取得明確指定的公開 URL 來源的專案）

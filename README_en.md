@@ -419,14 +419,17 @@ local source
 
 ### Supported Formats
 
-| Format | Status |
+| Capability | Status |
 | --- | --- |
-| PDF with an extractable text layer | Supported on `main` |
-| Markdown | Supported on `main` |
-| Plain text | Supported on `main` |
-| DOCX | Supported on `main` |
+| Local PDF with an extractable text layer | Supported on `main` |
+| Local Markdown | Supported on `main` |
+| Local plain text | Supported on `main` |
+| Local DOCX | Supported on `main` |
 | Local static HTML | Supported on `main` |
-| Remote URL ingestion | Not supported |
+| Explicit public HTTP/HTTPS source acquisition | Supported on `main` |
+| Authenticated / private web sources | Not supported |
+| Web crawling | Not supported |
+| Browser / JavaScript rendering | Not supported |
 | OCR / scanned PDF | Not supported |
 
 ### Extraction Is Not Semantic Segmentation
@@ -499,6 +502,78 @@ block ids, locators, and ordering, and the result does not depend on the file's
 absolute path. See
 [`skills/agy-ppt/docs/source-ingestion.md`](skills/agy-ppt/docs/source-ingestion.md).
 
+## Remote Source Acquisition
+
+> **Status:** available on `main` after v0.2.0 (post-v0.2.0 development). **Not
+> included in v0.2.0.**
+
+When a source is not on disk, the acquisition layer fetches one **explicitly
+supplied public URL** and hands the resulting local payload to the existing
+extraction:
+
+```bash
+python3 skills/agy-ppt/scripts/acquire_source.py \
+    --url https://example.org/source.pdf \
+    --source-id src_example \
+    --output-dir /path/to/workspace \
+    --ingest
+```
+
+```text
+explicit public URL
+  -> bounded acquisition (Phase 13.5)
+  -> local payload outside the repository
+  -> existing extraction
+  -> AGY semantic segmentation
+  -> grounding workflow
+```
+
+`Acquisition != extraction`: this layer only fetches bytes. It does not parse the
+payload, decide its format, or make any semantic judgement. The server's declared
+`Content-Type` is metadata only, and format detection remains authoritative — a
+response labelled `application/pdf` whose body is actually HTML is not treated as
+a PDF.
+
+### Security Boundary
+
+```text
+public unauthenticated URLs only
+HTTP/HTTPS only
+URLs with embedded credentials rejected
+localhost, loopback, private, link-local and reserved destinations blocked
+every redirect destination revalidated
+redirect limit 5
+response size limited to 25 MiB
+timeout 30 seconds
+TLS certificate verification preserved
+no cookies, no .netrc, no cloud credentials, no auth tokens
+no browser, no JavaScript execution
+no crawling, no recursive asset / iframe / link fetching
+```
+
+The payload is written to the caller-provided directory — keep it outside this
+repository — using an atomic rename, so a failed attempt never leaves a truncated
+file. `source_digest` remains the Phase 12 fingerprint over the raw acquired
+bytes, and `retrieved_at` is audit metadata that influences no identifier.
+
+**Stated honestly: this is not a hardened multi-tenant SSRF sandbox.** Host
+validation checks every address a hostname resolves to, but the subsequent HTTP
+connection performs its own lookup, so a DNS-rebinding / TOCTOU window remains.
+It is a CLI guardrail for sources an operator chose deliberately, not something
+to place behind untrusted URL input in a web service.
+
+Deterministic tests inject the HTTP transport and the DNS resolver, so the
+ordinary suite never depends on network availability. A bounded live check is
+opt-in and covers one source, one acquisition, one extraction:
+
+```bash
+AGY_PPT_LIVE_REMOTE=1 \
+    python3 skills/agy-ppt/tests/integration/test_remote_acquisition_live.py
+```
+
+See
+[`skills/agy-ppt/docs/source-acquisition.md`](skills/agy-ppt/docs/source-acquisition.md).
+
 ## Testing
 
 Ordinary unit tests consume **no** AI subscription quota, never invoke the real
@@ -567,13 +642,16 @@ To report a security issue, see [`SECURITY.md`](SECURITY.md).
   content is factually true.
 - Source ingestion (available on `main`) currently supports only local PDF with
   an extractable text layer, Markdown, plain text, DOCX, and static HTML. Remote
-  URL ingestion, web crawling, browser rendering, and OCR are not supported.
-  DOCX provides no rendered-page locators and no Word visual-layout
+  sources must be fetched explicitly through the Phase 13.5 acquisition layer,
+  which supports public unauthenticated HTTP/HTTPS URLs only: authenticated or
+  private web sources, web crawling, browser rendering, and OCR are not
+  supported. DOCX provides no rendered-page locators and no Word visual-layout
   reconstruction, and its headers, footers, footnotes, comments, and embedded
   image text are not ingested. HTML executes no JavaScript, applies no CSS, and
   loads no external resources, so JavaScript-generated content is not ingested.
-  Extraction is not semantic segmentation, and AGY remains the semantic
-  authority.
+  Remote acquisition is **not** a hardened SSRF sandbox and retains a
+  DNS-rebinding limitation. Extraction is not semantic segmentation, and AGY
+  remains the semantic authority.
 
 ## Upstream & Attribution
 
