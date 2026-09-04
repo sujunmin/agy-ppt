@@ -393,8 +393,7 @@ For the design, see
 
 ## Source Ingestion
 
-> **Status:** available on `main` after v0.2.0 (post-v0.2.0 development). **Not
-> included in v0.2.0.**
+Released in v0.3.0.
 
 Source grounding needs source text before AGY can perform semantic segmentation.
 Phase 13 provides deterministic ingestion, turning a **local** source file into
@@ -421,12 +420,12 @@ local source
 
 | Capability | Status |
 | --- | --- |
-| Local PDF with an extractable text layer | Supported on `main` |
-| Local Markdown | Supported on `main` |
-| Local plain text | Supported on `main` |
-| Local DOCX | Supported on `main` |
-| Local static HTML | Supported on `main` |
-| Explicit public HTTP/HTTPS source acquisition | Supported on `main` |
+| Local PDF with an extractable text layer | Supported |
+| Local Markdown | Supported |
+| Local plain text | Supported |
+| Local DOCX | Supported |
+| Local static HTML | Supported |
+| Explicit public HTTP/HTTPS source acquisition | Supported |
 | Authenticated / private web sources | Not supported |
 | Web crawling | Not supported |
 | Browser / JavaScript rendering | Not supported |
@@ -504,8 +503,7 @@ absolute path. See
 
 ## Remote Source Acquisition
 
-> **Status:** available on `main` after v0.2.0 (post-v0.2.0 development). **Not
-> included in v0.2.0.**
+Released in v0.3.0.
 
 When a source is not on disk, the acquisition layer fetches one **explicitly
 supplied public URL** and hands the resulting local payload to the existing
@@ -640,7 +638,7 @@ To report a security issue, see [`SECURITY.md`](SECURITY.md).
   text and segmenting sources is AGY's responsibility. The deterministic
   validator does not replace Content QA and does not independently judge whether
   content is factually true.
-- Source ingestion (available on `main`) currently supports only local PDF with
+- Source ingestion (released in v0.3.0) currently supports only local PDF with
   an extractable text layer, Markdown, plain text, DOCX, and static HTML. Remote
   sources must be fetched explicitly through the Phase 13.5 acquisition layer,
   which supports public unauthenticated HTTP/HTTPS URLs only: authenticated or

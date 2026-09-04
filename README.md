@@ -349,7 +349,7 @@ RFC 2119.
 
 ## Source Ingestion
 
-> **狀態：** v0.2.0 之後在 `main` 上可用（post-v0.2.0 development），**未包含在 v0.2.0**。
+已於 v0.3.0 發布。
 
 Source grounding 需要先有來源文字，AGY 才能做 semantic segmentation。Phase 13 提供
 deterministic ingestion：把**本機**來源檔案轉成正規化的 extraction blocks 與 locator。
@@ -375,12 +375,12 @@ local source
 
 | 能力 | 狀態 |
 | --- | --- |
-| 本機 PDF（具可擷取文字層） | 在 `main` 上支援 |
-| 本機 Markdown | 在 `main` 上支援 |
-| 本機純文字 | 在 `main` 上支援 |
-| 本機 DOCX | 在 `main` 上支援 |
-| 本機靜態 HTML | 在 `main` 上支援 |
-| 明確指定的公開 HTTP/HTTPS 來源取得 | 在 `main` 上支援 |
+| 本機 PDF（具可擷取文字層） | 支援 |
+| 本機 Markdown | 支援 |
+| 本機純文字 | 支援 |
+| 本機 DOCX | 支援 |
+| 本機靜態 HTML | 支援 |
+| 明確指定的公開 HTTP/HTTPS 來源取得 | 支援 |
 | 需認證／私有網站 | 不支援 |
 | 網頁抓取（crawling） | 不支援 |
 | Browser / JavaScript rendering | 不支援 |
@@ -445,7 +445,7 @@ locator 為結構性，不會虛構頁碼或螢幕位置。
 
 ## Remote Source Acquisition
 
-> **狀態：** v0.2.0 之後在 `main` 上可用（post-v0.2.0 development），**未包含在 v0.2.0**。
+已於 v0.3.0 發布。
 
 若來源不在本機，可先用 acquisition 層取得一個**明確指定的公開 URL**，再交給既有的
 extraction：
@@ -564,7 +564,7 @@ AGY_PPT_LIVE_RECOVERY=1 AGY_PPT_LIVE_RECOVERY_INTERRUPT=1 \
 - Source grounding 沒有內建通用 PDF/DOCX/HTML parser：來源文字的擷取與 source
   segmentation 由 AGY 負責，本專案不提供萬用文件解析器。Deterministic validator
   也不取代 Content QA，不會獨立判斷內容的事實真偽。
-- Source ingestion（`main` 上可用）目前只支援本機 PDF（需可擷取文字層）、Markdown、
+- Source ingestion（v0.3.0 正式提供）目前只支援本機 PDF（需可擷取文字層）、Markdown、
   純文字、DOCX 與靜態 HTML。遠端來源需經 Phase 13.5 的 acquisition 層明確取得，且
   僅支援公開未認證的 HTTP/HTTPS URL：不支援需認證／私有網站、web crawling、browser
   rendering，也不支援 OCR。DOCX 不提供 rendered 頁碼 locator、不還原 Word 視覺版面，
