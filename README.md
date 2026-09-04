@@ -373,14 +373,17 @@ local source
 
 ### 支援格式
 
-| 格式 | 狀態 |
+| 能力 | 狀態 |
 | --- | --- |
-| PDF（具可擷取文字層） | 在 `main` 上支援 |
-| Markdown | 在 `main` 上支援 |
-| 純文字 | 在 `main` 上支援 |
-| DOCX | 在 `main` 上支援 |
+| 本機 PDF（具可擷取文字層） | 在 `main` 上支援 |
+| 本機 Markdown | 在 `main` 上支援 |
+| 本機純文字 | 在 `main` 上支援 |
+| 本機 DOCX | 在 `main` 上支援 |
 | 本機靜態 HTML | 在 `main` 上支援 |
-| 遠端 URL ingestion | 不支援 |
+| 明確指定的公開 HTTP/HTTPS 來源取得 | 在 `main` 上支援 |
+| 需認證／私有網站 | 不支援 |
+| 網頁抓取（crawling） | 不支援 |
+| Browser / JavaScript rendering | 不支援 |
 | OCR / 掃描影像 PDF | 不支援 |
 
 ### Extraction 不等於 semantic segmentation
@@ -440,6 +443,71 @@ locator 為結構性，不會虛構頁碼或螢幕位置。
 結果不依賴檔案的絕對路徑。詳見
 [`skills/agy-ppt/docs/source-ingestion.md`](skills/agy-ppt/docs/source-ingestion.md)。
 
+## Remote Source Acquisition
+
+> **狀態：** v0.2.0 之後在 `main` 上可用（post-v0.2.0 development），**未包含在 v0.2.0**。
+
+若來源不在本機，可先用 acquisition 層取得一個**明確指定的公開 URL**，再交給既有的
+extraction：
+
+```bash
+python3 skills/agy-ppt/scripts/acquire_source.py \
+    --url https://example.org/source.pdf \
+    --source-id src_example \
+    --output-dir /path/to/workspace \
+    --ingest
+```
+
+```text
+明確指定的公開 URL
+  → bounded acquisition（Phase 13.5）
+  → repository 外部的本機 payload
+  → 既有 extraction
+  → AGY semantic segmentation
+  → grounding workflow
+```
+
+`Acquisition ≠ extraction`：這一層只取得位元組，不解析、不判斷格式、不做語意判斷。
+伺服器宣告的 `Content-Type` 只是 metadata，格式判定仍由既有 detection 決定——宣告
+`application/pdf` 但內容其實是 HTML 的回應不會被當成 PDF。
+
+### 安全邊界
+
+```text
+只允許公開未認證 URL
+只允許 http / https
+拒絕 URL 內嵌帳密
+拒絕 localhost、loopback、private、link-local、reserved 目的位址
+每個 redirect 跳點都重新驗證
+redirect 上限 5
+response 大小上限 25 MiB
+timeout 30 秒
+TLS 憑證驗證保持啟用
+不使用 cookie、.netrc、雲端憑證或任何 token
+不使用 browser、不執行 JavaScript
+不做 crawling，不遞迴抓取 asset / iframe / 連結
+```
+
+Payload 寫入呼叫者指定的目錄（請放在 repository 之外），採 atomic 寫入，失敗時不留
+截斷檔案。`source_digest` 仍是對原始位元組計算的 Phase 12 fingerprint；`retrieved_at`
+只供稽核，不影響任何 ID。
+
+**誠實的限制：這不是 hardened multi-tenant SSRF sandbox。** Host 驗證會檢查解析出的
+所有位址，但後續 HTTP 連線會自行再解析一次，因此存在 DNS-rebinding / TOCTOU 殘餘
+風險。它的定位是「操作者自行選定來源時的 CLI 護欄」，不適合放在網頁服務後面接受不受
+信任的 URL 輸入。
+
+Deterministic 測試會注入 HTTP transport 與 DNS resolver，因此一般測試套件不依賴網路。
+另有一個 opt-in 的 bounded live 驗證（一個來源、一次取得、一次 extraction）：
+
+```bash
+AGY_PPT_LIVE_REMOTE=1 \
+    python3 skills/agy-ppt/tests/integration/test_remote_acquisition_live.py
+```
+
+詳見
+[`skills/agy-ppt/docs/source-acquisition.md`](skills/agy-ppt/docs/source-acquisition.md)。
+
 ## Testing
 
 一般 unit tests **不會**消耗任何 AI 訂閱額度、不呼叫真實 Codex/Kiro，全部使用
@@ -497,11 +565,13 @@ AGY_PPT_LIVE_RECOVERY=1 AGY_PPT_LIVE_RECOVERY_INTERRUPT=1 \
   segmentation 由 AGY 負責，本專案不提供萬用文件解析器。Deterministic validator
   也不取代 Content QA，不會獨立判斷內容的事實真偽。
 - Source ingestion（`main` 上可用）目前只支援本機 PDF（需可擷取文字層）、Markdown、
-  純文字、DOCX 與靜態 HTML：不支援遠端 URL ingestion、web crawling、browser
+  純文字、DOCX 與靜態 HTML。遠端來源需經 Phase 13.5 的 acquisition 層明確取得，且
+  僅支援公開未認證的 HTTP/HTTPS URL：不支援需認證／私有網站、web crawling、browser
   rendering，也不支援 OCR。DOCX 不提供 rendered 頁碼 locator、不還原 Word 視覺版面，
   headers/footers/footnotes/comments 與內嵌圖片文字皆不擷取。HTML 不執行 JavaScript、
-  不套用 CSS、不載入任何外部資源，因此 JavaScript 產生的內容不會被擷取。Extraction
-  不等於 semantic segmentation，AGY 仍是 semantic authority。
+  不套用 CSS、不載入任何外部資源，因此 JavaScript 產生的內容不會被擷取。遠端取得
+  **不是** hardened SSRF sandbox，仍有 DNS-rebinding 殘餘風險。Extraction 不等於
+  semantic segmentation，AGY 仍是 semantic authority。
 
 ## Upstream & Attribution
 
