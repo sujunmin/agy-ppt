@@ -1,8 +1,8 @@
-# Source Grounding & Traceability（Phase 12.1 + 12.2）
+# Source Grounding & Traceability（Phase 12.1 + 12.2 + 12.3）
 
-本文件描述 Phase 12 建立的 source-grounding sidecar 系統。這是 **optional
-capability**：純創意、無 source document 的簡報完全不受影響，也不需要建立任何
-本文件描述的 artifact。
+本文件描述 Phase 12 建立的 source-grounding sidecar 系統，以及它在 AGY
+workflow 中的正式整合方式（Phase 12.3）。這是 **optional capability**：純創意、
+無 source document 的簡報完全不受影響，也不需要建立任何本文件描述的 artifact。
 
 ## 1. 與 v0.1.0 baseline 的關係
 
@@ -129,22 +129,58 @@ SOURCE_CHANGED
 retry/block policy。Phase 10.2/10.3 的「連續兩次相同 image failure 即 block」
 語意不因本模組而改變。
 
-## 9. Assembly Gate（deterministic precondition，尚未整合進 workflow）
+## 9. Assembly Gate（deterministic precondition，已整合進 AGY workflow）
 
-`assembly_precondition_errors(workspace_root, known_slide_ids)` 提供一組
-deterministic 檢查：
+`evaluate_assembly_gate(workspace_root, known_slide_ids, *, current_source_digests=None,
+require_grounded_qa=True)` 是**唯一**的 deterministic grounding gate 實作。
+`assembly_precondition_errors()` 是回傳 `list[str]` 的薄包裝，
+`scripts/validate_source_grounding.py` 是薄 CLI adapter——三者共用同一份 logic，
+不存在第二套 validation。
 
-- source grounding 未啟用 → 一律回傳 `[]`（不 block）
-- 已啟用時：
-  - `claim_traceability.json` / `source_coverage.json` 結構或參照無效 → 回傳
-    對應錯誤訊息
-  - 任何 HIGH priority source unit 的 `coverage_status` 仍是 `unaccounted`
-    → 回傳錯誤訊息
+Gate 行為：
 
-**這是 Phase 12.1/12.2 的 contract，尚未被接到任何實際的組裝流程或
-`assemble_ppt.py` 呼叫路徑中。** 是否、以及如何在 workflow 的哪個階段呼叫這個
-函式，是 Phase 12.3（AGY workflow 整合）要決定的事，本階段刻意不動
-`assemble_ppt.py`（frozen，且本身運作正常）。
+- source grounding 未啟用 → 立刻 `ready=True`（不 block，不要求任何 artifact）
+- 已啟用時，依序檢查：
+  1. 三個 artifact 可載入且 schema 有效
+  2. 沒有 dangling `source_unit_id` / `slide_id`
+  3. coverage accounting 完整、未重複膨脹
+  4. 沒有 HIGH priority unit 停留在 `unaccounted`
+  5. 沒有 claim 停留在 `unsupported` / `pending_review`
+  6. （若提供 `current_source_digests`）source digest 仍相符
+  7. `source_grounded_qa.json` 存在、結構有效，且
+     `semantic_findings.agy_qa_outcome` ∈ `("passed", "passed_with_notes")`
+
+CLI 使用方式：
+
+```bash
+python3 skills/agy-ppt/scripts/validate_source_grounding.py <workspace>
+python3 skills/agy-ppt/scripts/validate_source_grounding.py <workspace> \
+    --source-digest src_agreement=<sha256hex>
+python3 skills/agy-ppt/scripts/validate_source_grounding.py <workspace> --skip-grounded-qa
+```
+
+exit code：`0` = 未啟用或 gate 通過；`1` = grounding precondition 失敗；
+`2` = `project_state.json` 無法讀取。
+
+### 9.1 Grounding precondition failure ≠ assembly failure
+
+**極重要的邊界**：gate 失敗時 `assemble_ppt.py` **根本沒有被呼叫**，所以這
+不是 assembly failure，不得記錄成、也不得混入 Phase 9 的 assembly recovery
+語意。正確流程是：
+
+```text
+precondition fails
+→ 交回 AGY Content QA / grounding repair
+→ 修好後重新驗證
+→ 才呼叫 assemble_ppt.py
+```
+
+### 9.2 不新增 Project State blocker path
+
+一般 grounding validation failure（缺 mapping、coverage gap、unsupported
+claim、stale evidence）視為**可恢復的 AGY workflow issue**，不會讓
+`project_state.json` 進入 `blocked`。本階段刻意不新增任何 Project State
+blocker 路徑；`project_state.py` 完全未被修改。
 
 ## 10. Content QA vs Visual QA
 
@@ -191,15 +227,128 @@ deterministic 檢查：
 若未來要讓 speaker-note claims 也進入 traceability，屬於 Phase 12.3 的最小
 整合工作，不在本階段範圍。
 
-## 13. 尚未完成的部分（Phase 12.3 / 12.4）
+## 13. Activation（如何判斷要不要啟用）
 
-- AGY workflow 各階段何時建立/更新這些 artifact（intake / outline / slide
-  generation / Content QA / assembly / complete）尚未整合進 `SKILL.md` 的
-  正常簡報流程。
-- 尚未對真實（非 confidential 測試用）source document 執行過 live 驗證。
-- 尚未有任何 CLI/prompt 指示 AGY 在什麼時機呼叫
-  `SourceInventory` / `ClaimTraceability` / `SourceCoverage` 的 API。
+單一 deterministic 判斷方式：
 
-這些留給 Phase 12.3（AGY workflow 整合）與 Phase 12.4（真實 source 驗證），
-本次任務範圍只到 Phase 12.1（contract/schema/error taxonomy）+ 12.2
-（deterministic validator + resume/change-detection 行為 + tests）。
+```python
+from source_grounding import source_grounding_enabled
+source_grounding_enabled(workspace_root)
+```
+
+只有 `source_inventory.json` 存在**且** `enabled: true` 才算啟用。沒有第二套
+activation authority，也沒有為了一個 boolean 去修改核心 Project State。
+
+**Enabled（source-driven）**：簡報的事實／內容 authority 來自一份或多份明確的
+source（契約、報告、PDF、DOCX、Markdown、文字文件、以 document unit 表示的
+資料集）。
+
+**Disabled（creative / no-source）**：純創意簡報、腦力激盪、視覺概念稿，或使用者
+要求 AGY 在沒有 authoritative source 的情況下自行構思內容。
+
+重要：使用者提供 **logo / 參考圖 / 風格樣張** 時，**不算** source-grounding 的
+factual source——visual reference ≠ factual source，不要因此自動啟用。
+
+## 14. Lifecycle（AGY workflow 各階段責任）
+
+| 階段 | AGY（Layer A，semantic） | Deterministic（Layer B） |
+| --- | --- | --- |
+| **intake** | 判斷是否 source-driven；建立 `source_inventory.json`（`enabled: true`）；指定 stable `source_id`；用 `compute_source_digest()` 記錄 fingerprint；把 source 切成 source units（AGY 是 segmentation authority） | `validate_source_inventory()` 驗證形狀、ID 可推導性、locator、credential guard |
+| **outline / coverage planning** | 依 source unit priority 規劃哪些要進 slide、哪些只進 speaker notes、哪些明確不放（含理由） | 尚無強制檢查；coverage artifact 可稍後建立 |
+| **slide planning** | 為每頁規劃 claims，決定 slide-local claim 順序 | `make_claim_id()` 產生 deterministic claim_id |
+| **slide generation** | 既有 Visual QA 流程完全不變 | 完全不介入（`project_state.py` 獨立運作） |
+| **Content QA** | 判斷每個 claim 的 `support_status`、numeric/modal 語意、coverage 決策與 omission 理由、最終 `agy_qa_outcome` | `validate_claim_traceability()`、`validate_source_coverage()` 驗證形狀與參照 |
+| **assembly precondition** | 檢視 deterministic findings，修復問題後重新驗證 | `evaluate_assembly_gate()`（見第 9 節） |
+| **complete** | 產生／更新 `source_grounded_qa.json` 的 semantic findings | `validate_source_grounded_qa()`；`build_grounded_qa_report()` 計算 deterministic findings |
+
+Coverage 不要求「每個 source unit 都必須變成一頁 slide」，而是要求
+**每個 source unit 都必須被 accounted for**（`covered` /
+`speaker_notes_only` / `intentionally_omitted`（需理由）/ `not_applicable` /
+`unaccounted`）。HIGH priority unit 不得停留在 `unaccounted`。
+
+## 15. Claim Lifecycle
+
+```text
+AGY 規劃 claim
+→ make_claim_id(slide_id, sequence) 得到 deterministic claim_id
+→ 綁定 slide_id
+→ AGY 對應 source_unit_ids
+→ AGY 給出 support_status（semantic judgement）
+→ deterministic validation
+→ Content QA 解決所有 unresolved claim
+```
+
+- **不從 slide image OCR 抽 claim**，也不新增任何 OCR dependency——AGY 本來就
+  知道自己規劃／生成了什麼內容。
+- `upsert_claim()` 對同一個 `(slide_id, sequence)` 是**整筆覆寫**，不會把舊的
+  evidence（`evidence_note` / `numeric_evidence` / `modal_evidence`）殘留合併
+  到語意上已經不同的新 claim 上。
+- **Unresolved claim**：`support_status` 為 `unsupported` 或 `pending_review`
+  的 claim 會讓 assembly gate 失敗。合法的 resolution 全部由 AGY 執行（刪除
+  claim、修改 claim、補上額外 source mapping、改寫成非事實陳述、或覆核後確認
+  支持）。deterministic code **只偵測未解決狀態並交回 AGY，永遠不自行修改
+  claim**。
+- `partially_supported` 視為**已解決**（它已經是一個明確的 AGY 決定，通常伴隨
+  `evidence_note`）。
+
+## 16. Resume
+
+Resume（grounding 已啟用）流程：
+
+```text
+載入 artifacts
+→ 驗證 schema / version
+→ 用當前 source digest 比對（stale evidence 偵測）
+→ 對照當前 slide 集合驗證參照
+→ 保留既有 semantic decisions
+→ 從未完成的步驟繼續
+```
+
+保證：
+
+- stable ID 不重新產生（`unit_id` 由 `(source_id, locator)` 推導；`claim_id`
+  由 `(slide_id, sequence)` 推導）
+- AGY 的 semantic decisions 不被清除
+- claim / coverage entry 不重複（upsert 語意）
+- grounded QA report 不重複（單一檔案 atomic replace）
+
+**Resume 後新增 slide**：既有 slide / claim ID 保持不變，新 slide 取得新的
+`slide_id`（`project_state.py` 的 `add_slide()`，slides 以 dict key 儲存，沒有
+renumber 邏輯），新 claims 只增加新 ID，不會讓整個 deck 的 traceability 失效。
+
+## 17. Source Change
+
+首次 intake 時用 `compute_source_digest()` 建立 fingerprint。Resume 時重新計算
+當前 digest 並比對：
+
+- `current == persisted` → 既有 grounding artifacts 可繼續使用
+- `current != persisted` → `SOURCE_CHANGED`，assembly gate 失敗
+
+被視為 stale 而需要 revalidation / regeneration 的 artifact：
+`source_inventory`、`claim_traceability`、`source_coverage`、
+`source_grounded_qa`。
+
+實作上**不做 destructive delete**：偵測到變更只會讓 gate 失敗並交回 AGY，歷史
+evidence 仍在磁碟上，由 AGY 明確決定要修哪些、重建哪些（更新一律走
+temp → validate → atomic replace）。這不影響既有 Project State 的
+generation counter。
+
+## 18. Non-Source Behavior（mandatory regression 保證）
+
+grounding 未啟用時：
+
+- 不需要 `source_inventory.json` / `claim_traceability.json` /
+  `source_coverage.json` / `source_grounded_qa.json` 中的任何一個
+- `evaluate_assembly_gate()` 回傳 `enabled=False, ready=True`
+- `validate_source_grounding.py` exit code `0`
+- `project_state.py` 的 phase / slide state machine、Visual QA
+  （`generated -> qa_passed/qa_failed`）完全不受影響
+
+## 19. 尚未完成的部分（Phase 12.4）
+
+- 尚未對真實（非合成測試用）source document 執行過 live 驗證。
+- 尚未內建任何 PDF / DOCX / Markdown parser：`locator` 目前由 AGY 自行提供，
+  自動從真實文件產生 locator 屬於後續工作。
+- 尚未有 release（v0.2.0 等）；Phase 12.3 只存在於 main 開發分支。
+
+這些留給 Phase 12.4（real source validation）與其後的 release preparation。

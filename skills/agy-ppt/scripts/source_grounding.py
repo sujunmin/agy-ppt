@@ -674,9 +674,12 @@ class SourceCoverage:
             raise SourceCoverageIncomplete(f"source coverage is corrupt and was not overwritten: {exc}")
         return cls(root, data)
 
-    def save(self, *, known_unit_ids: set[str] | None = None) -> Path:
+    def save(self, *, known_unit_ids: set[str] | None = None,
+             known_claim_ids: set[str] | None = None) -> Path:
         self.data["updated_at"] = now_iso()
-        errors = validate_source_coverage(self.data, known_unit_ids=known_unit_ids)
+        errors = validate_source_coverage(
+            self.data, known_unit_ids=known_unit_ids, known_claim_ids=known_claim_ids
+        )
         if errors:
             raise SourceCoverageIncomplete("refusing to save invalid source coverage: " + "; ".join(errors))
         path = self.state_path(self.workspace_root)
@@ -726,7 +729,12 @@ class SourceCoverage:
         return {e["source_unit_id"] for e in self.data["entries"]}
 
 
-def validate_source_coverage(data: Any, *, known_unit_ids: set[str] | None = None) -> list[str]:
+def validate_source_coverage(
+    data: Any,
+    *,
+    known_unit_ids: set[str] | None = None,
+    known_claim_ids: set[str] | None = None,
+) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
         return ["source coverage must be a JSON object"]
@@ -760,6 +768,20 @@ def validate_source_coverage(data: Any, *, known_unit_ids: set[str] | None = Non
             errors.append(f"entries[{i}].coverage_status must be one of {COVERAGE_STATUSES}")
         if entry.get("coverage_status") == "intentionally_omitted" and not entry.get("omission_reason"):
             errors.append(f"entries[{i}]: intentionally_omitted requires a non-empty omission_reason")
+        # A speaker-notes-only unit must actually point at the speaker-note
+        # claim(s) that carry it, otherwise "covered in the notes" would be an
+        # unverifiable assertion (Phase 12.3, docs/source-grounding.md §18).
+        if entry.get("coverage_status") == "speaker_notes_only":
+            note_claims = entry.get("covered_by_claim_ids")
+            if not isinstance(note_claims, list) or not note_claims:
+                errors.append(
+                    f"entries[{i}]: speaker_notes_only requires at least one covered_by_claim_ids entry"
+                )
+        for claim_id in entry.get("covered_by_claim_ids") or []:
+            if not isinstance(claim_id, str) or not _CLAIM_ID_RE.match(claim_id or ""):
+                errors.append(f"entries[{i}].covered_by_claim_ids contains an invalid id: {claim_id!r}")
+            elif known_claim_ids is not None and claim_id not in known_claim_ids:
+                errors.append(f"entries[{i}].covered_by_claim_ids references unknown claim: {claim_id!r}")
 
     if known_unit_ids is not None:
         missing = known_unit_ids - seen
@@ -900,53 +922,226 @@ def validate_source_grounded_qa(data: Any) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Cross-artifact deterministic checks (used by the assembly gate)
+# Phase 12.3 -- workflow integration layer
+#
+# One core implementation (:func:`evaluate_assembly_gate`); everything else
+# (the backward-compatible :func:`assembly_precondition_errors`, the
+# ``validate_source_grounding.py`` CLI adapter) delegates to it. There is
+# deliberately no second copy of this validation logic anywhere.
 # ---------------------------------------------------------------------------
-def assembly_precondition_errors(
+
+#: AGY semantic Content-QA outcomes that are acceptable for assembly.
+ACCEPTED_QA_OUTCOMES = ("passed", "passed_with_notes")
+
+#: Support statuses that still need an explicit AGY resolution before
+#: assembly. ``partially_supported`` is deliberately NOT here: it is already
+#: an explicit AGY decision (normally paired with an ``evidence_note``),
+#: whereas ``unsupported`` and ``pending_review`` mean "not yet resolved".
+UNRESOLVED_SUPPORT_STATUSES = ("unsupported", "pending_review")
+
+
+def unresolved_claim_ids(traceability: "ClaimTraceability") -> list[str]:
+    """Claims whose AGY support decision is still unresolved.
+
+    A source-driven deck must not be assembled while a factual claim is still
+    ``unsupported`` or ``pending_review``. Resolution is always an AGY action
+    (revise the claim, map an additional source unit, remove the claim, or
+    confirm support after review) -- this module only detects the unresolved
+    state and hands control back.
+    """
+    return [
+        c["claim_id"]
+        for c in traceability.data.get("claims", [])
+        if c.get("support_status") in UNRESOLVED_SUPPORT_STATUSES
+    ]
+
+
+def verify_source_digests(
+    inventory: "SourceInventory", current_source_digests: dict[str, str]
+) -> list[str]:
+    """Compare recorded source digests against freshly computed ones.
+
+    ``current_source_digests`` maps ``source_id`` -> current sha256 hex digest.
+    AGY (or whatever re-reads the source) computes these; this module never
+    reads the source document itself. A mismatch means previously persisted
+    traceability/coverage/QA evidence describes a different revision of the
+    source and must not be silently reused.
+    """
+    errors: list[str] = []
+    for source in inventory.data.get("sources", []):
+        source_id = source.get("source_id")
+        recorded = source.get("source_digest")
+        if recorded is None:
+            continue
+        current = current_source_digests.get(source_id)
+        if current is None:
+            continue
+        if current != recorded:
+            errors.append(
+                f"{ERROR_SOURCE_CHANGED}: source {source_id} digest changed "
+                f"(recorded {recorded[:12]}..., current {current[:12]}...); "
+                "existing grounding evidence is stale and must be revalidated"
+            )
+    return errors
+
+
+@dataclass
+class GroundingGateResult:
+    """Structured outcome of the deterministic grounding gate."""
+
+    enabled: bool
+    ready: bool
+    errors: list[str]
+    error_codes: list[str]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "source_grounding_enabled": self.enabled,
+            "ready": self.ready,
+            "errors": list(self.errors),
+            "error_codes": sorted(set(self.error_codes)),
+        }
+
+
+def evaluate_assembly_gate(
     workspace_root: str | Path,
     known_slide_ids: set[str],
-) -> list[str]:
-    """Deterministic assembly-gate checks, only when source grounding is enabled.
+    *,
+    current_source_digests: dict[str, str] | None = None,
+    require_grounded_qa: bool = True,
+) -> GroundingGateResult:
+    """The single deterministic grounding gate AGY calls before assembly.
 
-    Returns an empty list when source grounding is disabled for this project
-    (the default for a non-source, creative deck) or when everything checks
-    out. Never raises for a disabled project; never silently skips a check for
-    an enabled one.
+    When source grounding is disabled (no ``source_inventory.json``, or
+    ``enabled: false``) this returns ``ready=True`` immediately: a purely
+    creative deck is never forced through this workflow.
+
+    When enabled, it checks -- structurally only, never semantically:
+
+    * ``source_inventory.json`` / ``claim_traceability.json`` /
+      ``source_coverage.json`` load and validate
+    * no dangling ``source_unit_id`` / ``slide_id`` references
+    * coverage accounting is complete and not inflated
+    * no HIGH-priority source unit left ``unaccounted``
+    * no claim left ``unsupported`` / ``pending_review``
+    * source digests still match (stale-evidence detection)
+    * ``source_grounded_qa.json`` exists, is structurally valid, and AGY's own
+      ``semantic_findings.agy_qa_outcome`` is an accepted value
+
+    A failure here is a **grounding precondition failure**, not an assembly
+    failure: ``assemble_ppt.py`` is never invoked, so this must not be
+    confused with, or recorded as, the Phase 9 assembly-failure recovery path.
+    It is also not a project blocker on its own -- it is a recoverable AGY
+    workflow issue handed back for repair.
     """
     if not source_grounding_enabled(workspace_root):
-        return []
+        return GroundingGateResult(enabled=False, ready=True, errors=[], error_codes=[])
 
     errors: list[str] = []
+    codes: list[str] = []
+
     try:
         inventory = SourceInventory.load(workspace_root)
     except SourceGroundingError as exc:
-        return [f"source_inventory.json invalid: {exc}"]
+        return GroundingGateResult(
+            enabled=True,
+            ready=False,
+            errors=[f"source_inventory.json invalid: {exc}"],
+            error_codes=[exc.error_code],
+        )
 
     try:
         traceability = ClaimTraceability.load(workspace_root)
     except SourceGroundingError as exc:
-        return [f"claim_traceability.json invalid: {exc}"]
+        return GroundingGateResult(
+            enabled=True,
+            ready=False,
+            errors=[f"claim_traceability.json invalid: {exc}"],
+            error_codes=[exc.error_code],
+        )
 
     try:
         coverage = SourceCoverage.load(workspace_root)
     except SourceGroundingError as exc:
-        return [f"source_coverage.json invalid: {exc}"]
+        return GroundingGateResult(
+            enabled=True,
+            ready=False,
+            errors=[f"source_coverage.json invalid: {exc}"],
+            error_codes=[exc.error_code],
+        )
 
     trace_errors = validate_claim_traceability(
         traceability.data, known_unit_ids=inventory.unit_ids(), known_slide_ids=known_slide_ids
     )
     if trace_errors:
         errors.append("claim_traceability.json has dangling/invalid references: " + "; ".join(trace_errors))
+        codes.append(ERROR_TRACEABILITY_INVALID)
 
-    coverage_errors = validate_source_coverage(coverage.data, known_unit_ids=inventory.unit_ids())
+    coverage_errors = validate_source_coverage(
+        coverage.data, known_unit_ids=inventory.unit_ids(), known_claim_ids=traceability.claim_ids()
+    )
     if coverage_errors:
         errors.append("source_coverage.json has accounting problems: " + "; ".join(coverage_errors))
+        codes.append(ERROR_SOURCE_COVERAGE_INCOMPLETE)
 
     unaccounted_high = coverage.unaccounted_high_priority()
     if unaccounted_high:
         errors.append(f"HIGH priority source units are unaccounted: {sorted(unaccounted_high)}")
+        codes.append(ERROR_SOURCE_COVERAGE_INCOMPLETE)
 
-    return errors
+    unresolved = unresolved_claim_ids(traceability)
+    if unresolved:
+        errors.append(
+            f"claims still need an explicit AGY resolution (unsupported/pending_review): {sorted(unresolved)}"
+        )
+        codes.append(ERROR_TRACEABILITY_INVALID)
+
+    if current_source_digests:
+        digest_errors = verify_source_digests(inventory, current_source_digests)
+        if digest_errors:
+            errors.extend(digest_errors)
+            codes.append(ERROR_SOURCE_CHANGED)
+
+    if require_grounded_qa:
+        try:
+            report = load_grounded_qa_report(workspace_root)
+        except SourceGroundingError as exc:
+            errors.append(f"source_grounded_qa.json not usable: {exc}")
+            codes.append(exc.error_code)
+        else:
+            outcome = report.get("semantic_findings", {}).get("agy_qa_outcome")
+            if outcome not in ACCEPTED_QA_OUTCOMES:
+                errors.append(
+                    f"AGY Content QA outcome is {outcome!r}; assembly requires one of "
+                    f"{list(ACCEPTED_QA_OUTCOMES)}"
+                )
+                codes.append(ERROR_GROUNDED_QA_INCOMPLETE)
+
+    return GroundingGateResult(
+        enabled=True, ready=not errors, errors=errors, error_codes=codes
+    )
+
+
+def assembly_precondition_errors(
+    workspace_root: str | Path,
+    known_slide_ids: set[str],
+    *,
+    current_source_digests: dict[str, str] | None = None,
+    require_grounded_qa: bool = True,
+) -> list[str]:
+    """Backward-compatible thin wrapper over :func:`evaluate_assembly_gate`.
+
+    Returns an empty list when source grounding is disabled or when the gate
+    is fully satisfied. Kept as a list-returning helper because that is the
+    shape earlier Phase 12.2 callers/tests already use; the logic itself lives
+    only in :func:`evaluate_assembly_gate`.
+    """
+    return evaluate_assembly_gate(
+        workspace_root,
+        known_slide_ids,
+        current_source_digests=current_source_digests,
+        require_grounded_qa=require_grounded_qa,
+    ).errors
 
 
 if __name__ == "__main__":  # pragma: no cover - thin CLI shim
@@ -967,9 +1162,9 @@ if __name__ == "__main__":  # pragma: no cover - thin CLI shim
         except Exception as exc:  # noqa: BLE001 - best-effort CLI helper only
             print(json.dumps({"error": f"could not load project_state.json: {exc}"}, indent=2))
             raise SystemExit(2)
-        errors = assembly_precondition_errors(args.workspace_root, state_slide_ids)
-        print(json.dumps({"valid": not errors, "errors": errors}, ensure_ascii=False, indent=2))
-        raise SystemExit(0 if not errors else 1)
+        result = evaluate_assembly_gate(args.workspace_root, state_slide_ids)
+        print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
+        raise SystemExit(0 if result.ready else 1)
 
     enabled = source_grounding_enabled(args.workspace_root)
     print(json.dumps({"source_grounding_enabled": enabled}, indent=2))

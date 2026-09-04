@@ -423,7 +423,7 @@ Schema：`schemas/project_state.schema.json`、`schemas/slide_job.schema.json`�
 
 Freeze 意義：除非出現實際 integration blocker / bug，否則後續 Phase 不得順手 refactor。
 
-## 9.2 Source Grounding & Traceability（Phase 12.1/12.2，optional，尚未整合進正常流程）
+## 9.2 Source Grounding & Traceability（optional，source-driven 專案適用）
 
 `scripts/source_grounding.py` 提供一組獨立於 `project_state.py` 的 sidecar
 artifact（`source_inventory.json`、`claim_traceability.json`、
@@ -432,17 +432,35 @@ artifact（`source_inventory.json`、`claim_traceability.json`、
 coverage accounting 與最終 grounded QA report。
 
 - **Optional capability**：純創意、無 source 的簡報完全不受影響，不需要建立
-  任何這裡描述的 artifact；`source_inventory.json` 不存在（或
-  `enabled: false`）就代表這個專案沒有啟用 source grounding。
-- **兩層分離**：AGY 負責 semantic judgement（claim 是否被 source 支持、
-  coverage priority、數字/模態語意）；Python validator 只負責 schema 形狀、
-  ID 完整性、參照存在性與 HIGH priority coverage accounting，永遠不會自己
-  判斷一個 claim 是否為真。
+  任何這裡描述的 artifact。單一判斷方式：
+  `source_grounding_enabled(workspace)`——只有 `source_inventory.json` 存在
+  且 `enabled: true` 才算啟用。使用者只提供 logo／參考圖／風格樣張時
+  **不算** factual source，不得因此啟用。
+- **兩層分離**：AGY 負責 semantic judgement（source 切分、claim 對應、claim 是否
+  被 source 支持、coverage priority 與 omission 理由、數字/模態語意、最終
+  Content QA outcome）；Python validator 只負責 schema 形狀、ID 完整性、參照
+  存在性、coverage accounting 與 unresolved-claim 偵測，**永遠不會自己判斷一個
+  claim 是否為真**，也不做 OCR、不解析契約語意。
 - **與既有 Visual QA 完全分離**：不改寫、不覆蓋 `generated -> qa_passed/qa_failed`
-  的既有語意。
-- **尚未整合進 workflow**：目前 `SKILL.md` 第 6 節「正常簡報流程」與
-  `docs/project-assembly-and-reporting.md` 的組裝流程尚未呼叫這個模組；何時
-  建立/更新這些 artifact，屬於後續 Phase 12.3 的工作。
+  的既有語意。Content QA（source grounding）與 Visual QA 是兩個獨立 gate。
+
+### 9.2.1 Source-driven 分支（接在第 6 節正常流程之上）
+
+當 `source_grounding_enabled(workspace)` 為 true 時，AGY 在既有流程中額外負責：
+
+| 既有流程階段 | 額外的 source-grounding 動作 |
+| --- | --- |
+| 1（讀取來源資料） | 建立 `source_inventory.json`（`enabled: true`）、記錄 `source_digest`、把 source 切成 source units 並標 priority |
+| 3（確認 `outline.md`） | 規劃每個 source unit 的 coverage 意圖（進 slide / 只進 speaker notes / 明確不放並附理由） |
+| 9–10（逐頁產圖並收回結果） | 為每頁登錄 claims（`claim_id`、`source_unit_ids`） |
+| 11（AGY 檢查文字、事實、版式…） | Content QA：為每個 claim 給出 `support_status`，記錄 numeric/modal evidence，完成 coverage accounting |
+| 13（產生 `speech.md`） | 只進 speaker notes 的 source-dependent claim 也要有 claim 與 `speaker_notes_only` coverage |
+| **14 之前（執行 `assemble_ppt.py` 前）** | **必須**先跑 deterministic gate：`python3 scripts/validate_source_grounding.py <workspace>`。exit code 非 0 時**不得**呼叫 `assemble_ppt.py`，改為修復 grounding/Content QA 後重新驗證 |
+| 16（回報產物） | 產生／更新 `source_grounded_qa.json`，含 AGY 的 `agy_qa_outcome` |
+
+Gate 失敗是 **grounding precondition failure，不是 assembly failure**
+（`assemble_ppt.py` 根本沒被呼叫），不得記錄成 Phase 9 assembly recovery；
+也不會讓專案進入 `blocked`——它是可恢復的 AGY workflow issue。
 
 詳見 `docs/source-grounding.md`。Schema：`schemas/source_inventory.schema.json`、
 `schemas/claim_traceability.schema.json`、`schemas/source_coverage.schema.json`、
@@ -459,4 +477,4 @@ coverage accounting 與最終 grounded QA report。
 - `docs/outline-style-and-sample.md`
 - `docs/slide-generation-and-subagents.md`
 - `docs/project-assembly-and-reporting.md`
-- `docs/source-grounding.md`（optional，僅適用於有 source document 的專案）
+- `docs/source-grounding.md`（optional，僅適用於有 source document 的 source-driven 專案）
