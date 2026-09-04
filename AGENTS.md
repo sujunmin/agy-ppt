@@ -23,11 +23,19 @@ It applies to human contributors and to AI agents working in this repository.
   - `docs: align repository contribution governance`
 - Commit messages, PR titles, changelog entries, and code comments in shared
   contracts are written in English.
-- User-facing documentation (`README.md`, `skills/agy-ppt/docs/**`) and GitHub
-  Release notes are written primarily in Traditional Chinese, matching the
-  existing documentation set.
-- There is a single `README.md`. If additional language versions are ever added,
-  documentation changes must update all existing language versions in sync.
+- User-facing documentation (`skills/agy-ppt/docs/**`) and GitHub Release notes
+  are written primarily in Traditional Chinese, matching the existing
+  documentation set.
+- The repository maintains a bilingual public README:
+  - `README.md` — the primary Traditional Chinese README
+  - `README_en.md` — the official English README
+  Both must link to each other with repository-relative Markdown links.
+- When a pull request changes public user-facing behaviour, reviewers must ask
+  whether `README.md` needs an update and whether `README_en.md` needs the same
+  semantic update. The two READMEs must keep equivalent semantic coverage; they
+  do not need to be literal line-for-line translations. A capability must not be
+  documented in only one language without a stated reason.
+- Translating every file under `skills/agy-ppt/docs/**` is not required.
 
 ## Release PR Naming
 

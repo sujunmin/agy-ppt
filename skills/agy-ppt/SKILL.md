@@ -466,6 +466,37 @@ Gate 失敗是 **grounding precondition failure，不是 assembly failure**
 `schemas/claim_traceability.schema.json`、`schemas/source_coverage.schema.json`、
 `schemas/source_grounded_qa.schema.json`。
 
+## 9.3 Source Ingestion（optional，本機來源檔案適用）
+
+當 source-driven 專案的來源是**本機**的 PDF（具可擷取文字層）、Markdown 或純文字檔
+時，第 1 階段（讀取來源資料）可以先用 `scripts/ingest_source.py` 做 deterministic
+擷取，再由 AGY 進行 semantic segmentation：
+
+```text
+local source
+  → scripts/ingest_source.py（deterministic extraction）
+  → AGY semantic segmentation
+  → source_inventory.json 的 source units
+  → 9.2 的 grounding workflow
+```
+
+```bash
+python3 scripts/ingest_source.py \
+    --source <file> --source-id <src_id> --output <extraction.json>
+```
+
+- **Extraction 不等於 semantic understanding**：ingestion 只產出 blocks 與
+  locator（PDF 1-based 頁碼、Markdown heading 層級與行號、純文字行號範圍）。
+  **它不決定** 什麼重要、priority、claim 語意或 coverage。
+- **Block 不是 source unit**：AGY 決定要把哪些 block 升級成 Phase 12 source unit，
+  ingestion 不會自動升級，也不會寫出任何 Phase 12 artifact。
+- **PDF 需要文字層**：掃描／純影像 PDF 會以 `SOURCE_TEXT_UNAVAILABLE` 明確失敗，
+  **沒有 OCR fallback**。DOCX、HTML、遠端 URL 目前不支援。
+- `source_digest` 直接沿用 Phase 12 的 `compute_source_digest()`，全專案只有一個
+  canonical fingerprint 定義。
+
+詳見 `docs/source-ingestion.md`。
+
 ## 10. 必讀檔案
 
 - `docs/architecture-and-design-rationale.md`
@@ -478,3 +509,4 @@ Gate 失敗是 **grounding precondition failure，不是 assembly failure**
 - `docs/slide-generation-and-subagents.md`
 - `docs/project-assembly-and-reporting.md`
 - `docs/source-grounding.md`（optional，僅適用於有 source document 的 source-driven 專案）
+- `docs/source-ingestion.md`（optional，僅適用於需要擷取本機 PDF/Markdown/純文字來源的專案）
