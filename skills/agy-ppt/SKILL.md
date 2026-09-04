@@ -501,7 +501,8 @@ python3 scripts/ingest_source.py \
   並保留 DOM 順序。**不執行 JavaScript、不使用 browser、不套用 CSS、不下載任何遠端
   或本機參照資源、不追蹤超連結、不抓取 iframe**；`script`／`style`／`noscript`／
   註解／JSON-LD 皆排除。網路活動為 zero。
-- 遠端 URL ingestion、web crawling、OCR 目前不支援。
+- 遠端來源需另外經由 9.4 的 acquisition 層明確取得；web crawling、browser rendering
+  與 OCR 目前不支援。
 - `source_digest` 直接沿用 Phase 12 的 `compute_source_digest()`，全專案只有一個
   canonical fingerprint 定義。
 
@@ -557,3 +558,4 @@ python3 scripts/acquire_source.py \
 - `docs/source-grounding.md`（optional，僅適用於有 source document 的 source-driven 專案）
 - `docs/source-ingestion.md`（optional，僅適用於需要擷取本機 PDF/Markdown/純文字/DOCX/HTML 來源的專案）
 - `docs/source-acquisition.md`（optional，僅適用於需要取得明確指定的公開 URL 來源的專案）
+- `docs/production-baseline-phase13.md`（Phase 13 production capability 摘要）
