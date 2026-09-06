@@ -1,0 +1,95 @@
+name: Quality
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  readme-bilingual:
+    name: readme-bilingual
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.11"
+
+      - name: Verify README bilingual parity and local relative links
+        run: |
+          python3 scripts/ci/check_readme_parity.py
+
+  hygiene-and-security:
+    name: hygiene-and-security
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.11"
+
+      - name: Run repository hygiene, private path, and credential audit
+        run: |
+          python3 scripts/ci/check_repository_hygiene.py
+
+  frozen-contract-guard:
+    name: frozen-contract-guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository with git history
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.11"
+
+      - name: Verify Frozen Phase 12 / 13 contract protection
+        run: |
+          BASE_REF="${{ github.base_ref }}"
+          if [ -z "$BASE_REF" ]; then
+            BASE_REF="origin/main"
+          fi
+          python3 scripts/ci/check_frozen_contracts.py \
+            --base-ref "$BASE_REF" \
+            --labels "${{ join(github.event.pull_request.labels.*.name, ',') }}"
+
+  repository:
+    name: repository
+    runs-on: ubuntu-latest
+    needs: [readme-bilingual, hygiene-and-security, frozen-contract-guard]
+    if: always()
+    timeout-minutes: 5
+    steps:
+      - name: Verify all quality gates passed
+        run: |
+          echo "readme-bilingual: ${{ needs.readme-bilingual.result }}"
+          echo "hygiene-and-security: ${{ needs.hygiene-and-security.result }}"
+          echo "frozen-contract-guard: ${{ needs.frozen-contract-guard.result }}"
+          if [ "${{ needs.readme-bilingual.result }}" != "success" ] || \
+             [ "${{ needs.hygiene-and-security.result }}" != "success" ] || \
+             [ "${{ needs.frozen-contract-guard.result }}" != "success" ]; then
+            echo "ERROR: One or more quality gates failed, were cancelled, or did not run."
+            exit 1
+          fi
+          echo "All repository quality gates passed successfully."
