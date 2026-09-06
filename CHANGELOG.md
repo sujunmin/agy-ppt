@@ -11,6 +11,14 @@ All notable changes to `agy-ppt` will be documented in this file.
   default local provider, deterministic provider resolution precedence, strict
   no-silent-fallback policy, normalized evidence schema, capability tiers, and
   custom provider integration guides. (#13)
+
+### Changed
+
+- Corrected Phase 15.0 OCR evaluation baseline, recording current observed
+  engine versions (Tesseract 5.5.3, PaddleOCR 3.7.0 / PP-OCRv6, OCRmyPDF 17.11.0,
+  EasyOCR 1.7.2, RapidOCR 1.4.4) distinctly from supported version ranges,
+  refining Tesseract local execution without runtime model downloads, and
+  updating provider resolution precedence to place explicit CLI overrides first. (#14)
 - GitHub Actions core deterministic CI workflow (`.github/workflows/ci.yml`),
   automating pull-request and push-to-main validation for all deterministic
   engineering gates: dependency installation, import verification, Phase 13
