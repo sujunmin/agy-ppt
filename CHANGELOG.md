@@ -13,6 +13,16 @@ All notable changes to `agy-ppt` will be documented in this file.
   full unit test discovery, Codex PPT dependency resolver tests, and Phase 9
   recovery scenario suite. (#9)
 - Stable branch-protection aggregator check `deterministic` in CI workflow. (#9)
+- GitHub Actions quality and security workflow (`.github/workflows/quality.yml`),
+  automating checks for bilingual README parity, local repository-relative link
+  integrity, repository hygiene (prohibiting `.env`, `.venv`, `__pycache__`,
+  `*.pyc`, `*.part`, and runtime presentation payloads), private absolute path
+  leakage, and credential hygiene. (#10)
+- Frozen contract guard (`scripts/ci/check_frozen_contracts.py`) enforcing
+  strict protection for Frozen Phase 12 and Phase 13 production surfaces,
+  requiring maintainer approval label `frozen-contract-change-approved` for any
+  modifications. (#10)
+- Stable branch-protection aggregator check `repository` in Quality workflow. (#10)
 
 
 ## [0.3.0] - 2026-09-04
