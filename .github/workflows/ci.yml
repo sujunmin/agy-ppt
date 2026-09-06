@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install-check:
+    name: install-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "skills/agy-ppt/requirements.txt"
+
+      - name: Install dependencies from declared requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r skills/agy-ppt/requirements.txt
+
+      - name: Verify declared package imports
+        run: |
+          python -c "
+          import pptx
+          import PIL
+          import openai
+          import filelock
+          import pypdf
+          import docx
+          import lxml
+          print('All declared dependencies imported successfully.')
+          "
+
+  deterministic-tests:
+    name: deterministic-tests
+    runs-on: ubuntu-latest
+    needs: install-check
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "skills/agy-ppt/requirements.txt"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -r skills/agy-ppt/requirements.txt
+
+      - name: Phase 13 remote acquisition tests
+        run: |
+          python3 -m unittest -v skills/agy-ppt/tests/test_source_acquisition.py
+
+      - name: Phase 13 source ingestion tests (HTML safety, PDF, DOCX, Markdown, Text)
+        run: |
+          python3 -m unittest -v skills/agy-ppt/tests/test_source_ingestion.py
+
+      - name: Phase 12 grounding and workflow tests
+        run: |
+          python3 -m unittest -v skills/agy-ppt/tests/test_source_grounding.py skills/agy-ppt/tests/test_source_grounding_workflow.py
+
+      - name: Full unit test suite discovery
+        run: |
+          python3 -m unittest discover -s skills/agy-ppt/tests -t skills/agy-ppt/tests -p "test_*.py"
+
+  resolver-recovery:
+    name: resolver-recovery
+    runs-on: ubuntu-latest
+    needs: install-check
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "skills/agy-ppt/requirements.txt"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -r skills/agy-ppt/requirements.txt
+
+      - name: External dependency resolver tests
+        run: |
+          python3 -m unittest -v skills/agy-ppt/tests/test_codex_ppt_dependency.py
+
+      - name: Phase 9 recovery suite
+        run: |
+          python3 skills/agy-ppt/scripts/run_recovery_tests.py
+
+  deterministic:
+    name: deterministic
+    runs-on: ubuntu-latest
+    needs: [install-check, deterministic-tests, resolver-recovery]
+    if: always()
+    timeout-minutes: 5
+    steps:
+      - name: Verify all deterministic gates passed
+        run: |
+          echo "install-check: ${{ needs.install-check.result }}"
+          echo "deterministic-tests: ${{ needs.deterministic-tests.result }}"
+          echo "resolver-recovery: ${{ needs.resolver-recovery.result }}"
+          if [ "${{ needs.install-check.result }}" != "success" ] || \
+             [ "${{ needs.deterministic-tests.result }}" != "success" ] || \
+             [ "${{ needs.resolver-recovery.result }}" != "success" ]; then
+            echo "ERROR: One or more upstream deterministic jobs failed, were cancelled, or did not run."
+            exit 1
+          fi
+          echo "All deterministic CI gates passed successfully."
