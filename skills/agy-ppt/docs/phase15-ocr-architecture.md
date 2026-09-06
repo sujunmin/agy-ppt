@@ -47,12 +47,13 @@ Phase 12 Grounding      = 凍結的接地契約與追溯驗證（Frozen Groundin
 
 ### 2.1 確定性解析優先順序（Provider Resolution Precedence）
 
-當文件或頁面需要進行 OCR 時，系統依以下順序確定性解析提供者：
+當文件或頁面需要進行 OCR 時，系統依以下順序確定性解析提供者（單次呼叫覆寫優先於持久化設定）：
 
-1. **專案層級顯式設定**（`project.ocr.provider`）
-2. **命令列或全域顯式設定**（`--ocr-provider` / `user.ocr.provider`）
-3. **agy-ppt 預設本機提供者**（`tesseract`）
-4. **若皆不可用 → 顯式拋出錯誤並終止**（`OCR_PROVIDER_UNAVAILABLE`）
+1. **命令列／呼叫顯式提供者覆寫**（`--ocr-provider`）
+2. **專案層級顯式設定**（`project.ocr.provider`）
+3. **使用者／全域層級顯式設定**（`user.ocr.provider`）
+4. **agy-ppt 預設本機提供者**（`tesseract`）
+5. **若皆不可用 → 顯式拋出錯誤並終止**（`OCR_PROVIDER_UNAVAILABLE`）
 
 ### 2.2 嚴格禁止靜默備援（No Silent Fallback）
 
@@ -85,21 +86,24 @@ agy-ppt 仍需內建開箱即用的預設本機 OCR 解決方案，作為無顯�
 
 ### 3.1 候選引擎評估矩陣
 
-| 候選對象 | 核心版本 | 軟體授權 | 繁體中文 (zh-TW) | 英文 | 離線執行 | macOS (含 Apple Silicon) | Linux CI (Ubuntu) | 評估分類 (Classification) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Tesseract OCR** | v5.3+ / v5.4+ | Apache 2.0 | 支援 (`chi_tra`) | 支援 (`eng`) | 100% 離線 (本地 traineddata) | 完整支援 (`brew`)，原生 arm64 | 完美支援 (`apt-get`)，數秒安裝 | **DEFAULT LOCAL PROVIDER**（選定） |
-| **PaddleOCR (PP-OCR)** | v2.7+ / PP-OCRv4 | Apache 2.0 | 優異 (`chinese_cht`) | 支援 | 依賴預先下載權重，預設動態下載 | 安裝相依極重，macOS arm64 相容性脆弱 | 相依 PaddlePaddle (1GB+)，CI 極易超時/OOM | **OPTIONAL PROVIDER / ADAPTER** |
-| **Apple Vision** | macOS 11+ 內建 | 專有 (Apple) | 優異 | 優異 | 100% 離線 (硬體加速) | 完美原生支援，免安裝額外二進位 | **完全無法在 Linux 執行** | **PLATFORM-SPECIFIC PROVIDER** |
-| **OCRmyPDF** | v16.x+ | MPL-2.0 | 依賴後端 (Tesseract) | 依賴後端 | 本地工具鏈 | 需安裝完整 PDF 工具鏈 | CI 依賴 Ghostscript/qpdf/unpaper | **PDF WORKFLOW WRAPPER** |
-| **EasyOCR** | v1.7+ | Apache 2.0 | 支援 (`ch_tra`) | 支援 | 依賴 PyTorch 權重 | 相依 PyTorch (1.5GB+)，安裝耗時 | CI 下載 PyTorch 極重，記憶體消耗大 | **OPTIONAL PROVIDER / ADAPTER** |
-| **RapidOCR** | v1.3+ | Apache 2.0 | 支援 (ONNX 權重) | 支援 | 需管理 ONNX 模型檔 | 輕量 ONNX Runtime，跨平台良好 | 輕量，但繁體模型需額外下載與校驗 | **OPTIONAL PROVIDER / ADAPTER** |
+本評估明確區分「**目前觀察官方版本（Current Observed Version，截至 2026-09-06）**」與「**規劃支援版本範圍（Planned Supported Version Range）**」，嚴禁將動態的「最新版（latest）」作為重現性契約：
+
+| 候選對象 | 目前觀察官方版本 (Current Observed) | 規劃支援版本範圍 (Planned Range) | 軟體授權 | 繁體中文 (zh-TW) | 英文 | 離線執行能力 | macOS (含 Apple Silicon) | Linux CI (Ubuntu) | 評估分類 (Classification) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **Tesseract OCR** | 5.5.3 (官方發布) | v5.3+ – v5.5.x | Apache 2.0 | 支援 (`chi_tra` 需就緒並校驗指紋) | 支援 (`eng`) | 100% 離線 (本地 traineddata) | 完整支援 (`brew`)，原生 arm64 | 發行版套件可用 (`apt-get`)，無執行期權重下載 | **DEFAULT LOCAL PROVIDER**（選定） |
+| **PaddleOCR (PP-OCR)** | v3.7.0 / PP-OCRv6 (官方發布) | PP-OCRv4 / PP-OCRv6 | Apache 2.0 | 優異 (`chinese_cht` / 統一多語言) | 支援 | 依賴模型權重，預設動態下載 | 安裝相依沉重，macOS arm64 相容性脆弱 | 相依 PaddlePaddle (1GB+)，CI 易超時/OOM | **OPTIONAL PROVIDER / ADAPTER** |
+| **Apple Vision** | macOS 11+ 內建 (Vision framework) | macOS 11+ / 12+ | 專有 (Apple) | 優異 | 優異 | 100% 離線 (硬體加速) | 系統內建，免安裝額外二進位 | **完全無法在 Linux 執行** | **PLATFORM-SPECIFIC PROVIDER** |
+| **OCRmyPDF** | 17.11.0 (PyPI 穩定版) | v16.x – v17.x | MPL-2.0 | 依賴後端 (Tesseract) | 依賴後端 | 本地工具鏈 | 需安裝完整 PDF 工具鏈 | CI 依賴 Ghostscript/qpdf/unpaper | **PDF WORKFLOW WRAPPER** |
+| **EasyOCR** | 1.7.2 (PyPI 穩定版) | v1.7.x | Apache 2.0 | 支援 (`ch_tra`) | 支援 | 依賴 PyTorch 權重 | 相依 PyTorch (1.5GB+)，安裝耗時 | CI 下載 PyTorch 極重，記憶體消耗大 | **OPTIONAL PROVIDER / ADAPTER** |
+| **RapidOCR** | 1.4.4 (`rapidocr-onnxruntime`) | v1.3.x – v1.4.x | Apache 2.0 | 支援 (ONNX 權重) | 支援 | 需管理 ONNX 模型檔 | 輕量 ONNX Runtime，跨平台良好 | 輕量，但繁體模型需額外管理與校驗 | **OPTIONAL PROVIDER / ADAPTER** |
 
 ### 3.2 預設引擎選定決策：Tesseract OCR (v5.x)
 
 - **選定預設本機提供者**：**Tesseract OCR (v5.x)**
 - **決策信心度**：**HIGH**
 - **核心選定理由**：
-  1. **跨平台確定性與 CI 實用性**：在 macOS（Intel 與 Apple Silicon）及 Ubuntu Linux CI 皆有標準系統套件管理器原生支援，CI 佈署僅需 `apt-get install -y tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-eng`，不需拉取肥大的 PyTorch 或 CUDA 映像檔，完全避免 Actions 超時與記憶體溢出。
+  1. **發行版套件可用性與本機執行（無執行期模型下載）**：Tesseract 與所需語言包皆可透過主流作業系統發行版套件管理器取得（macOS `brew` 原生支援 Apple Silicon；Ubuntu Linux CI 透過 `apt-get` 安裝）。一旦安裝所需引擎與經釘選／校驗之語言資料，OCR 執行完全在本機進行，**不需於執行時期動態下載可變動的 OCR 模型（no runtime download of mutable OCR models）**，杜絕 Actions 超時與非預期模型漂移風險。
+     - **繁體中文語言包特別要求**：繁體中文語言資料（如 `chi_tra` traineddata）必須在執行環境中就緒，其來源出處與雜湊指紋（provenance / digest）必須由未來實作完整擷取並記錄於 OCR 證據歷程中，絕不可假設任何環境皆預先具備該語言資料。
   2. **完全離線與無隱藏連線**：模型以靜態 `.traineddata` 檔案發行，可釘選特定版本 commit SHA 與 SHA-256 雜湊值進行確定性校驗，執行過程無任何遙測或動態聯網。
   3. **豐富的結構化定位資訊**：原生 TSV / hOCR 輸出具備完整邊界框座標（`left`, `top`, `width`, `height`）、階層結構（頁、區塊、段落、行、詞）與 0–100 的信心度指標。
   4. **雙語混合支援**：透過 `-l chi_tra+eng` 原生支援繁體中文與英文混合文件辨識。
@@ -220,6 +224,15 @@ OCR 證據 → AGY 語意層 → Phase 12 來源接地整合
 Phase 15.6
 真實公開來源驗證、確定性門檻測試與生產發布就緒
 ```
+
+### 未來階段就緒狀態（Future Phase Readiness Status）
+
+- **Phase 15.1**: HANDOFF READY WHEN KIRO IS AVAILABLE
+- **Phase 15.2**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
+- **Phase 15.3**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
+- **Phase 15.4**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
+- **Phase 15.5**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1–15.4
+- **Phase 15.6**: ARCHITECTURALLY SPECIFIED / DEPENDS ON PRIOR PHASES
 
 ### 未來 Phase 15.1 範圍預備（Kiro-Ready Scope）
 - 定義 `OCRProvider` 抽象基底介面與 `OCRProviderCapabilities` 結構。
