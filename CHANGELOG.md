@@ -34,6 +34,10 @@ All notable changes to `agy-ppt` will be documented in this file.
   (`skills/agy-ppt/docs/ci-quality-gates.md`) and bilingual README integration,
   establishing the boundary between automated deterministic verification and AGY
   semantic authority. (#11)
+- GitHub Repository Ruleset `main-protection` enforcing mandatory pull requests,
+  required status checks (`deterministic` and `repository`), strict status
+  freshness, linear history via squash merge, and blocking force pushes and
+  branch deletions on `main`. (#12)
 
 
 ## [0.3.0] - 2026-09-04
