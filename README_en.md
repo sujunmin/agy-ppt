@@ -601,6 +601,21 @@ AGY_PPT_LIVE_RECOVERY=1 AGY_PPT_LIVE_RECOVERY_INTERRUPT=1 \
 See
 [`skills/agy-ppt/docs/recovery-testing.md`](skills/agy-ppt/docs/recovery-testing.md).
 
+### CI Quality Gates and Automated Validation
+
+This repository automatically enforces deterministic engineering checks and quality gates through GitHub Actions:
+
+- **Core Deterministic CI** (`ci.yml`): automatically validates package installation, Phase 13 acquisition and ingestion, Phase 12 source grounding, full unit test discovery, and Phase 9 recovery scenarios.
+- **Quality Gates** (`quality.yml`): automatically validates bilingual README parity, local link integrity, repository hygiene, private path and credential protection, and guards Frozen Phase 12/Phase 13 contracts.
+- **Release Readiness** (`release-readiness.yml`): clean-room, cache-free dependency installation and source archive integrity audit (manual workflow).
+- **Live Validation** (`live-validation.yml`): bounded live public-source acquisition for RFC 2119 (non-blocking, scheduled/manual).
+
+> **Note:** GitHub Actions automatically verifies deterministic engineering contracts and test suites; it does **not** claim to prove or replace AGY semantic judgement, claim verification, or source support review.
+
+See
+[`skills/agy-ppt/docs/ci-quality-gates.md`](skills/agy-ppt/docs/ci-quality-gates.md)
+for workflow architecture and policy details.
+
 ## Security and Privacy
 
 - This project does not read, copy, or forward any OAuth access token or refresh

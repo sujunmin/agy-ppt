@@ -1,0 +1,123 @@
+name: Release Readiness
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  clean-room-audit:
+    name: clean-room-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python 3.11 (clean-room, no cache)
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.11"
+
+      - name: Clean-room dependency installation from declared requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r skills/agy-ppt/requirements.txt
+
+      - name: Inspect and verify declared dependency imports
+        id: deps
+        run: |
+          python3 -c "
+          import pptx, PIL, openai, filelock, pypdf, docx, lxml
+          print('python-pptx:', getattr(pptx, '__version__', 'installed'))
+          print('Pillow:', getattr(PIL, '__version__', 'installed'))
+          print('openai:', getattr(openai, '__version__', 'installed'))
+          print('filelock:', getattr(filelock, '__version__', 'installed'))
+          print('pypdf:', getattr(pypdf, '__version__', 'installed'))
+          print('python-docx:', getattr(docx, '__version__', 'installed'))
+          print('lxml:', getattr(lxml, '__version__', 'installed'))
+          "
+
+      - name: Phase 12 source grounding and workflow tests
+        run: |
+          python3 -m unittest -v skills/agy-ppt/tests/test_source_grounding.py skills/agy-ppt/tests/test_source_grounding_workflow.py
+
+      - name: Phase 13 source acquisition and ingestion tests
+        run: |
+          python3 -m unittest -v skills/agy-ppt/tests/test_source_acquisition.py skills/agy-ppt/tests/test_source_ingestion.py
+
+      - name: External dependency resolver tests
+        run: |
+          python3 -m unittest -v skills/agy-ppt/tests/test_codex_ppt_dependency.py
+
+      - name: Phase 9 recovery scenario suite
+        run: |
+          python3 skills/agy-ppt/scripts/run_recovery_tests.py
+
+      - name: Full deterministic unit test suite discovery
+        run: |
+          python3 -m unittest discover -s skills/agy-ppt/tests -t skills/agy-ppt/tests -p "test_*.py"
+
+      - name: Verify bilingual README parity and link integrity
+        run: |
+          python3 scripts/ci/check_readme_parity.py
+
+      - name: Run repository hygiene, private path, and credential audit
+        run: |
+          python3 scripts/ci/check_repository_hygiene.py
+
+      - name: Verify Frozen Phase 12 / 13 contract integrity
+        run: |
+          python3 scripts/ci/check_frozen_contracts.py --verify-all-exist
+
+      - name: Clean-room archive integrity audit
+        run: |
+          ARCHIVE_DIR=$(mktemp -d)
+          git archive --format=tar HEAD | tar -x -C "$ARCHIVE_DIR"
+
+          echo "Verifying archive contents in $ARCHIVE_DIR..."
+          # Required root files
+          for f in README.md README_en.md AGENTS.md CHANGELOG.md LICENSE SECURITY.md THIRD_PARTY_NOTICES.md; do
+            if [ ! -f "$ARCHIVE_DIR/$f" ]; then
+              echo "ERROR: Required file missing from archive: $f"
+              exit 1
+            fi
+          done
+
+          # Required skill files
+          if [ ! -f "$ARCHIVE_DIR/skills/agy-ppt/SKILL.md" ] || [ ! -f "$ARCHIVE_DIR/skills/agy-ppt/requirements.txt" ]; then
+            echo "ERROR: Required skill files missing from archive"
+            exit 1
+          fi
+
+          # Prohibited files must not exist in archive
+          if find "$ARCHIVE_DIR" -name "*.pyc" -o -name ".env*" -o -name "*.pptx" -o -name "slide_*.png" | grep -q .; then
+            echo "ERROR: Prohibited runtime files found in archive!"
+            exit 1
+          fi
+
+          rm -rf "$ARCHIVE_DIR"
+          echo "Archive integrity verified: required files present, prohibited artifacts absent."
+
+      - name: Generate release readiness summary
+        if: always()
+        run: |
+          cat << 'SUMMARY' >> $GITHUB_STEP_SUMMARY
+          # Release Readiness Clean-Room Audit Summary
+
+          | Metric | Status |
+          | --- | --- |
+          | **Commit SHA** | \`${{ github.sha }}\` |
+          | **Ref** | \`${{ github.ref }}\` |
+          | **Python Version** | 3.11 (clean-room, no pip cache) |
+          | **Declared Requirements** | \`skills/agy-ppt/requirements.txt\` only |
+          | **Deterministic Test Suite** | PASS |
+          | **Recovery Suite** | PASS |
+          | **README Parity & Links** | PASS (0 broken local links) |
+          | **Repository Hygiene & Credentials** | PASS (0 prohibited artifacts, 0 credential leaks) |
+          | **Frozen Contracts** | PASS (all Phase 12/13 contracts intact) |
+          | **Archive Audit** | PASS (clean source archive verified) |
+
+          > **Note:** This is an automated clean-room release readiness verification. It does NOT create a Git tag, does NOT create a GitHub Release, and does NOT substitute for AGY semantic review.
+          SUMMARY

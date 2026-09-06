@@ -49,6 +49,7 @@ SEMANTIC_TOPIC_PAIRS: list[tuple[str, str, str]] = [
     ("Source Ingestion", r"^##\s+Source Ingestion", r"^##\s+Source Ingestion"),
     ("Remote Acquisition", r"^##\s+Remote Source Acquisition", r"^##\s+Remote Source Acquisition"),
     ("Testing", r"^##\s+Testing", r"^##\s+Testing"),
+    ("CI Quality Gates", r"^###\s+.*(?:CI 品質門檻|CI Quality Gates)", r"^###\s+.*(?:CI Quality Gates)"),
     ("Security and Privacy", r"^##\s+Security and Privacy", r"^##\s+Security and Privacy"),
     ("Limitations", r"^##\s+Limitations", r"^##\s+Limitations"),
     ("Upstream & Attribution", r"^##\s+Upstream & Attribution", r"^##\s+Upstream & Attribution"),

@@ -1,0 +1,60 @@
+name: Live Validation
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly on Mondays at 03:23 UTC (non-top-of-hour)
+    - cron: '23 3 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  rfc2119-live-acquisition:
+    name: rfc2119-live-acquisition
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "skills/agy-ppt/requirements.txt"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -r skills/agy-ppt/requirements.txt
+
+      - name: Execute bounded public RFC 2119 live acquisition check
+        id: live_check
+        run: |
+          echo "Executing bounded live public-source acquisition check (RFC 2119)..."
+          AGY_PPT_LIVE_REMOTE=1 python3 skills/agy-ppt/tests/integration/test_remote_acquisition_live.py
+
+      - name: Report failure context if blocked
+        if: failure()
+        run: |
+          echo "::warning::Live public source acquisition failed or was blocked."
+          echo "A failure here indicates an external network, TLS, or remote source availability change."
+          echo "Live validation is non-blocking for ordinary PR merges and is not considered a production defect."
+
+      - name: Publish live validation summary
+        if: always()
+        run: |
+          STATUS="${{ steps.live_check.outcome }}"
+          cat << SUMMARY >> $GITHUB_STEP_SUMMARY
+          # Live Public Source Acquisition Validation
+
+          | Parameter | Value |
+          | --- | --- |
+          | **Target Source** | \`https://www.rfc-editor.org/rfc/rfc2119.txt\` |
+          | **Canonical Fingerprint** | \`3c2ceb7bfc84cd34720f4a5271338ab9d8280d34bdd1eb250c64306202f2ed8b\` |
+          | **Scope** | Single bounded acquisition + plain-text extraction (no crawler, no browser) |
+          | **Outcome** | **$STATUS** |
+
+          > **Note:** Live public-source validation is decoupled from ordinary PR merges and deterministic CI gates.
+          SUMMARY

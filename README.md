@@ -535,6 +535,20 @@ AGY_PPT_LIVE_RECOVERY=1 AGY_PPT_LIVE_RECOVERY_INTERRUPT=1 \
 詳見
 [`skills/agy-ppt/docs/recovery-testing.md`](skills/agy-ppt/docs/recovery-testing.md)。
 
+### CI 品質門檻與自動化驗證
+
+本儲存庫透過 GitHub Actions 自動執行確定性工程檢查與品質門檻：
+
+- **Core Deterministic CI**（`ci.yml`）：自動驗證套件安裝、Phase 13 取得與擷取、Phase 12 來源接地、完整單元測試探索與 Phase 9 故障復原情境。
+- **Quality Gates**（`quality.yml`）：自動驗證雙語 README 對齊、連結完整性、儲存庫衛生、私有路徑與憑證防護，並守護 Phase 12／Phase 13 凍結契約。
+- **Release Readiness**（`release-readiness.yml`）：無快取純淨環境之發布就緒與源碼封存稽核（手動執行）。
+- **Live Validation**（`live-validation.yml`）：單一公開來源（RFC 2119）之有界實體取得驗證（非阻擋性、定期排程／手動執行）。
+
+> **注意：** GitHub Actions 自動驗證的是確定性工程契約與測試，**不**代表自動證明或取代 AGY 的語意真實性與論點背書判斷。
+
+架構細節與門檻規範見
+[`skills/agy-ppt/docs/ci-quality-gates.md`](skills/agy-ppt/docs/ci-quality-gates.md)。
+
 ## Security and Privacy
 
 - 本專案不讀取、不複製、不轉傳任何 OAuth access token / refresh token；各 CLI 自行
