@@ -4,6 +4,17 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- GitHub Actions core deterministic CI workflow (`.github/workflows/ci.yml`),
+  automating pull-request and push-to-main validation for all deterministic
+  engineering gates: dependency installation, import verification, Phase 13
+  acquisition and ingestion tests, Phase 12 source grounding and workflow tests,
+  full unit test discovery, Codex PPT dependency resolver tests, and Phase 9
+  recovery scenario suite. (#9)
+- Stable branch-protection aggregator check `deterministic` in CI workflow. (#9)
+
+
 ## [0.3.0] - 2026-09-04
 
 ### Added
