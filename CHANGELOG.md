@@ -6,6 +6,11 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Added
 
+- Phase 15 OCR provider architecture, Bring-Your-Own-OCR (BYO-OCR) provider
+  contract, and default-engine evaluation establishing Tesseract 5.x as the
+  default local provider, deterministic provider resolution precedence, strict
+  no-silent-fallback policy, normalized evidence schema, capability tiers, and
+  custom provider integration guides. (#13)
 - GitHub Actions core deterministic CI workflow (`.github/workflows/ci.yml`),
   automating pull-request and push-to-main validation for all deterministic
   engineering gates: dependency installation, import verification, Phase 13

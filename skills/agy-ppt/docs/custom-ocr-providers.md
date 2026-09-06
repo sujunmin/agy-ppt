@@ -11,7 +11,7 @@
 
 `agy-ppt` 採用開放且標準化的提供者架構（Provider Architecture）。使用者與企業可依需求整合專有的 OCR 引擎、雲端辨識服務（如 Google Cloud Vision、Azure AI Document Intelligence、AWS Textract）或自研深度學習模型。
 
-所有自訂 OCR 提供者皆必須遵守 [OCR Provider Contract Specification](file:///Users/sujunmin/Works/agy-ppt/skills/agy-ppt/docs/ocr-provider-contract.md) 中定義的統一輸出規格與行為契約。
+所有自訂 OCR 提供者皆必須遵守 [OCR Provider Contract Specification](ocr-provider-contract.md) 中定義的統一輸出規格與行為契約。
 
 ### 嚴格合規保證（Rejection Rule）
 
@@ -34,7 +34,7 @@
 
 ## 3. 提供者概念適配器結構（Conceptual Adapter Patterns）
 
-自訂提供者通常透過「適配器（Adapter）」將原生 OCR 工具的輸出轉換為 `agy-ppt` 標準的 [`OCREvidence`](file:///Users/sujunmin/Works/agy-ppt/skills/agy-ppt/docs/ocr-provider-contract.md#6-標準化-ocr-證據模型canonical-ocr-evidence-schema) 結構。
+自訂提供者通常透過「適配器（Adapter）」將原生 OCR 工具的輸出轉換為 `agy-ppt` 標準的 [`OCREvidence`](ocr-provider-contract.md#6-標準化-ocr-證據模型canonical-ocr-evidence-schema) 結構。
 
 ### 模式 A：Python 內部類別適配器（In-Process Adapter）
 
@@ -192,7 +192,7 @@ allow_fallback = true
 | --- | --- | --- |
 | `OCR_PROVIDER_NOT_FOUND` | 指定的 `provider_id` 未註冊或拼寫錯誤 | 檢查命令列參數或設定檔中的提供者名稱是否與註冊名稱一致。 |
 | `OCR_PROVIDER_UNAVAILABLE` | 二進位執行檔不存在、未加入 PATH，或遠端 API 無法連線 | 確認工具已正確安裝或 API 端點可正常存取。 |
-| `OCR_PROVIDER_CONTRACT_INVALID` | 適配器回傳之 JSON 不符合 OCREvidence 規範（如缺漏必要欄位） | 依據 [OCR Provider Contract](file:///Users/sujunmin/Works/agy-ppt/skills/agy-ppt/docs/ocr-provider-contract.md) 校驗輸出欄位型態。 |
+| `OCR_PROVIDER_CONTRACT_INVALID` | 適配器回傳之 JSON 不符合 OCREvidence 規範（如缺漏必要欄位） | 依據 [OCR Provider Contract](ocr-provider-contract.md) 校驗輸出欄位型態。 |
 | `OCR_PROVIDER_CAPABILITY_MISSING` | 提供者宣告缺少文字萃取或定位能力 | 確認 `get_capabilities()` 中 `text` 與 `locators` 皆為 `true`。 |
 | `OCR_PROVIDER_FAILED` | 提供者內部例外崩潰或回傳非零結束代碼 | 檢查輸入影像格式是否受支援，或檢查引擎內部錯誤日誌。 |
 | `OCR_LANGUAGE_UNSUPPORTED` | 請求的辨識語系（如 `chi_tra`）未安裝模型權重 | 下載或安裝該引擎對應的語言模型檔案（如 traineddata）。 |
