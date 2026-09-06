@@ -23,6 +23,17 @@ All notable changes to `agy-ppt` will be documented in this file.
   requiring maintainer approval label `frozen-contract-change-approved` for any
   modifications. (#10)
 - Stable branch-protection aggregator check `repository` in Quality workflow. (#10)
+- GitHub Actions clean-room release readiness workflow
+  (`.github/workflows/release-readiness.yml`), providing manual dispatch-only
+  audit with cache-free isolated installation from declared requirements, full
+  deterministic test gates, and clean source archive integrity verification. (#11)
+- Bounded live public source acquisition workflow
+  (`.github/workflows/live-validation.yml`), verifying RFC 2119 download and
+  fingerprint on manual dispatch and weekly schedule without blocking PR merges. (#11)
+- Comprehensive CI and quality gate architecture documentation
+  (`skills/agy-ppt/docs/ci-quality-gates.md`) and bilingual README integration,
+  establishing the boundary between automated deterministic verification and AGY
+  semantic authority. (#11)
 
 
 ## [0.3.0] - 2026-09-04
