@@ -153,3 +153,19 @@ Phase 13:
   - `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683` (# v4.2.2)
   - `actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38` (# v5.4.0)
 - **零機密需求**：確定性 CI 與品質檢驗完全不需要任何儲存庫 Secret 或生產 API Key。
+
+---
+
+## 6. 主分支保護與必要 CI 強制執行（Main Branch Protection）
+
+`main` 分支透過 GitHub Repository Ruleset（`main-protection`，ID: `22388938`）強制保護，狀態為 **ACTIVE**：
+
+- **必須透過 Pull Request 合併**：禁止直接 push 至 `main`。
+- **必要狀態檢查（Required Status Checks）**：
+  - `deterministic`（由 `ci.yml` 聚合之確定性測試閘門）
+  - `repository`（由 `quality.yml` 聚合之品質與凍結契約閘門）
+- **嚴格最新狀態政策（Strict Policy）**：`strict_required_status_checks_policy: true`，PR 必須在最新 `main` 狀態下通過檢查才可合併。
+- **線性歷史記錄（Linear History）**：啟用 `required_linear_history`，強制使用 squash merge，禁止 merge commit 與 rebase merge。
+- **禁止強制推送與分支刪除**：全面阻擋 `non_fast_forward`（force push）與 `deletion`。
+- **非必要檢查隔離**：`Release Readiness` 與 `Live Validation` 明確**不**列為 PR 必要檢查，保持手動／排程非阻擋特性。
+- **審查人核准門檻**：設定為 0（因應單一維護者架構，維護者可自行合併合規 PR），並強制要求所有 review comment thread 皆須已解決（resolved）。
