@@ -131,9 +131,19 @@ Authorization: Bearer <TOKEN>
 
 ---
 
-## 5. 備援政策與設定實務（Fallback Policy）
+## 5. 提供者解析與備援政策實務（Resolution & Fallback Policy）
 
-### 5.1 嚴格禁止靜默備援（No Silent Fallback）
+### 5.1 提供者解析優先順序（Provider Resolution Precedence）
+
+系統依以下優先順序確定性解析應使用的 OCR 提供者（命令列單次呼叫覆寫優先於持久化設定）：
+
+1. **命令列／呼叫顯式提供者覆寫**（例如 `--ocr-provider custom-ocr`）
+2. **專案層級顯式設定**（`project.ocr.provider`，如 `agy-ppt.toml`）
+3. **使用者／全域層級顯式設定**（`user.ocr.provider`）
+4. **agy-ppt 預設本機提供者**（`tesseract`）
+5. **若皆不可用 → 顯式拋出錯誤並終止**（`OCR_PROVIDER_UNAVAILABLE`）
+
+### 5.2 嚴格禁止靜默備援（No Silent Fallback）
 
 若您在專案中指定了自訂提供者（例如 `custom-ocr`）：
 
@@ -146,7 +156,7 @@ allow_fallback = false # 預設值為 false
 
 若 `custom-ocr` 發生錯誤（如服務斷線或程式當機），系統會**立即終止並拋出明確錯誤**，而**絕不**在未告知的情況下默默切換回 Tesseract。這確保了辨識品質與重現性符合您的預期。
 
-### 5.2 顯式允許備援（Explicit Fallback）
+### 5.3 顯式允許備援（Explicit Fallback）
 
 僅在您明確設定 `allow_fallback = true` 時，系統才允許在自訂提供者失敗時切換至預設提供者：
 
