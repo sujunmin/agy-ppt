@@ -1,9 +1,10 @@
 """Stable OCR provider error taxonomy."""
 
 class OCRError(Exception):
-    def __init__(self, message: str, error_code: str):
+    def __init__(self, message: str, error_code: str, *, cause: "OCRError | None" = None):
         super().__init__(message)
         self.error_code = error_code
+        self.cause = cause
 
 ERROR_CODES = {
     "OCR_PROVIDER_NOT_FOUND", "OCR_PROVIDER_UNAVAILABLE", "OCR_PROVIDER_CONTRACT_INVALID",

@@ -7,9 +7,11 @@ from .models import (
     OCRRequest, OCRResolution,
 )
 from .validation import validate_evidence, validate_provider, validate_request
+from .resolution import execute_with_fallback, resolve_provider
 
 __all__ = [
     "OCRProvider", "OCRError", "OCRDiagnostic", "OCREvidence",
     "OCRProviderCapabilities", "OCRProvenance", "OCRRequest", "OCRResolution",
     "validate_evidence", "validate_provider", "validate_request",
+    "resolve_provider", "execute_with_fallback",
 ]

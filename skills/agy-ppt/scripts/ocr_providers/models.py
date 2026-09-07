@@ -10,6 +10,7 @@ from .errors import OCRError
 
 _DIGEST = re.compile(r"^[0-9a-f]{64}$")
 _REQUIRED_CAPS = ("text", "locators")
+SELECTION_ORIGINS = frozenset({"explicit", "project", "user", "default"})
 
 def _invalid(message: str) -> OCRError:
     return OCRError(message, "OCR_PROVIDER_CONTRACT_INVALID")
@@ -73,6 +74,7 @@ class OCRProvenance:
     source_may_leave_local_machine: bool
     fallback_used: bool = False
     fallback_reason: str | None = None
+    selection_origin: str | None = None
 
 @dataclass(frozen=True)
 class OCRDiagnostic:
@@ -86,6 +88,7 @@ class OCRResolution:
     actual_provider: str
     fallback_used: bool = False
     fallback_reason: str | None = None
+    selection_origin: str | None = None
 
 @dataclass(frozen=True)
 class OCREvidence:
@@ -123,6 +126,8 @@ class OCREvidence:
             raise OCRError("provider version is required", "OCR_PROVIDER_VERSION_UNAVAILABLE")
         if self.provenance.actual_provider != self.provider_id:
             raise _invalid("provenance actual provider must match provider_id")
+        if self.provenance.selection_origin is not None and self.provenance.selection_origin not in SELECTION_ORIGINS:
+            raise _invalid("invalid provider selection origin")
         if self.provenance.execution_location != self.capabilities.execution_location:
             raise _invalid("provenance execution location mismatch")
         if self.provenance.source_may_leave_local_machine != self.capabilities.source_may_leave_local_machine:
