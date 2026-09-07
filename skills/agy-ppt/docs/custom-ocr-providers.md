@@ -74,6 +74,7 @@ Phase 15.1 擁有 OCR-native source-relative locator，page／image 索引均為
 - OCR_PROVIDER_VERSION_UNAVAILABLE。
 - OCR_PROVIDER_VERSION_UNSUPPORTED。
 - OCR_SOURCE_CHANGED。
+- OCR_MODEL_CHANGED。
 
 其他設定失敗亦依 [錯誤分類](ocr-provider-contract.md#7-錯誤分類體系error-taxonomy) 終止。Terminal error 保留原始代碼，不改包成 OCR_FALLBACK_NOT_ALLOWED。
 
@@ -84,6 +85,8 @@ Phase 15.1 擁有 OCR-native source-relative locator，page／image 索引均為
 - allow_fallback = true：至多轉向 Tesseract 一次，驗證 fallback provider 契約，保留原始 cause。
 - allow_fallback = false（預設）：回報 OCR_FALLBACK_NOT_ALLOWED，同時保留原始失敗為 cause。
 - Tesseract 自身或備援失敗：回報實際錯誤，不再切換或形成循環。
+
+OCR_SOURCE_CHANGED 僅表示原始來源 bytes 的 SHA-256 改變；OCR_MODEL_CHANGED 表示已驗證的 model/traineddata identity 或 digest 與執行前實際值不一致。模型 staleness 不得改寫 source_digest，也不得由 fallback 掩蓋；需重新驗證 model provenance 後建立新的 OCR evidence，或恢復原先預期的模型 bytes/configuration。
 
 成功備援的 provenance 片段如下；這不是完整 OCREvidence：
 

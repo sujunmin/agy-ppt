@@ -76,7 +76,7 @@ Phase 12 Grounding      = 凍結的接地契約與追溯驗證（Frozen Groundin
 
 僅操作性失敗且使用者**顯式啟用備援**（`ocr.allow_fallback = true`）時，才可轉向預設 Tesseract，至多一次；Tesseract 自身失敗不得再備援或重試成環。
 
-提供者／設定契約失敗為 terminal：`OCR_PROVIDER_NOT_FOUND`、`OCR_PROVIDER_CONTRACT_INVALID`、`OCR_PROVIDER_CAPABILITY_MISSING`、`OCR_PROVIDER_VERSION_UNAVAILABLE`、`OCR_PROVIDER_VERSION_UNSUPPORTED`，以及 `OCR_SOURCE_CHANGED` 都必須立即停止，不能靠備援繞過。完整分類以 [provider contract](ocr-provider-contract.md#8-解析備援與版本政策) 為準。
+提供者／設定／provenance 失敗為 terminal：`OCR_PROVIDER_NOT_FOUND`、`OCR_PROVIDER_CONTRACT_INVALID`、`OCR_PROVIDER_CAPABILITY_MISSING`、`OCR_PROVIDER_VERSION_UNAVAILABLE`、`OCR_PROVIDER_VERSION_UNSUPPORTED`、`OCR_SOURCE_CHANGED`，以及 `OCR_MODEL_CHANGED` 都必須立即停止，不能靠備援繞過。`OCR_SOURCE_CHANGED` 是原始來源 bytes digest 改變；`OCR_MODEL_CHANGED` 是已驗證 model/traineddata identity 或 digest 與執行前實際值不一致（`expected_model_digest != current_model_digest`），不得改寫 source_digest。完整分類以 [provider contract](ocr-provider-contract.md#8-解析備援與版本政策) 為準。
 
 原本符合備援條件的操作性失敗，若 `allow_fallback = false`，回報 `OCR_FALLBACK_NOT_ALLOWED`，並保留原始失敗作為 cause。Terminal 失敗直接保留其代碼，不包裝成此錯誤。
 
