@@ -6,6 +6,10 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Added
 
+- Phase 15.1 provider-neutral OCR foundation: canonical evidence/provenance,
+  deterministic provider resolution, explicit fallback policy, and safe local
+  Tesseract execution with structured evidence. (#17)
+
 - Phase 15 OCR provider architecture, Bring-Your-Own-OCR (BYO-OCR) provider
   contract, and default-engine evaluation establishing Tesseract 5.x as the
   default local provider, deterministic provider resolution precedence, strict

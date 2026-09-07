@@ -503,12 +503,12 @@ block ids, locators, and ordering, and the result does not depend on the file's
 absolute path. See
 [`skills/agy-ppt/docs/source-ingestion.md`](skills/agy-ppt/docs/source-ingestion.md).
 
-### OCR Provider Architecture (Planned)
+### OCR Provider Architecture (Phase 15.1 — PR pending)
 
 > [!NOTE]
 > The current release (v0.3.0) does not yet include usable OCR functionality. Scanned PDFs or image-only documents fail explicitly with `SOURCE_TEXT_UNAVAILABLE`.
 
-Planned Phase 15 OCR architecture supports user-provided OCR providers through a defined [Provider Contract](skills/agy-ppt/docs/ocr-provider-contract.md), with an agy-ppt default local provider (Tesseract 5) planned for users without custom OCR.
+Phase 15.1 implements the provider-neutral OCR contract, deterministic resolution/fallback rules, and a default local Tesseract 5 provider with safe execution and structured evidence. The implementation is in Draft PR #17 and is not yet merged into main. Scanned-PDF workflows, public image ingestion, cloud/custom registration UX, grounding integration, and real-source production validation remain out of scope.
 
 For specifications and integration guides, see:
 - [Phase 15 OCR Provider Architecture](skills/agy-ppt/docs/phase15-ocr-architecture.md)

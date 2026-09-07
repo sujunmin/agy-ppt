@@ -1,6 +1,6 @@
 # OCR Provider Contract Specification
 
-本文件是 Phase 15.1 OCR provider foundation 的規範性架構文件。OCR production code 尚未實作；本次不建立 Python modules、schema files、tests、adapters、provider execution 或 CLI behavior。
+本文件是 Phase 15.1 OCR provider foundation 的規範性架構文件。Phase 15.1 provider foundation 已在 PR #17 實作，尚待合併；公開 JSON schemas 與後續 ingestion/grounding 仍未建立。
 
 ## 1. 提供者能力分級（Capability Tiers）
 
