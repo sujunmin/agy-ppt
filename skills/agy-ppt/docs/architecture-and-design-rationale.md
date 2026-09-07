@@ -39,9 +39,9 @@ AGY 處理 semantic/presentation decision：
 AGY 的責任是「決定系統應該做什麼」。
 Phase 8A 實測已驗證目前系統至少能穩定處理約 79～239 字／頁的高密度繁體中文內容（已驗證成功範圍，非系統硬性上限）。
 
-## 3. Kiro 的角色：工程實作與 repository maintainer
+## 3. Production engineering worker：Codex 或 Kiro
 
-所有 executable implementation 都屬於 Kiro。
+所有 executable implementation 都必須由 AGY 明確指派的 Production Engineering Worker 執行；可由 Codex 或 Kiro 擔任。
 
 這包括 Python scripts、ACP bridge、CLI adapters、schema、tests、dependency、build、filesystem logic、PPTX assembly logic 等。
 
@@ -53,9 +53,9 @@ Phase 8A 實測已驗證目前系統至少能穩定處理約 79～239 字／頁�
 
 如果現有工具正常，Kiro 完全不需要出現在一次普通的 PPT 生成流程裡。
 
-只有在「需要改系統」時才叫 Kiro。
+只有在「需要改系統」時才叫明確指派的工程 worker。Kiro availability 不再是必要前提。
 
-## 4. Codex 的角色：視覺 renderer
+## 4. Codex Slide Image Worker 的角色：視覺 renderer
 
 Codex 的價值集中在圖片生成／編修。
 
@@ -109,7 +109,7 @@ before/after diff 為 fallback」找出 turn 產物，而不是依賴脆弱的�
 
 完整 workflow 只應該存在 AGY。
 
-Kiro 只需要一個工程 custom agent；Codex 只需要 image worker prompt/contract。
+Codex Production Engineering Worker 與 Codex Slide Image Worker 是兩個分離角色；Kiro custom agent 仍可作為替代工程 worker。
 
 這能避免多份 workflow definition 漂移。
 

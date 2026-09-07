@@ -18,8 +18,9 @@ implementation 的能力，本文件都不會宣稱為「guaranteed」。
 | 能力 | 實作位置 | 說明 |
 | --- | --- | --- |
 | AGY sole-orchestrator ownership | `SKILL.md`、`docs/agent-routing.md`、`docs/architecture-and-design-rationale.md` | `AGY -> worker -> AGY`，禁止 worker chaining |
-| Kiro V3 `ppt-engineer` engineering worker | `scripts/kiro_acp_bridge.py` | ACP bridge，agent-scope 為 turn-long runtime invariant |
-| Codex CLI slide-image worker | `scripts/codex_image_adapter.py` | 透過訂閱 session 呼叫內建 `image_gen`，backend 固定 `codex_builtin_imagegen` |
+| Kiro V3 `ppt-engineer` engineering worker | `scripts/kiro_acp_bridge.py` | 歷史／替代 ACP engineering worker，agent-scope 為 turn-long runtime invariant |
+| Codex Production Engineering Worker | repository governance | 明確指派後可執行 production engineering；AGY 仍保有 semantic authority |
+| Codex Slide Image Worker | `scripts/codex_image_adapter.py` | 透過訂閱 session 呼叫內建 `image_gen`，backend 固定 `codex_builtin_imagegen` |
 | Deterministic Project State | `scripts/project_state.py`、`scripts/validate_project.py`、`schemas/project_state.schema.json` | deck/slide state machine、generation 計數器、attempt 歷史 |
 | Generic-failure retry / block 政策 | `scripts/project_state.py`（`consecutive_failure_streak` / `may_retry_immediately` / `block_after_repeated_failure`） | 同一頁連續兩次 `IMAGE_GENERATION_FAILED` 即 block，不無限重試 |
 | Operator-confirmed quota blocker | `scripts/project_state.py`（`block_for_operator_confirmed_quota`） | 與 worker error_code provenance 分離記錄 |
@@ -96,8 +97,9 @@ CHANGELOG／Release Notes 也刻意沒有宣稱它們是 production feature：
 
 ```text
 AGY   = Sole Orchestrator / Single Source of Truth
-Kiro  = Engineering Worker Only
-Codex = Slide Image Worker Only
+Kiro  = Alternative Engineering Worker Only
+Codex Production Engineering Worker = Explicitly Assigned Engineering Only
+Codex Slide Image Worker = Slide Image Only
 ```
 
 ```text

@@ -14,7 +14,7 @@ Git submodule。upstream 只在真的需要其未修改原始實作時，由
 
 | | upstream behavior | agy-ppt behavior |
 | --- | --- | --- |
-| 執行模型 | 單一 skill，由呼叫它的 agent（Codex/Claude/其他）直接驅動整個流程 | 三個角色分工：AGY（唯一 orchestrator / state owner）、Kiro V3 `ppt-engineer`（engineering worker）、Codex CLI（slide-image worker） |
+| 執行模型 | 單一 skill，由呼叫它的 agent（Codex/Claude/其他）直接驅動整個流程 | AGY（唯一 orchestrator / state owner）、明確指派的 Codex Production Engineering Worker 或 Kiro（engineering）、Codex Slide Image Worker（slide-image）分工 |
 | 呼叫對象 | 直接呼叫 skill 內的腳本完成生成、組裝 | AGY 呼叫 worker，worker 完成後把結果交回 AGY，worker 之間不互相呼叫（`AGY -> worker -> AGY`） |
 | 主要使用情境 | 單次或少量互動式生成一份 PPT | 需要跨 process resume、故障恢復、可稽核 state 的多頁 deck 生成 |
 | 發佈方式 | 單一 repository，直接包含完整 skill 實作 | Standalone repository；upstream 實作不 vendor，只在需要時作為 external runtime dependency 解析 |
@@ -43,7 +43,7 @@ Git submodule。upstream 只在真的需要其未修改原始實作時，由
 
 | | upstream behavior | agy-ppt behavior |
 | --- | --- | --- |
-| 程式修改/除錯 | 由呼叫 skill 的 agent 自行處理 | 新增 `scripts/kiro_acp_bridge.py`：透過 ACP 協定呼叫 Kiro V3 `ppt-engineer` 作為專職 engineering worker，結果一律回交 AGY，Kiro 不可自行推進簡報 workflow |
+| 程式修改/除錯 | 由呼叫 skill 的 agent 自行處理 | 可由明確指派的 Codex Production Engineering Worker 或既有 Kiro ACP 路徑執行；結果一律回交 AGY，worker 不可自行推進簡報 workflow |
 | Kiro 是否可呼叫 Codex | 不適用（upstream 無此分工） | 明確禁止：Kiro 不得呼叫 Codex，Codex 不得呼叫 Kiro，任一 worker 不得代替 AGY 決定下一步 |
 
 ## 5. 測試與恢復驗證

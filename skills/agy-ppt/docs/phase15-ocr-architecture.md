@@ -243,14 +243,14 @@ Phase 15.6
 
 ### 未來階段就緒狀態（Future Phase Readiness Status）
 
-- **Phase 15.1**: HANDOFF READY WHEN KIRO IS AVAILABLE
+- **Phase 15.1**: IMPLEMENTATION READY for an explicitly assigned Codex Production Engineering Worker (or Kiro), subject to baseline validation and frozen-contract compliance
 - **Phase 15.2**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
 - **Phase 15.3**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
 - **Phase 15.4**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
 - **Phase 15.5**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1–15.4
 - **Phase 15.6**: ARCHITECTURALLY SPECIFIED / DEPENDS ON PRIOR PHASES
 
-### 未來 Phase 15.1 範圍預備（Kiro-Ready Scope）
+### 未來 Phase 15.1 範圍預備（Production-Engineering-Worker Scope）
 
 - 定義 `OCRProvider` 抽象基底介面與 `OCRProviderCapabilities` 結構。
 - 建立 provider validation、canonical OCREvidence、provider-neutral provenance、有序 model manifest。

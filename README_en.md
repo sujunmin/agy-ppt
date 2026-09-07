@@ -3,8 +3,9 @@
 **Language:** [繁體中文](README.md) | English
 
 An image-based PPT/PPTX generation workflow in which AGY is the sole
-orchestrator and state owner, Kiro V3 `ppt-engineer` is a dedicated engineering
-worker, and Codex CLI is a dedicated slide-image worker.
+orchestrator and state owner. Explicitly assigned Codex Production Engineering
+Workers or Kiro engineering workers perform engineering work, while the Codex
+Slide Image Worker remains a separate role.
 
 > This project is a derivative work of
 > [`ningzimu/codex-ppt-skill`](https://github.com/ningzimu/codex-ppt-skill). It is
@@ -41,8 +42,9 @@ responsibilities:
 | Role | Responsibility |
 | --- | --- |
 | **AGY** | The sole orchestrator and state owner. Decides the outline, page count, storyline, visual strategy, copy, approval gates, content QA and visual QA, whether an image is regenerated, and whether the project advances to assembly and completion. |
-| **Kiro V3 `ppt-engineer`** | Engineering worker only. Writes and changes code, debugs, writes tests, defines schema/tool contracts, CLI/ACP adapters, dependency/build work, filesystem automation, and PPTX assembly tooling. It must not change deck content, approved copy, page count, visual strategy, or any slide image. |
-| **Codex CLI** | Slide-image worker only. Generates or edits one full-page slide image and returns the result. It must not change copy or page count, write code, assemble the PPTX, or switch image backend on its own. |
+| **Codex Production Engineering Worker** | When explicitly assigned under repository governance, implements production code, deterministic tests, refactors, engineering/CI remediation, repository changes, and authorized commit/PR preparation. It is engineering-only, not semantic authority, and must not redefine committed architecture. |
+| **Kiro V3 `ppt-engineer`** | An alternative or previously designated engineering worker that returns work to AGY. Kiro availability is no longer a prerequisite for production implementation. It must not change deck content, approved copy, page count, visual strategy, or any slide image. |
+| **Codex Slide Image Worker** | Generates or edits one full-page slide image and returns the result. It must not change copy or page count, write code, assemble the PPTX, or switch image backend on its own. |
 
 The following routings are strictly forbidden — workers never call each other and
 never hand the workflow to one another:
@@ -71,10 +73,10 @@ and
   (`scripts/codex_image_adapter.py`): calls the built-in `image_gen` tool via an
   authenticated Codex CLI subscription session. No API key, and no automatic
   fallback to a paid API.
-- **Kiro V3 ACP bridge** (`scripts/kiro_acp_bridge.py`): hands engineering work
-  (code, debugging, tests) to Kiro V3 `ppt-engineer`. The agent scope is a
-  turn-long runtime invariant; if it drifts, the bridge aborts and reports
-  rather than assuming success.
+- **Engineering worker governance**: an explicitly assigned Codex Production
+  Engineering Worker may perform repository engineering. The Kiro V3 ACP bridge
+  remains available for the existing `ppt-engineer` path. Both roles are
+  engineering-only; AGY retains semantic and state authority.
 - **A retry policy allowing at most one immediate retry**: a second consecutive
   identical `IMAGE_GENERATION_FAILED` on the same slide blocks the project
   instead of retrying indefinitely. An operator may separately record an

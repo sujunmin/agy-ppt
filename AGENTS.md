@@ -1,5 +1,13 @@
 # AGENTS.md
 
+## Worker Governance
+
+AGY remains the sole orchestrator, semantic authority, and single source of truth. Semantic interpretation, claim meaning, source support and coverage, segmentation, semantic QA, and grounding decisions remain exclusively with AGY.
+
+Codex may serve as the **Production Engineering Worker** when explicitly assigned under repository governance. This role may implement production code, deterministic tests, refactors, defect and CI remediation, and repository-level changes, including preparation of commits and pull requests when explicitly authorized. Codex remains engineering-only, must follow committed architecture, frozen-contract policy, security and CI requirements, and must request clarification when architecture ambiguity affects an externally observable contract.
+
+The **Codex Slide Image Worker** remains a separate role for slide-image generation. Production engineering and slide-image generation are distinct responsibilities. Kiro may remain an alternative or previously designated engineering worker; Kiro availability is not a prerequisite for production implementation.
+
 Contribution governance for `agy-ppt`. This file is the single authoritative
 source for contribution flow, PR titles, changelog format, and release process.
 It applies to human contributors and to AI agents working in this repository.

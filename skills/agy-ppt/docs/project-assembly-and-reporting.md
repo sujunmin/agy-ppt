@@ -21,7 +21,7 @@
 
 若上游既有 `scripts/assemble_ppt.py` 可正常工作，AGY 可以直接執行。
 
-若需要修改任何 assembly behavior，交給 Kiro。
+若需要修改任何 assembly behavior，AGY 可明確指派 Codex Production Engineering Worker 或 Kiro；worker 只負責工程實作並回報 AGY。
 
 ## 最終驗證
 
@@ -42,4 +42,4 @@ AGY 至少檢查：
 - PPTX 路徑
 - 投影片圖片目錄
 - 是否有 blocker / workaround
-- 是否有 Kiro 修改過的工程專案
+- 是否有 engineering worker 修改過的工程專案，以及使用的 worker
