@@ -117,6 +117,7 @@ OCR namespace 與 frozen Phase 12/13 分離。下列後續階段代碼的定義�
 | OCR_RASTERIZATION_FAILED | 後續 Phase 15.2 rasterization 失敗；不屬 Phase 15.1 provider 備援 |
 | OCR_FALLBACK_NOT_ALLOWED | 原本可備援的操作性失敗，但備援未啟用；保留原始 cause |
 | OCR_SOURCE_CHANGED | 原始 bytes digest 改變；停止使用舊證據，terminal，不備援 |
+| OCR_MODEL_CHANGED | 已驗證的 model/traineddata identity 或 bytes digest 與執行前實際值不一致；provenance staleness，terminal，不備援 |
 | OCR_PROVIDER_CHANGED | Provider 身分改變，既有證據過期；不是備援觸發器 |
 | OCR_CONFIG_CHANGED | 語言／執行設定改變，既有證據過期；不是備援觸發器 |
 
@@ -124,13 +125,17 @@ OCR namespace 與 frozen Phase 12/13 分離。下列後續階段代碼的定義�
 
 選擇順序為 call/CLI override → project setting → user setting → default Tesseract。這是 selection precedence，不是 provider chain；CLI／設定檔語法仍屬概念。選定後不得因失敗改試較低優先設定。
 
-Terminal 契約／設定失敗，尤其 OCR_PROVIDER_NOT_FOUND、OCR_PROVIDER_CONTRACT_INVALID、OCR_PROVIDER_CAPABILITY_MISSING、OCR_PROVIDER_VERSION_UNAVAILABLE、OCR_SOURCE_CHANGED，不論 allow_fallback 為何都必須直接終止。
+Terminal 契約／設定／provenance 失敗，尤其 OCR_PROVIDER_NOT_FOUND、OCR_PROVIDER_CONTRACT_INVALID、OCR_PROVIDER_CAPABILITY_MISSING、OCR_PROVIDER_VERSION_UNAVAILABLE、OCR_PROVIDER_VERSION_UNSUPPORTED、OCR_SOURCE_CHANGED、OCR_MODEL_CHANGED，不論 allow_fallback 為何都必須直接終止。OCR_SOURCE_CHANGED 僅表示原始來源 bytes 的 SHA-256 改變；OCR_MODEL_CHANGED 表示同一來源下，預期 model/traineddata identity 或 digest（expected_model_digest != current_model_digest）已過期。後者不得改寫 source_digest，也不得以備援掩蓋。
 
 只有第 7 節標為操作性失敗的 provider failure，且目標尚非 default Tesseract，才具備援資格：
 
 - allow_fallback = true：最多轉向 Tesseract 一次，重新驗證其契約，記錄 requested/actual provider 與原始 failure code。
 - allow_fallback = false（預設）：回報 OCR_FALLBACK_NOT_ALLOWED，保留原始 failure 為 cause。
 - 預設 Tesseract 自身失敗或備援也失敗：回報實際失敗，保留已有 cause 歷程，不再切換或形成循環；沒有成功 evidence 就不偽造成功 provenance。
+
+若在執行或既有 evidence reuse 前發現 OCR_MODEL_CHANGED，呼叫者必須停止，不得在舊 provenance 下繼續，也不得事後靜默改寫 expected digest。恢復需要以新驗證的 model provenance 重新進行明確 OCR resolution/execution，或恢復原先預期的 model bytes/configuration。
+
+Evidence 相關 identity 變更（provider、provider version、engine/model identity、model/traineddata digest、language/execution/preprocessing 設定及原始 source digest）都會使既有 evidence stale；其中 model bytes 的即時不一致使用 OCR_MODEL_CHANGED 表示。診斷可保留 provider_id、model_id、expected_digest、actual_digest 等確定性欄位，不得把 filesystem path、timestamp 或任意 stderr 當作 canonical identity。
 
 Provider version 是必要 provenance。無法確定時，在辨識前以 OCR_PROVIDER_VERSION_UNAVAILABLE 失敗；成功偵測但不符合相容政策時使用 OCR_PROVIDER_VERSION_UNSUPPORTED。預設 Tesseract adapter 的 provider version 與 engine version 分離；Phase 15 目前以 **Tesseract 5.x** 為目標，不宣稱全部版本已驗證。
 
