@@ -4,8 +4,8 @@
 
 ```text
 AGY = 決定要做什麼
-Kiro = 寫程式讓系統做到
-Codex = 把視覺做出來
+Codex Production Engineering Worker / Kiro = 寫程式讓系統做到
+Codex Slide Image Worker = 把視覺做出來
 ```
 
 ## 決策樹
@@ -22,9 +22,9 @@ Codex = 把視覺做出來
   +-- 是否只是執行已存在且已驗證 script？ -> AGY 可以執行
 ```
 
-## Kiro routing 關鍵字
+## Production engineering worker routing 關鍵字
 
-遇到以下內容通常代表 Kiro：
+遇到以下內容通常代表 production engineering worker（可由明確指派的 Codex 或 Kiro 執行）：
 
 - implement
 - fix bug
@@ -41,7 +41,7 @@ Codex = 把視覺做出來
 - filesystem automation
 - PPTX assembly logic
 
-## Codex routing 關鍵字
+## Codex Slide Image Worker routing 關鍵字
 
 - generate slide image
 - edit slide image
@@ -55,14 +55,15 @@ Codex = 把視覺做出來
 
 - 因為「只改一行」就自行修改 code。
 
-### Kiro 不得
+### Production engineering worker 不得
 
 - 自行調整已核准文案／大綱／視覺方向。
 - 自行呼叫 Codex 接著把流程跑完。
 - 執行 Git 版本控制操作。
 - 未經授權變更 dependency / lockfile。
+- 成為 semantic authority，或在架構歧義影響外部契約時自行選擇新政策。
 
-### Codex 不得
+### Codex Slide Image Worker 不得
 
 - 改文案。
 - 改 deck strategy。
@@ -83,7 +84,7 @@ worker -> result -> AGY
 ```text
 AGY = sole orchestrator / state owner
 Kiro V3 `ppt-engineer` = engineering worker only
-Codex CLI = slide-image worker only
+Codex CLI Slide Image Worker = slide-image worker only
 ```
 
 正式且唯一允許的 routing：
@@ -170,6 +171,10 @@ python3 scripts/codex_image_adapter.py --input job.json
 
 若 built-in `image_gen` 不可用，回 `IMAGE_BACKEND_UNAVAILABLE` 並把控制權交回 AGY，
 **不**自動 fallback 到付費 API。細節見 `docs/codex-image-runtime.md`。
+
+## Engineering worker dispatch
+
+Production implementation is no longer blocked by Kiro availability. AGY may explicitly assign Codex as Production Engineering Worker, subject to AGENTS.md, committed architecture, frozen contracts, security, CI, and phase scope. Codex must return results to AGY and must request architecture clarification when ambiguity affects an externally observable contract.
 
 ## Kiro 派工路徑
 

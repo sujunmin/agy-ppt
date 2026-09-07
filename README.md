@@ -2,8 +2,9 @@
 
 **Language:** 繁體中文 | [English](README_en.md)
 
-以 AGY 為唯一 orchestrator / state owner，Kiro V3 `ppt-engineer` 為專職 engineering
-worker，Codex CLI 為專職 slide-image worker 的圖片式 PPT/PPTX 生成工作流程。
+以 AGY 為唯一 orchestrator / state owner，並由明確指派的 Codex Production Engineering
+Worker 或 Kiro engineering worker 執行工程工作；Codex Slide Image Worker 維持獨立的
+圖片式 PPT/PPTX 生成角色。
 
 > 本專案是 [`ningzimu/codex-ppt-skill`](https://github.com/ningzimu/codex-ppt-skill)
 > 的衍生作品（derivative work），並非 upstream 官方版本，也未獲得 upstream 作者背書。
@@ -37,8 +38,9 @@ AGY -> worker -> AGY
 | 角色 | 職責 |
 | --- | --- |
 | **AGY** | 唯一 orchestrator / state owner。決定大綱、頁數、故事線、視覺策略、文案、approval gates、content QA / visual QA、是否重生圖片、是否進入組裝與完成階段。 |
-| **Kiro V3 `ppt-engineer`** | Engineering worker only。只負責寫程式、改程式、debug、tests、schema/tool contract、CLI/ACP adapter、dependency/build、filesystem automation、PPTX assembly tooling。不得修改簡報內容、已核准文案、頁數、視覺策略或 slide image。 |
-| **Codex CLI** | Slide-image worker only。只負責生成或編修一張整頁投影片圖片，並回傳結果。不得改文案、改頁數、寫程式、組裝 PPTX 或自行切換 image backend。 |
+| **Codex Production Engineering Worker** | 在明確指派且符合治理要求時，負責 production code、deterministic tests、refactor、engineering defect/CI remediation、repository implementation，以及獲授權的 commit/PR 準備。僅具工程權限；不得成為 semantic authority，也不得自行改寫架構或 AGY 的語意決策。 |
+| **Kiro V3 `ppt-engineer`** | 可作為替代或既有的 engineering worker，負責工程實作並回報 AGY。Kiro 可用性不再是 production implementation 的必要前提。不得修改簡報內容、已核准文案、頁數、視覺策略或 slide image。 |
+| **Codex Slide Image Worker** | 只負責生成或編修一張整頁投影片圖片，並回傳結果。不得改文案、改頁數、寫程式、組裝 PPTX 或自行切換 image backend。 |
 
 嚴格禁止以下 routing（worker 之間不得互相呼叫或轉交流程）：
 
@@ -63,9 +65,9 @@ worker 完成後一律把結果交回 AGY，由 AGY 決定下一步；worker 不
 - **Codex 訂閱 session 生圖**（`scripts/codex_image_adapter.py`）：透過已登入的
   Codex CLI 訂閱 session 呼叫內建 `image_gen`，不使用 API key，不自動 fallback
   付費 API。
-- **Kiro V3 ACP bridge**（`scripts/kiro_acp_bridge.py`）：把工程需求（寫程式、debug、
-  測試）交給 Kiro V3 `ppt-engineer`，agent scope 為整個 turn 的 runtime invariant，
-  一旦漂移即中止並回報，不猜成功。
+- **工程 worker governance**：Codex Production Engineering Worker 可在明確指派下處理
+  repository engineering；Kiro V3 ACP bridge 仍支援既有 `ppt-engineer` 路徑。兩者都只
+  具工程權限，AGY 仍掌握語意與 state。
 - **最多一次 immediate retry 的故障政策**：同一頁連續兩次相同的
   `IMAGE_GENERATION_FAILED` 即 block 專案，不會無限重試；operator 可另外明確記錄
   「額度已耗盡」的決策，但不會偽造成 worker error code。

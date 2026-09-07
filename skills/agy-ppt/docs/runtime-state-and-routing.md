@@ -1,7 +1,7 @@
 # Runtime State 與 Routing（Phase 6）
 
-本文件定義 AGY 專用的 deterministic project state 系統，以及 AGY 對兩個 worker 的
-正式 routing contract。
+本文件定義 AGY 專用的 deterministic project state 系統，以及 AGY 對 engineering 與
+slide-image workers 的正式 routing contract。
 
 核心前提：**AGY 永遠是唯一 Orchestrator / Single Source of Decision。**
 本階段不建立第二個 AI orchestrator。程式只做 deterministic infrastructure。
@@ -21,7 +21,7 @@
 - reporting（deterministic summary）
 
 程式**不得**做：簡報策略、大綱決策、文案修改、視覺 QA 判斷、是否重生的決策、
-自動呼叫 Kiro、自動改頁數、自動改 slide content、自動推進 phase。以上全部屬於 AGY。
+自動呼叫工程 worker、自動改頁數、自動改 slide content、自動推進 phase。以上全部屬於 AGY。
 
 ## 2. 與 upstream state 的關係（不重造）
 
@@ -193,9 +193,9 @@ parallel generation。
 
 ```text
 內容 / 規劃 / QA        -> AGY 自己處理
-Coding                  -> kiro_acp_bridge.py     -> 回 AGY（Kiro 不推進 deck phase）
+Coding                  -> 明確指派 Codex Production Engineering Worker 或 kiro_acp_bridge.py -> 回 AGY（worker 不推進 deck phase）
 Image                   -> codex_image_adapter.py -> 回 AGY（AGY QA 後才更新 slide state）
-Assembly                -> upstream assemble_ppt.py（正常不需 Kiro；有 bug 才派 Kiro）
+Assembly                -> upstream assemble_ppt.py（正常不需 engineering worker；有 bug 才派 Codex 或 Kiro）
 ```
 
 永遠只允許：

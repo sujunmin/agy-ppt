@@ -26,8 +26,9 @@ notice have not been removed or replaced.
 
 `skills/agy-ppt/` contains implementations that were originally derived from
 upstream `codex-ppt-skill` and then adapted for the AGY orchestration model
-(AGY as sole orchestrator / state owner, Kiro V3 `ppt-engineer` as engineering
-worker, Codex CLI as slide-image worker). These files live in this repository
+(AGY as sole orchestrator / state owner, explicitly assigned Codex Production
+Engineering Worker or Kiro V3 `ppt-engineer` as engineering worker, Codex CLI as
+the separate Slide Image Worker). These files live in this repository
 as part of `skills/agy-ppt/` and are not a live dependency on upstream:
 
 - PPTX assembly logic (`scripts/assemble_ppt.py`)
@@ -73,7 +74,8 @@ upstream does not have:
   `image_gen.py` path
 - `scripts/kiro_acp_bridge.py` -- an ACP bridge that routes engineering work
   (code changes, debugging, tests, tooling) to a Kiro V3 `ppt-engineer` agent,
-  always returning control to AGY
+  always returning control to AGY; Codex may perform the same engineering role
+  when explicitly assigned under repository governance
 - `scripts/codex_ppt_dependency.py` -- the external runtime dependency
   resolver described above
 - `scripts/run_recovery_tests.py`, `scripts/run_live_recovery_tests.py`, and

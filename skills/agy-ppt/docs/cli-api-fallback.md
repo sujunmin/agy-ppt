@@ -16,4 +16,4 @@
 
 就自動切換 API 計費模式。
 
-只有使用者明確要求改變 backend policy 時，AGY 才能建立新的 backend decision；若這需要修改程式或 routing，交給 Kiro。
+只有使用者明確要求改變 backend policy 時，AGY 才能建立新的 backend decision；若這需要修改程式或 routing，交給明確指派的 Codex Production Engineering Worker 或 Kiro。
