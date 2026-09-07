@@ -1,6 +1,6 @@
 # 自訂 OCR 提供者整合指南（Custom OCR Providers Guide）
 
-本文件提供 BYO-OCR 的架構整合指引。所有介面／設定名稱均為概念設計；OCR production code 尚未實作。本次為 Phase 15.1 文件澄清，不建立 Python modules、schemas、tests、adapters、execution 或 CLI behavior。
+本文件提供 BYO-OCR 的架構整合指引。Phase 15.1 provider foundation 已在 PR #17 實作，尚待合併；自訂 provider registration UX 仍未建立。
 
 ## 1. 核心整合原則
 
