@@ -91,40 +91,57 @@ class OCRResolution:
     selection_origin: str | None = None
 
 @dataclass(frozen=True)
+class OCRPage:
+    locator: Mapping[str, Any]
+    raw_text: str
+    regions: tuple[Mapping[str, Any], ...]
+    high_risk_signals: tuple[Mapping[str, Any], ...] = ()
+
+    def __post_init__(self) -> None:
+        for name in ("locator", "regions", "high_risk_signals"):
+            object.__setattr__(self, name, _freeze(getattr(self, name)))
+
+@dataclass(frozen=True)
+class OCRProviderMetadata:
+    provider_id: str
+    provider_version: str
+    engine_name: str | None = None
+    engine_version: str | None = None
+
+@dataclass(frozen=True)
 class OCREvidence:
     schema_version: str
     source_id: str
     source_digest: str
-    locator: Mapping[str, Any]
-    raw_text: str
-    regions: tuple[Mapping[str, Any], ...]
+    pages: tuple[OCRPage, ...]
     capabilities: OCRProviderCapabilities
-    provider_id: str
-    provider_version: str
+    provider: OCRProviderMetadata
     provenance: OCRProvenance
     model_manifest: tuple[Mapping[str, Any], ...] = ()
     language_config: Mapping[str, Any] = field(default_factory=dict)
     execution_config: Mapping[str, Any] = field(default_factory=dict)
-    engine_name: str | None = None
-    engine_version: str | None = None
-    high_risk_signals: tuple[Mapping[str, Any], ...] = ()
 
     def __post_init__(self) -> None:
-        for name in ("locator", "language_config", "execution_config"):
+        for name in ("language_config", "execution_config"):
             object.__setattr__(self, name, _freeze(getattr(self, name)))
-        for name in ("regions", "model_manifest", "high_risk_signals"):
+
+    @property
+    def raw_text(self) -> str:
+        return self.pages[0].raw_text if len(self.pages) == 1 else ""
+        for name in ("pages", "model_manifest"):
             object.__setattr__(self, name, _freeze(getattr(self, name)))
 
     def validate(self) -> None:
         if not self.schema_version or not self.source_id or not _DIGEST.fullmatch(self.source_digest):
             raise _invalid("schema_version, source_id and lowercase SHA-256 source_digest are required")
-        validate_locator(self.locator)
-        if not isinstance(self.raw_text, str):
-            raise _invalid("raw_text must be a string")
         self.capabilities.validate()
-        if not self.provider_id or not self.provider_version or self.provider_version.lower() == "unknown":
+        if not self.provider.provider_id:
+            raise _invalid("provider_id is required")
+        if not self.provider.provider_version or self.provider.provider_version.lower() == "unknown":
             raise OCRError("provider version is required", "OCR_PROVIDER_VERSION_UNAVAILABLE")
-        if self.provenance.actual_provider != self.provider_id:
+        if self.provider.engine_name and (not self.provider.engine_version or self.provider.engine_version.lower() == "unknown"):
+            raise OCRError("engine version is required", "OCR_PROVIDER_VERSION_UNAVAILABLE")
+        if self.provenance.actual_provider != self.provider.provider_id:
             raise _invalid("provenance actual provider must match provider_id")
         if self.provenance.selection_origin is not None and self.provenance.selection_origin not in SELECTION_ORIGINS:
             raise _invalid("invalid provider selection origin")
@@ -135,20 +152,33 @@ class OCREvidence:
         if self.provenance.fallback_used != (self.provenance.fallback_reason is not None):
             raise _invalid("fallback provenance is inconsistent")
         _validate_models(self.model_manifest)
-        for region in self.regions:
-            if not isinstance(region, Mapping) or not region.get("region_id") or not isinstance(region.get("text"), str):
-                raise _invalid("regions require region_id and text")
-            if "bounding_box" in region:
-                _validate_box(region["bounding_box"])
-            if "confidence" in region:
-                _validate_confidence(region["confidence"])
+        for page in self.pages:
+            validate_locator(page.locator)
+            if not isinstance(page.raw_text, str):
+                raise _invalid("raw_text must be a string")
+            for region in page.regions:
+                if not isinstance(region, Mapping) or not region.get("region_id") or not isinstance(region.get("text"), str):
+                    raise _invalid("regions require region_id and text")
+                if "bounding_box" in region:
+                    _validate_box(region["bounding_box"])
+                if "confidence" in region:
+                    _validate_confidence(region["confidence"])
 
     def to_dict(self) -> dict[str, Any]:
         self.validate()
-        return {"schema_version": self.schema_version, "source_id": self.source_id, "source_digest": self.source_digest, "locator": _plain(self.locator), "raw_text": self.raw_text, "regions": _plain(self.regions), "capabilities": {k: getattr(self.capabilities, k) for k in self.capabilities.__dataclass_fields__}, "provider_id": self.provider_id, "provider_version": self.provider_version, "provenance": {k: getattr(self.provenance, k) for k in self.provenance.__dataclass_fields__}, "model_manifest": _plain(self.model_manifest), "language_config": _plain(self.language_config), "execution_config": _plain(self.execution_config), "engine_name": self.engine_name, "engine_version": self.engine_version, "high_risk_signals": _plain(self.high_risk_signals)}
+        return {"schema_version": self.schema_version, "source_id": self.source_id,
+                "source_digest": self.source_digest,
+                "pages": [{"locator": _plain(p.locator), "raw_text": p.raw_text,
+                           "regions": _plain(p.regions),
+                           **({"high_risk_signals": _plain(p.high_risk_signals)} if p.high_risk_signals else {})} for p in self.pages],
+                "capabilities": dict(vars(self.capabilities)),
+                "provider": {k: v for k, v in vars(self.provider).items() if v is not None},
+                "provenance": {k: v for k, v in vars(self.provenance).items() if v is not None or k == "fallback_reason"},
+                "model_manifest": _plain(self.model_manifest),
+                "language_config": _plain(self.language_config), "execution_config": _plain(self.execution_config)}
 
     def to_json(self) -> str:
-        return json.dumps(self.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return json.dumps(self.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 def validate_locator(locator: Mapping[str, Any]) -> None:
     if not isinstance(locator, Mapping) or locator.get("kind") not in ("page", "image"):

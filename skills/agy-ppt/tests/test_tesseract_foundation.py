@@ -28,6 +28,6 @@ class TesseractFoundationTests(unittest.TestCase):
     def test_missing_traineddata_is_stable_error(self):
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaises(OCRError) as c: TesseractProvider(tessdata_dir=d).discover_traineddata("eng")
-            self.assertEqual(c.exception.error_code, "OCR_LANGUAGE_UNSUPPORTED")
+            self.assertEqual(c.exception.error_code, "OCR_MODEL_UNAVAILABLE")
 
 if __name__ == "__main__": unittest.main()

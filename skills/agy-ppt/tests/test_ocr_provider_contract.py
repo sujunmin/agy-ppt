@@ -12,8 +12,8 @@ CAP = OCRProviderCapabilities(True, True, "local", False)
 
 def evidence(**kw):
     values = dict(schema_version="1.0", source_id="src", source_digest=SRC,
-                  locator={"kind":"page", "page":1}, raw_text="raw", regions=(),
-                  capabilities=CAP, provider_id="fake", provider_version="1.0",
+                  pages=(OCRPage({"kind":"page", "page":1}, "raw", ()),),
+                  capabilities=CAP, provider=OCRProviderMetadata("fake", "1.0"),
                   provenance=OCRProvenance("fake", "fake", "local", False))
     values.update(kw)
     return OCREvidence(**values)
@@ -21,6 +21,11 @@ def evidence(**kw):
 class OCRContractTests(unittest.TestCase):
     def test_geometry_free_and_empty_regions(self): evidence().validate()
     def test_raw_text_preserved_and_serialization_stable(self): self.assertEqual(evidence().to_json(), evidence().to_json())
+    def test_canonical_hierarchy_and_no_flat_text_fields(self):
+        payload = evidence().to_dict()
+        self.assertIn("provider", payload); self.assertIn("pages", payload)
+        self.assertEqual(payload["pages"][0]["raw_text"], "raw")
+        self.assertNotIn("provider_id", payload); self.assertNotIn("raw_text", payload)
     def test_missing_capability_rejected(self):
         with self.assertRaises(OCRError) as c: OCRProviderCapabilities(False, True, "local", False).validate()
         self.assertEqual(c.exception.error_code, "OCR_PROVIDER_CAPABILITY_MISSING")
@@ -30,11 +35,11 @@ class OCRContractTests(unittest.TestCase):
         for loc in ({"kind":"page","page":0},{"kind":"page","page":True},{"kind":"bad","page":1}):
             with self.assertRaises(OCRError): validate_locator(loc)
     def test_invalid_geometry_rejected(self):
-        with self.assertRaises(OCRError): evidence(regions=({"region_id":"r","text":"x","bounding_box":{"x":0,"y":0,"width":2,"height":1}},)).validate()
+        with self.assertRaises(OCRError): evidence(pages=(OCRPage({"kind":"page","page":1}, "raw", ({"region_id":"r","text":"x","bounding_box":{"x":0,"y":0,"width":2,"height":1}},)),)).validate()
     def test_provider_mismatch_rejected(self):
         with self.assertRaises(OCRError): evidence(provenance=OCRProvenance("fake", "other", "local", False)).validate()
     def test_unknown_version_rejected(self):
-        with self.assertRaises(OCRError) as c: evidence(provider_version="unknown").validate()
+        with self.assertRaises(OCRError) as c: evidence(provider=OCRProviderMetadata("fake", "unknown")).validate()
         self.assertEqual(c.exception.error_code, "OCR_PROVIDER_VERSION_UNAVAILABLE")
     def test_model_manifest_order_and_digest(self):
         digest = "a" * 64

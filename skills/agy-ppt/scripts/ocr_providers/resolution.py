@@ -10,10 +10,11 @@ _TERMINAL = frozenset({
     "OCR_PROVIDER_NOT_FOUND", "OCR_PROVIDER_CONTRACT_INVALID",
     "OCR_PROVIDER_CAPABILITY_MISSING", "OCR_PROVIDER_VERSION_UNAVAILABLE",
     "OCR_PROVIDER_VERSION_UNSUPPORTED", "OCR_SOURCE_CHANGED", "OCR_MODEL_CHANGED",
+    "OCR_LANGUAGE_UNSUPPORTED", "OCR_MODEL_UNAVAILABLE",
 })
 _ELIGIBLE = frozenset({
     "OCR_PROVIDER_UNAVAILABLE", "OCR_PROVIDER_FAILED", "OCR_PROVIDER_OUTPUT_INVALID",
-    "OCR_LANGUAGE_UNSUPPORTED",
+    "OCR_EXTRACTION_FAILED",
 })
 
 def resolve_provider(providers: Mapping[str, OCRProvider], *, explicit: str | None = None,
@@ -37,6 +38,8 @@ def execute_with_fallback(providers: Mapping[str, OCRProvider], request: OCRRequ
     try:
         evidence = provider.recognize(request)
         validate_evidence(evidence)
+        if evidence.provenance.requested_provider != resolution.requested_provider:
+            evidence = replace(evidence, provenance=replace(evidence.provenance, requested_provider=resolution.requested_provider, selection_origin=resolution.selection_origin))
         return evidence
     except OCRError as failure:
         if failure.error_code in _TERMINAL or resolution.actual_provider == default or not allow_fallback:
