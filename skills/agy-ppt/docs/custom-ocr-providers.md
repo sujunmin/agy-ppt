@@ -1,6 +1,6 @@
 # 自訂 OCR 提供者整合指南（Custom OCR Providers Guide）
 
-本文件提供 BYO-OCR 的架構整合指引。Phase 15.1 provider foundation 已在 PR #17 實作，尚待合併；自訂 provider registration UX 仍未建立。
+本文件提供 BYO-OCR 的架構整合指引。Phase 15.1 provider foundation 已由 PR #17 合併；自訂 provider registration UX 仍未建立。
 
 ## 1. 核心整合原則
 

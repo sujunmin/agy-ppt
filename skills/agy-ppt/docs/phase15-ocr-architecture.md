@@ -2,7 +2,7 @@
 
 本文件是 `agy-ppt` Phase 15（OCR Ingestion & Provider Architecture）的架構決策紀錄（Architecture Decision Record, ADR），定義提供者架構（Provider Architecture）、自備 OCR（Bring Your Own OCR, BYO-OCR）整合機制、預設本機引擎評估決策與工程實作路線圖。
 
-Phase 15.1 provider foundation 已在 PR #17 實作，尚待合併；下圖描述跨階段目標。文件路由屬 Phase 15.2/15.3，接地整合屬 Phase 15.5，均不屬於 Phase 15.1。
+Phase 15.1 provider foundation 已由 PR #17 合併至 main；下圖描述跨階段目標。文件路由屬 Phase 15.2/15.3，接地整合屬 Phase 15.5，均不屬於 Phase 15.1。
 
 ---
 
@@ -243,7 +243,7 @@ Phase 15.6
 
 ### 未來階段就緒狀態（Future Phase Readiness Status）
 
-- **Phase 15.1**: IMPLEMENTATION COMPLETE / PR PENDING on the feature branch; main remains unchanged until PR #17 merges
+- **Phase 15.1**: COMPLETE / MERGED (PR #17, squash merge `9a5059a47fbb474119bb895d2080b20adaaa31f4`); deterministic and repository required checks passed
 - **Phase 15.2**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
 - **Phase 15.3**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
 - **Phase 15.4**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
