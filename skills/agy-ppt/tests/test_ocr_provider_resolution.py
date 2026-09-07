@@ -34,10 +34,16 @@ class ResolutionTests(unittest.TestCase):
         self.assertEqual(out.raw_text, "fallback"); self.assertEqual(out.provenance.requested_provider, "explicit"); self.assertTrue(out.provenance.fallback_used)
         self.assertEqual(out.provenance.fallback_reason, "OCR_PROVIDER_UNAVAILABLE"); self.assertEqual(out.provenance.selection_origin, "explicit"); self.assertEqual(len(ps["tesseract"].calls), 1)
     def test_terminal_failure_never_falls_back(self):
-        for code in ("OCR_PROVIDER_CONTRACT_INVALID", "OCR_PROVIDER_CAPABILITY_MISSING", "OCR_PROVIDER_VERSION_UNAVAILABLE", "OCR_PROVIDER_VERSION_UNSUPPORTED", "OCR_SOURCE_CHANGED"):
+        for code in ("OCR_PROVIDER_CONTRACT_INVALID", "OCR_PROVIDER_CAPABILITY_MISSING", "OCR_PROVIDER_VERSION_UNAVAILABLE", "OCR_PROVIDER_VERSION_UNSUPPORTED", "OCR_SOURCE_CHANGED", "OCR_MODEL_CHANGED"):
             ps=self.providers(); ps["explicit"].fail_code=code
             with self.assertRaises(OCRError) as c: execute_with_fallback(ps, REQ, explicit="explicit", allow_fallback=True)
             self.assertEqual(c.exception.error_code, code); self.assertEqual(ps["tesseract"].calls, [])
+    def test_model_changed_never_becomes_fallback_not_allowed(self):
+        ps=self.providers(); ps["explicit"].fail_code="OCR_MODEL_CHANGED"
+        for allowed in (False, True):
+            ps["tesseract"].calls.clear()
+            with self.assertRaises(OCRError) as c: execute_with_fallback(ps, REQ, explicit="explicit", allow_fallback=allowed)
+            self.assertEqual(c.exception.error_code, "OCR_MODEL_CHANGED"); self.assertEqual(ps["tesseract"].calls, [])
     def test_default_failure_does_not_recurse(self):
         ps=self.providers(); ps["tesseract"].fail_code="OCR_PROVIDER_FAILED"
         with self.assertRaises(OCRError) as c: execute_with_fallback(ps, REQ)
