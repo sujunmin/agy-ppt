@@ -2,6 +2,8 @@
 
 本文件是 `agy-ppt` Phase 15（OCR Ingestion & Provider Architecture）的架構決策紀錄（Architecture Decision Record, ADR），定義提供者架構（Provider Architecture）、自備 OCR（Bring Your Own OCR, BYO-OCR）整合機制、預設本機引擎評估決策與工程實作路線圖。
 
+本次為 Phase 15.1 文件澄清，OCR production code 尚未實作。下圖描述跨階段目標；文件路由屬 Phase 15.2/15.3，接地整合屬 Phase 15.5，均不屬於 Phase 15.1。
+
 ---
 
 ## 1. 架構核心原則：BYO-OCR 與責任分離
@@ -38,8 +40,9 @@ AGY                     = 唯一語意權威（Semantic Authority & Claim Verifi
 Phase 12 Grounding      = 凍結的接地契約與追溯驗證（Frozen Grounding System）
 ```
 
-- **OCR 絕非語意權威**：OCR 提供者只產出字元辨識結果、邊界框（Bounding Boxes）與辨識信賴度，不具備判斷內容重要性、論點成立與否或事實真偽之權限。
-- **禁止自動升級**：OCR 產出的文字區塊（OCR Blocks）**絕不可**自動升級為 Phase 12 語意來源單元（Semantic Source Units），必須經由 AGY 進行語意切分與審查。
+- **OCR 絕非語意權威**：`raw_text` 是必要的 canonical 辨識文字。邊界框與信賴度是建議能力；`regions` 可為空，region 的邊界框可省略，絕不可虛構。沒有 bounding-box 能力的提供者仍可產出有效證據。
+- **禁止自動升級**：OCR regions **絕不可**自動升級為 Phase 12 語意來源單元（Semantic Source Units），必須經由 AGY 進行語意切分與審查。
+- **Frozen 邊界**：Phase 12 與 Phase 13 維持 FROZEN。Phase 15.1 擁有 OCR-native source-relative locator，不修改 Phase 12 locator validation，也不宣稱直接相容；轉換與整合契約屬 Phase 15.5。
 
 ---
 
@@ -53,7 +56,8 @@ Phase 12 Grounding      = 凍結的接地契約與追溯驗證（Frozen Groundin
 2. **專案層級顯式設定**（`project.ocr.provider`）
 3. **使用者／全域層級顯式設定**（`user.ocr.provider`）
 4. **agy-ppt 預設本機提供者**（`tesseract`）
-5. **若皆不可用 → 顯式拋出錯誤並終止**（`OCR_PROVIDER_UNAVAILABLE`）
+
+以上是選擇優先序，不是依序嘗試的 provider chain。選定後不因失敗而改試較低優先設定；未指定時選用 Tesseract，預設提供者不可用即回報 `OCR_PROVIDER_UNAVAILABLE`。Phase 15.1 僅建立解析基礎，不實作 CLI 或設定檔 UX。
 
 ### 2.2 嚴格禁止靜默備援（No Silent Fallback）
 
@@ -70,13 +74,20 @@ Phase 12 Grounding      = 凍結的接地契約與追溯驗證（Frozen Groundin
 
 ### 2.3 顯式備援宣告與歷程記錄（Explicit Fallback）
 
-僅在使用者**顯式啟用備援**（例如設定 `ocr.allow_fallback = true`）時，系統方可在指定提供者失敗後轉向預設提供者。
+僅操作性失敗且使用者**顯式啟用備援**（`ocr.allow_fallback = true`）時，才可轉向預設 Tesseract，至多一次；Tesseract 自身失敗不得再備援或重試成環。
+
+提供者／設定契約失敗為 terminal：`OCR_PROVIDER_NOT_FOUND`、`OCR_PROVIDER_CONTRACT_INVALID`、`OCR_PROVIDER_CAPABILITY_MISSING`、`OCR_PROVIDER_VERSION_UNAVAILABLE`、`OCR_PROVIDER_VERSION_UNSUPPORTED`，以及 `OCR_SOURCE_CHANGED` 都必須立即停止，不能靠備援繞過。完整分類以 [provider contract](ocr-provider-contract.md#8-解析備援與版本政策) 為準。
+
+原本符合備援條件的操作性失敗，若 `allow_fallback = false`，回報 `OCR_FALLBACK_NOT_ALLOWED`，並保留原始失敗作為 cause。Terminal 失敗直接保留其代碼，不包裝成此錯誤。
 
 此時系統**必須**在辨識歷程（Provenance）中完整記錄：
+
 - `requested_provider`：原始請求之提供者（如 `enterprise-ocr`）
 - `actual_provider`：實際執行之提供者（如 `tesseract`）
 - `fallback_used`：`true`
 - `fallback_reason`：明確失敗代碼（如 `OCR_PROVIDER_UNAVAILABLE`）
+
+未使用備援時 `fallback_used = false`、`fallback_reason = null`；`requested_provider` 與 `actual_provider` 仍須記錄。無覆寫時兩者均為 `tesseract`，不可填入虛構身分。
 
 ---
 
@@ -90,7 +101,7 @@ agy-ppt 仍需內建開箱即用的預設本機 OCR 解決方案，作為無顯�
 
 | 候選對象 | 目前觀察官方版本 (Current Observed) | 規劃支援版本範圍 (Planned Range) | 軟體授權 | 繁體中文 (zh-TW) | 英文 | 離線執行能力 | macOS (含 Apple Silicon) | Linux CI (Ubuntu) | 評估分類 (Classification) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Tesseract OCR** | 5.5.3 (官方發布) | v5.3+ – v5.5.x | Apache 2.0 | 支援 (`chi_tra` 需就緒並校驗指紋) | 支援 (`eng`) | 100% 離線 (本地 traineddata) | 完整支援 (`brew`)，原生 arm64 | 發行版套件可用 (`apt-get`)，無執行期權重下載 | **DEFAULT LOCAL PROVIDER**（選定） |
+| **Tesseract OCR** | 5.5.3 (官方發布) | 5.x（Phase 15 目標） | Apache 2.0 | 支援 (`chi_tra` 需就緒並校驗指紋) | 支援 (`eng`) | 100% 離線 (本地 traineddata) | 完整支援 (`brew`)，原生 arm64 | 發行版套件可用 (`apt-get`)，無執行期權重下載 | **DEFAULT LOCAL PROVIDER**（選定） |
 | **PaddleOCR (PP-OCR)** | v3.7.0 / PP-OCRv6 (官方發布) | PP-OCRv4 / PP-OCRv6 | Apache 2.0 | 優異 (`chinese_cht` / 統一多語言) | 支援 | 依賴模型權重，預設動態下載 | 安裝相依沉重，macOS arm64 相容性脆弱 | 相依 PaddlePaddle (1GB+)，CI 易超時/OOM | **OPTIONAL PROVIDER / ADAPTER** |
 | **Apple Vision** | macOS 11+ 內建 (Vision framework) | macOS 11+ / 12+ | 專有 (Apple) | 優異 | 優異 | 100% 離線 (硬體加速) | 系統內建，免安裝額外二進位 | **完全無法在 Linux 執行** | **PLATFORM-SPECIFIC PROVIDER** |
 | **OCRmyPDF** | 17.11.0 (PyPI 穩定版) | v16.x – v17.x | MPL-2.0 | 依賴後端 (Tesseract) | 依賴後端 | 本地工具鏈 | 需安裝完整 PDF 工具鏈 | CI 依賴 Ghostscript/qpdf/unpaper | **PDF WORKFLOW WRAPPER** |
@@ -100,6 +111,7 @@ agy-ppt 仍需內建開箱即用的預設本機 OCR 解決方案，作為無顯�
 ### 3.2 預設引擎選定決策：Tesseract OCR (v5.x)
 
 - **選定預設本機提供者**：**Tesseract OCR (v5.x)**
+- **版本政策**：provider version 為必要 provenance，無法確定時以 `OCR_PROVIDER_VERSION_UNAVAILABLE` 終止辨識；成功偵測但不符合相容政策時使用 `OCR_PROVIDER_VERSION_UNSUPPORTED`。Tesseract 的 adapter version 與 engine version 分開記錄；適用的 engine version 亦必須可確定。5.x 是目前目標，不是已完成各版本實測的聲明。
 - **決策信心度**：**HIGH**
 - **核心選定理由**：
   1. **發行版套件可用性與本機執行（無執行期模型下載）**：Tesseract 與所需語言包皆可透過主流作業系統發行版套件管理器取得（macOS `brew` 原生支援 Apple Silicon；Ubuntu Linux CI 透過 `apt-get` 安裝）。一旦安裝所需引擎與經釘選／校驗之語言資料，OCR 執行完全在本機進行，**不需於執行時期動態下載可變動的 OCR 模型（no runtime download of mutable OCR models）**，杜絕 Actions 超時與非預期模型漂移風險。
@@ -119,7 +131,7 @@ agy-ppt 仍需內建開箱即用的預設本機 OCR 解決方案，作為無顯�
 
 ## 4. 文件類型啟用與路由架構（Activation & Routing）
 
-系統依來源文件特性進行確定性路由，**絕不**對所有 PDF 盲目執行耗時且可能失真的 OCR：
+以下是 Phase 15.2/15.3 的後續路由規劃，Phase 15.1 不實作此流程，也不修改 frozen Phase 13 extraction：
 
 ```text
 來源文件
@@ -168,11 +180,15 @@ OCR 結果之唯一識別與重用性由以下維度確定性決定：
 - `source_digest`
 - 頁碼／影像 locator
 - 提供者身分與版本（`provider_id`, `provider_version`）
-- 引擎與模型版本／指紋（`engine_version`, `model_digest`）
-- 語言與呼叫設定（`language_config`, `ocr_parameters`）
-- 光柵化設定（`raster_dpi`, `raster_renderer_version`）
+- 適用的引擎身分／版本與確定性有序 `model_manifest`（逐模型記錄，不假設只有一個 digest）
+- 語言與執行設定（`language_config`, `execution_config`）
+- 未來光柵化階段的設定與 renderer version（Phase 15.2 才產生，不在 15.1 虛構）
 
 任何一項變更皆視為**證據過期（Stale Evidence）**，必須重新執行辨識，確保結果的可追溯性與可驗證性。
+
+Canonical evidence 必須保留 `schema_version`、`source_id`、原始 bytes 的 `source_digest`、每筆 OCR-native `locator`／`raw_text`／`regions`、`capabilities`、provider ID/version、適用的 engine identity/version、有序 model manifest、語言／執行設定，以及 requested/actual provider、執行位置、外傳宣告、fallback_used/reason。欄位位置與必要性以 [canonical contract](ocr-provider-contract.md#6-標準化-ocr-證據模型canonical-ocr-evidence-schema) 為準。
+
+不得使用 `"unknown"` 等 placeholder provenance。可選資訊缺漏可省略；必要 provenance 缺漏必須報錯。Tesseract 必須記錄實際使用的每份 traineddata 身分、來源與 SHA-256，不自動下載模型。Model manifest 的固定排序不取代語言設定本身的呼叫順序。
 
 ---
 
@@ -181,7 +197,7 @@ OCR 結果之唯一識別與重用性由以下維度確定性決定：
 OCR 辨識常見字形混淆（如 `0`/`O`、`1`/`I`/`l`、`5`/`S`、`8`/`B`、小數點遺漏、負號丟失、百分比與貨幣符號扭曲）。
 
 - **禁止抽取層靜默修正**：OCR 抽取階段**絕不**可擅自將文字修改（例如將 `O` 猜測為 `0`），更不可透過大型語言模型進行未具說明的「自動潤稿」。
-- **保留原始辨識與正規化分離**：原始文字（`raw_text`）與基礎 Unicode 正規化文字（`normalized_text`）並存記錄。
+- **原始文字唯一權威**：`raw_text` 是 Phase 15.1 canonical recognized-text evidence；不設 `normalized_text` 為第二個 canonical 文字權威。未來衍生文字必須明確追溯至 raw evidence，不能靜默改變 OCR 意義或數值。
 - **語意層警示提示**：於 OCR 證據物件中標記數值與敏感符號區塊，供 AGY 語意審查時作為高風險關注訊號。
 
 ---
@@ -235,7 +251,13 @@ Phase 15.6
 - **Phase 15.6**: ARCHITECTURALLY SPECIFIED / DEPENDS ON PRIOR PHASES
 
 ### 未來 Phase 15.1 範圍預備（Kiro-Ready Scope）
+
 - 定義 `OCRProvider` 抽象基底介面與 `OCRProviderCapabilities` 結構。
-- 實作預設 `TesseractOCRProvider` 本機適配器。
-- 實作契約校驗器與 `OCR_PROVIDER_*` 錯誤分類系統。
-- 建立確定性假提供者（Synthetic Mock Provider）用於輕量 CI 驗證。
+- 建立 provider validation、canonical OCREvidence、provider-neutral provenance、有序 model manifest。
+- 建立 provider resolution foundation、no-silent-fallback 與穩定 OCR error taxonomy。
+- 建立預設 Tesseract adapter、availability/version detection、structured output parsing 與 traineddata provenance。
+- 建立確定性 fake/test provider 與 provider contract tests，測試不消耗 AI 額度。
+
+明確排除 PDF rasterization、scanned-PDF workflow、mixed-page routing、standalone image ingestion、Phase 12 grounding integration、cloud OCR、PaddleOCR、Apple Vision 實作與 dynamic custom-provider registration UX。Adapter 可接收呼叫者準備好的影像及原始來源身分；不負責上述 ingestion 流程。
+
+實作安全約束：不得使用 `shell=True`、不安全指令串接、靜默 network OCR、自動 mutable model download 或 credentials/API keys。本次僅修改文件，不建立 Python modules、schema files、tests、adapters、execution 或 CLI behavior。

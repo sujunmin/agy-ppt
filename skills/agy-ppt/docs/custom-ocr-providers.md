@@ -1,209 +1,125 @@
 # 自訂 OCR 提供者整合指南（Custom OCR Providers Guide）
 
-本文件提供開發者與企業使用者在 `agy-ppt` 中整合「自備 OCR 提供者（Bring Your Own OCR, BYO-OCR）」的實務指南。
-
-> [!NOTE]
-> 本文件為 **Phase 15.0 架構與契約規範文件**。此處展示之類別介面與設定語法為**概念性設計（Conceptual Specification）**，實際執行層將於後續階段（Phase 15.1+）陸續落地。
-
----
+本文件提供 BYO-OCR 的架構整合指引。所有介面／設定名稱均為概念設計；OCR production code 尚未實作。本次為 Phase 15.1 文件澄清，不建立 Python modules、schemas、tests、adapters、execution 或 CLI behavior。
 
 ## 1. 核心整合原則
 
-`agy-ppt` 採用開放且標準化的提供者架構（Provider Architecture）。使用者與企業可依需求整合專有的 OCR 引擎、雲端辨識服務（如 Google Cloud Vision、Azure AI Document Intelligence、AWS Textract）或自研深度學習模型。
+Provider 只產出辨識與來源位置證據；AGY 是唯一語意權威。所有提供者必須遵守 [OCR Provider Contract](ocr-provider-contract.md)。
 
-所有自訂 OCR 提供者皆必須遵守 [OCR Provider Contract Specification](ocr-provider-contract.md) 中定義的統一輸出規格與行為契約。
+Phase 15.1 建立 OCRProvider、OCRProviderCapabilities、provider validation、canonical OCREvidence、provider-neutral provenance、resolution foundation、no-silent-fallback、stable errors、Tesseract default adapter、availability/version detection、structured output parsing、traineddata provenance、deterministic fake provider 與 contract tests。
 
-### 嚴格合規保證（Rejection Rule）
+不含 PDF rasterization、scanned-PDF workflow、mixed-page routing、standalone image ingestion、Phase 12 grounding integration、cloud OCR、PaddleOCR、Apple Vision 實作或 dynamic custom-provider registration UX。以下自訂整合模式是後續設計方向，不是已可用功能。
 
-> [!IMPORTANT]
-> **若您所整合的 OCR 產品或適配器未能滿足「必要契約（Required Contract）」，`agy-ppt` 將直接拒絕載入或執行該提供者，並中止辨識流程。**
+## 2. 必要證據與可選能力
 
----
-
-## 2. 能力分級與缺漏處理原則
-
-`agy-ppt` 將 OCR 功能劃分為三個層級。實作自訂提供者時請注意不同層級缺漏時的系統行為：
-
-| 能力層級 | 包含項目 | 缺漏時之行為 |
+| 分級 | 項目 | 行為 |
 | --- | --- | --- |
-| **REQUIRED（必要）** | 提供者身分識別（`provider_id`、`provider_version`）、基礎純文字萃取（`raw_text`）、來源相對定位器（1-based `locator`）、執行環境位置宣告（`execution_location`）、隱私資料外流宣告（`source_may_leave_local_machine`） | **直接拒絕（REJECT）**。<br>拋出 `OCR_PROVIDER_CONTRACT_INVALID` 或 `OCR_PROVIDER_CAPABILITY_MISSING`，終止作業。 |
-| **RECOMMENDED（建議）** | 文字區塊邊界框（`bounding_boxes`，0.0–1.0 正規化座標）、辨識信賴度指標（`confidence`）、語言偵測資訊（`language`）、底層引擎/模型版本（`engine_version`、`model_digest`） | **接受但降級（ACCEPT + WARNING）**。<br>記錄警示並繼續執行，但下游無法進行幾何校正與低信心警示。 |
-| **OPTIONAL（選用）** | 單詞級細部邊界框（`word_boxes`）、結構化表格辨識（`tables`）、多欄版面區域重建（`layout_regions`）、旋轉角度偵測（`orientation`） | **完全接受（ACCEPT）**。<br>正常執行，系統自動略過未支援的版面增強功能。 |
+| REQUIRED | Provider ID/version、raw_text、OCR-native source-relative locator、capabilities、execution/privacy 宣告及必要 provenance | 缺漏即拒絕；版本不可確定使用 OCR_PROVIDER_VERSION_UNAVAILABLE |
+| RECOMMENDED | Bounding boxes、原生 confidence、偵測語言 | 缺漏可接受並記錄降級 |
+| OPTIONAL | Word boxes、tables、layout regions、orientation | 略過未支援項目 |
 
----
+raw_text 是 canonical recognized-text evidence。regions 可為空，region 的 bounding_box 可省略；不能虛構全頁框或零框。沒有 bounding-box 能力的 provider 仍可產出有效證據。
+
+不做語意 cleanup／repair；不要求 normalized_text，也不讓它成為第二個 canonical 文字權威。任何未來 derived text 都必須追溯至 raw evidence，不得靜默改變意義或數值。
+
+### Canonical provenance 檢查
+
+以 [canonical evidence 欄位契約](ocr-provider-contract.md#6-標準化-ocr-證據模型canonical-ocr-evidence-schema) 為準，必須保留：
+
+- schema_version、source_id、原始 raw source bytes 的 SHA-256 source_digest。
+- 每筆 OCR-native locator、raw_text、regions，以及實際 provider 的 capabilities。
+- requested_provider、actual_provider、provider ID/version，以及適用的 engine identity/version。
+- 確定性有序 model_manifest、language_config 與 execution_config。
+- execution_location、source_may_leave_local_machine、fallback_used、fallback_reason。
+
+model_manifest 逐模型記錄，不假設只有一個 model digest；固定排序規則見 contract 第 6.1 節，語言呼叫順序另行保存。Tesseract 每份實際 traineddata 的身分、來源與 SHA-256 都必須可確定。不捏造 "unknown" 等 placeholder；可選資訊缺漏可省略，必要 provenance 缺漏必須報錯。未備援時 fallback_reason = null，requested/actual provider 相同。
 
 ## 3. 提供者概念適配器結構（Conceptual Adapter Patterns）
 
-自訂提供者通常透過「適配器（Adapter）」將原生 OCR 工具的輸出轉換為 `agy-ppt` 標準的 [`OCREvidence`](ocr-provider-contract.md#6-標準化-ocr-證據模型canonical-ocr-evidence-schema) 結構。
-
 ### 模式 A：Python 內部類別適配器（In-Process Adapter）
 
-實作 `BaseOCRProvider` 概念抽象介面：
+概念 OCRProvider 介面宣告 provider_id、provider_version 與 OCRProviderCapabilities，接收呼叫者準備好的影像、原始來源身分、OCR-native locator 與執行設定，回傳或轉換為 canonical OCREvidence。此處不固定 Python method signature，也不實作 custom-provider registration。
 
-```python
-# 概念設計：預期於 Phase 15.1+ 實現的抽象基礎介面
-from typing import Dict, Any, List
-
-class CustomOCRProvider:
-    """自訂本機或內嵌 OCR 提供者適配器範例"""
-
-    @property
-    def provider_id(self) -> str:
-        return "custom-paddle-ocr"
-
-    @property
-    def provider_version(self) -> str:
-        return "1.0.0"
-
-    def get_capabilities(self) -> Dict[str, Any]:
-        """宣告能力物件（必須滿足 Required 欄位）"""
-        return {
-            "text": True,                               # REQUIRED
-            "locators": True,                           # REQUIRED
-            "execution_location": "local",              # REQUIRED: 'local' 或 'remote'
-            "source_may_leave_local_machine": False,    # REQUIRED
-            "bounding_boxes": True,                     # RECOMMENDED
-            "confidence": True,                         # RECOMMENDED
-            "tables": False,                            # OPTIONAL
-        }
-
-    def extract(self, source_path: str, pages: List[int], options: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        執行文字辨識並轉換為標準 OCREvidence 格式
-        :param source_path: 輸入影像或光柵化後頁面影像路徑
-        :param pages: 目標頁碼清單 (1-based)
-        :param options: 執行參數 (如語言代碼)
-        :return: 符合 OCREvidence Schema 之字典
-        """
-        # 1. 呼叫底層模型辨識
-        # 2. 座標正規化為 [0.0, 1.0]
-        # 3. 封裝標準 pages 與 blocks
-        # 4. 回傳包含 provider 與 provenance 之結構
-        ...
-```
+辨識前驗證必要契約；辨識後驗證 raw evidence 與 provenance。不能由 region 自動產生 Phase 12 semantic source unit。
 
 ### 模式 B：外部命令列包裝器（CLI Wrapper Adapter）
 
-若您的 OCR 引擎為獨立二進位檔或指令碼（如專有 OCR 工具鏈），可實作 CLI 轉接器：
+Adapter 接收已準備影像，不自行 rasterize PDF。以安全 argv 呼叫本機引擎，禁止 shell=True 或不安全指令串接；採有限 timeout、驗證 exit code、解析 structured output，再組裝 raw_text、regions 與 provenance。只能清理由 adapter 擁有的暫存資源，不刪除呼叫者來源。
 
-```bash
-# 提供者呼叫格式概念規範
-my-ocr-tool --input /tmp/page_1.png --output /tmp/ocr_raw.json --lang chi_tra
-```
+Tesseract 是 Phase 15.1 預設 adapter 的目標，支援目標為 **Tesseract 5.x**。Provider/adapter version 與 engine version 分開記錄。必要版本無法確定時以 OCR_PROVIDER_VERSION_UNAVAILABLE 終止；已偵測但不符合相容政策時使用 OCR_PROVIDER_VERSION_UNSUPPORTED，不備援繞過。
 
-適配器工作流程：
-1. 將 PDF 頁面光柵化為暫存影像。
-2. 呼叫 CLI 程式並傳遞參數。
-3. 讀取並驗證其結束代碼（Exit Code）。非 0 代碼拋出 `OCR_PROVIDER_FAILED`。
-4. 解析輸出 JSON，將座標與文字組裝為 `OCREvidence` 格式。
-5. 刪除暫存影像檔案。
+### 模式 C：遠端／雲端適配器（後續階段）
 
-### 模式 C：遠端 / 雲端 HTTP 端點適配器（Remote / Cloud API Adapter）
+Cloud、PaddleOCR、Apple Vision 的實作不屬 Phase 15.1。未來 remote provider 必須宣告 execution_location = remote 與 source_may_leave_local_machine = true，並明確告知及取得外傳授權。此文件不建立網路呼叫或 credential configuration。
 
-若整合企業內部專有 OCR 微服務或公共雲端 OCR API：
+## 4. Locator 與 Frozen 邊界
 
-```json
-POST https://ocr-gateway.enterprise.internal/v1/recognize
-Content-Type: application/json
-Authorization: Bearer <TOKEN>
-```
+Phase 15.1 擁有 OCR-native source-relative locator，page／image 索引均為 1-based。Page 使用 page（已知時可附 total_pages）；image 使用 ordinal，不能虛構 PDF 頁碼。
 
-遠端適配器必須遵守：
-1. **明確隱私宣告**：宣告 `execution_location: "remote"` 與 `source_may_leave_local_machine: true`。
-2. **憑證管理**：憑證與 Token 必須來自環境變數或專案密鑰管理工具，**嚴禁**將憑證寫入本機原始檔或儲存於公開 Repository。
-3. **錯誤轉換**：網路超時或 HTTP 5xx 應明確對應至 `OCR_PROVIDER_UNAVAILABLE`；驗證授權失敗應對應至 `OCR_PROVIDER_FAILED`。
-
----
-
-## 4. 隱私與資料安全邊界（Privacy & Data Boundaries）
-
-自訂提供者牽涉資料處理位置時，必須誠實揭露隱私特徵：
-
-- **本機執行（Local Execution）**：
-  - `execution_location: "local"`
-  - `source_may_leave_local_machine: false`
-  - 原始影像與辨識文字僅於本機記憶體與指定之暫存目錄處理，不連外。
-- **遠端或雲端執行（Remote Execution）**：
-  - `execution_location: "remote"`
-  - `source_may_leave_local_machine: true`
-  - 使用者必須在專案設定中明確理解並授權資料上傳至第三方伺服器。
-  - `agy-ppt` 不會將使用者機敏憑證（API Keys）持久化於接地快取中。
-
----
+這不是與 Phase 12 直接相容的 locator contract。Frozen Phase 12 page 使用 start/end，現有 validator 不接受 image kind。Phase 15.1 不修改 Phase 12 locator validation；轉換及 grounding integration 屬 Phase 15.5，在整合契約存在前不能宣稱直接相容。Phase 12 與 Phase 13 維持 FROZEN。
 
 ## 5. 提供者解析與備援政策實務（Resolution & Fallback Policy）
 
-### 5.1 提供者解析優先順序（Provider Resolution Precedence）
+### 5.1 選擇優先序
 
-系統依以下優先順序確定性解析應使用的 OCR 提供者（命令列單次呼叫覆寫優先於持久化設定）：
+概念設定選擇順序為 call/CLI override → project setting → user setting → default tesseract。這是 selection precedence，不是依次嘗試 provider 的 chain。Phase 15.1 僅建立 resolution foundation，不新增 CLI／設定檔／dynamic registration UX。
 
-1. **命令列／呼叫顯式提供者覆寫**（例如 `--ocr-provider custom-ocr`）
-2. **專案層級顯式設定**（`project.ocr.provider`，如 `agy-ppt.toml`）
-3. **使用者／全域層級顯式設定**（`user.ocr.provider`）
-4. **agy-ppt 預設本機提供者**（`tesseract`）
-5. **若皆不可用 → 顯式拋出錯誤並終止**（`OCR_PROVIDER_UNAVAILABLE`）
+### 5.2 Terminal failures
 
-### 5.2 嚴格禁止靜默備援（No Silent Fallback）
+以下失敗直接終止，不能因 allow_fallback = true 而繞過：
 
-若您在專案中指定了自訂提供者（例如 `custom-ocr`）：
+- OCR_PROVIDER_NOT_FOUND。
+- OCR_PROVIDER_CONTRACT_INVALID。
+- OCR_PROVIDER_CAPABILITY_MISSING。
+- OCR_PROVIDER_VERSION_UNAVAILABLE。
+- OCR_PROVIDER_VERSION_UNSUPPORTED。
+- OCR_SOURCE_CHANGED。
 
-```toml
-# 概念專案設定 (agy-ppt.toml)
-[ocr]
-provider = "custom-ocr"
-allow_fallback = false # 預設值為 false
-```
+其他設定失敗亦依 [錯誤分類](ocr-provider-contract.md#7-錯誤分類體系error-taxonomy) 終止。Terminal error 保留原始代碼，不改包成 OCR_FALLBACK_NOT_ALLOWED。
 
-若 `custom-ocr` 發生錯誤（如服務斷線或程式當機），系統會**立即終止並拋出明確錯誤**，而**絕不**在未告知的情況下默默切換回 Tesseract。這確保了辨識品質與重現性符合您的預期。
+### 5.3 操作性失敗與單次備援
 
-### 5.3 顯式允許備援（Explicit Fallback）
+依 contract 分類的操作性失敗，且選定 provider 尚非 default Tesseract，才具備援資格：
 
-僅在您明確設定 `allow_fallback = true` 時，系統才允許在自訂提供者失敗時切換至預設提供者：
+- allow_fallback = true：至多轉向 Tesseract 一次，驗證 fallback provider 契約，保留原始 cause。
+- allow_fallback = false（預設）：回報 OCR_FALLBACK_NOT_ALLOWED，同時保留原始失敗為 cause。
+- Tesseract 自身或備援失敗：回報實際錯誤，不再切換或形成循環。
 
-```toml
-[ocr]
-provider = "custom-ocr"
-allow_fallback = true
-```
-
-發生備援時，產出的 `OCREvidence` 中將忠實記載歷程資訊，供後續稽核：
+成功備援的 provenance 片段如下；這不是完整 OCREvidence：
 
 ```json
 {
-  "provenance": {
-    "requested_provider": "custom-ocr",
-    "actual_provider": "tesseract",
-    "fallback_used": true,
-    "fallback_reason": "OCR_PROVIDER_UNAVAILABLE: connection refused"
-  }
+  "requested_provider": "custom-ocr",
+  "actual_provider": "tesseract",
+  "fallback_used": true,
+  "fallback_reason": "OCR_PROVIDER_UNAVAILABLE"
 }
 ```
 
----
+未指定 provider 時選用 tesseract；它不可用即回報 OCR_PROVIDER_UNAVAILABLE。原始失敗診斷不得包含 credentials 或私有來源內容。
 
 ## 6. 提供者合規自我檢查清單（Compliance Checklist）
 
-在將自訂提供者交付正式環境前，請確認滿足以下項目：
-
-- [ ] **提供者身分**：正確回傳不可為空的 `provider_id` 與 `provider_version`。
-- [ ] **能力宣告完整**：回傳之能力字典包含必要之 `text`、`locators`、`execution_location`、`source_may_leave_local_machine` 四大布林/列舉值。
-- [ ] **1-based 頁碼定位**：多頁文件之 `locator.page` 自 `1` 起算，絕無 0-based 偏誤；單一圖片使用 `locator.kind = "image"`。
-- [ ] **邊界框標準化**：邊界框（若宣告支援）均正規化至 `[0.0, 1.0]` 浮點數，原點在左上角。
-- [ ] **保留原始文字**：`raw_text` 保留引擎原生輸出（含換行符號），不擅自對文字進行「語意補全」或「自動修補」。
-- [ ] **高風險訊號偵測**：針對數字、貨幣、日期、小數點區塊主動標記 `high_risk_signals`。
-- [ ] **離線驗證支援**：若為本機提供者，在無網際網路環境下亦能完成驗證與萃取。
-- [ ] **標準錯誤傳遞**：若發生異常，拋出或回傳契約所列之標準錯誤代碼（見第 7 節）。
-
----
+- [ ] Provider version 可確定；適用的 engine version 可確定且符合相容政策。
+- [ ] 所有必要 provenance 都存在；沒有 placeholder 或假模型身分。
+- [ ] 原始 source_digest 未被 raster／text digest 取代。
+- [ ] OCR-native locator 為來源相對且 1-based，沒有直接 Phase 12 相容聲明。
+- [ ] raw_text 保留原始辨識內容，regions 可空，沒有虛構 bounding box 或信賴度。
+- [ ] Model manifest 確定性排序，記錄實際模型，語言與有效設定完整。
+- [ ] Terminal failure 不備援；操作性備援必須顯式啟用且最多一次。
+- [ ] 本機 provider 不連外、不自動下載 mutable models、不使用 credentials/API keys。
+- [ ] Deterministic fake-provider tests 不依賴實際引擎、網路或 AI 訂閱額度。
+- [ ] 不修改 frozen Phase 12/13 production contracts，不自動建立 grounding artifacts。
 
 ## 7. 常見整合錯誤與診斷（Common Errors & Troubleshooting）
 
-| 錯誤代碼 | 常見成因 | 解決方針 |
-| --- | --- | --- |
-| `OCR_PROVIDER_NOT_FOUND` | 指定的 `provider_id` 未註冊或拼寫錯誤 | 檢查命令列參數或設定檔中的提供者名稱是否與註冊名稱一致。 |
-| `OCR_PROVIDER_UNAVAILABLE` | 二進位執行檔不存在、未加入 PATH，或遠端 API 無法連線 | 確認工具已正確安裝或 API 端點可正常存取。 |
-| `OCR_PROVIDER_CONTRACT_INVALID` | 適配器回傳之 JSON 不符合 OCREvidence 規範（如缺漏必要欄位） | 依據 [OCR Provider Contract](ocr-provider-contract.md) 校驗輸出欄位型態。 |
-| `OCR_PROVIDER_CAPABILITY_MISSING` | 提供者宣告缺少文字萃取或定位能力 | 確認 `get_capabilities()` 中 `text` 與 `locators` 皆為 `true`。 |
-| `OCR_PROVIDER_FAILED` | 提供者內部例外崩潰或回傳非零結束代碼 | 檢查輸入影像格式是否受支援，或檢查引擎內部錯誤日誌。 |
-| `OCR_LANGUAGE_UNSUPPORTED` | 請求的辨識語系（如 `chi_tra`）未安裝模型權重 | 下載或安裝該引擎對應的語言模型檔案（如 traineddata）。 |
-| `OCR_FALLBACK_NOT_ALLOWED` | 自訂提供者執行失敗，且未啟用 `allow_fallback` | 修復自訂提供者問題，或於設定中顯式開啟 `allow_fallback = true`。 |
+| 錯誤 | 處理方式 |
+| --- | --- |
+| OCR_PROVIDER_NOT_FOUND | 修正 provider ID；不能備援掩蓋設定錯誤 |
+| OCR_PROVIDER_CONTRACT_INVALID／OCR_PROVIDER_CAPABILITY_MISSING | 補齊必要契約／能力；沒有 bounding boxes 本身不是此錯誤 |
+| OCR_PROVIDER_VERSION_UNAVAILABLE | 提供可確定版本後再辨識；不得填入 unknown |
+| OCR_PROVIDER_VERSION_UNSUPPORTED | 使用符合相容政策的版本；Tesseract 目前目標為 5.x |
+| OCR_PROVIDER_UNAVAILABLE／OCR_PROVIDER_FAILED | 修復可用性／程序失敗；僅依第 5 節政策備援 |
+| OCR_LANGUAGE_UNSUPPORTED／OCR_MODEL_UNAVAILABLE | 由操作者準備所需語言／模型與 provenance，不由執行層自動下載 |
+| OCR_SOURCE_CHANGED | 停止使用舊證據，依新來源重新建立證據；不備援 |
+| OCR_FALLBACK_NOT_ALLOWED | 查閱原始 cause，修復操作性失敗或顯式啟用備援 |
