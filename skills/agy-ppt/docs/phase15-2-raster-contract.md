@@ -22,11 +22,15 @@ OCR locator 沿用 Phase 15.1：`{"kind": "page", "page": 1, "total_pages": 42}`
 
 ## 3. Renderer 與版本政策
 
-架構選定 **PyMuPDF** 為預設本機 PDF raster adapter，支援目標限定 **1.24.x（>=1.24.0,<1.25.0）**，不是 unbounded latest。實作／發布環境必須在範圍內審查並釘選確切 patch 與對應 MuPDF build；版本不可確定、超出範圍或無可核准的安全 patch 時不得執行，需重新治理版本政策，不能靜默升級。
+先前考慮的 **PyMuPDF 1.24.x 已 REJECTED／SUPERSEDED**：不得導入 PyMuPDF 1.24.14（bundled MuPDF 1.24.11）作為 production raster dependency。其後續候選家族改為 **PyMuPDF 1.28.x candidate family**；目前評估起點可用 1.28.2，但本文件不將任何 1.28.x build 或 1.28.2 標記為 production-approved。候選版本必須逐一通過當期 CVE、bundled MuPDF source/build、Python/runtime、wheel/platform、ABI/raster smoke、supply-chain、license/distribution 與 sandbox/resource enforcement 審查；不得以版本號較新單獨宣稱修復。
 
-[PyMuPDF 1.24.14 package metadata](https://pypi.org/project/PyMuPDF/1.24.14/) 宣告 Python >=3.9，提供 CPython 3.9+ ABI wheels（macOS Intel／Apple Silicon 與 Linux），可涵蓋本庫 Python 3.11 驗證基線；此為套件相容性證據，不是所有平台實測或安全認證。
+安全理由至少包括：NVD 將 MuPDF >=1.24.0 且 <1.26.7 列為 CVE-2025-55780 受影響範圍（描述為 EPUB/HTML layout path；PDF-only 不可達性未獲證明），以及 CVE-2026-3308 涉及 `pdf_load_image_imp` 的 PDF image decoding integer overflow／heap out-of-bounds write，對特製 PDF 可能造成 crash、memory corruption 或 code execution；CERT/CVE 資料涵蓋至 MuPDF 1.27.0。這些 finding 造成 vulnerability-management／risk-acceptance 負擔，不能由 PDF-only 意圖或較新的版本號靜默免除。若正式採用有形式受影響的 build，必須有明確、可審查的 VEX／risk-acceptance rationale。
 
-PyMuPDF／MuPDF 採 AGPL 或 Artifex commercial license；本庫 MIT 不會消除依賴授權義務。架構選定不等於完成授權審查或取得商業授權。Phase 15.2-C 新增依賴前，正常 dependency/security review MUST 明確記錄使用／散布模式的授權合規路徑、版本風險與平台支援，更新所需 notices。若無法符合，停止回報 renderer 授權／依賴 blocker，不得默換引擎。本文件不安裝套件、不改 requirements。
+未來 production dependency policy 為 `PyMuPDF==X.Y.Z` exact pin；同時記錄 bundled MuPDF version、核准平台的 wheel-only 安裝、approved wheel SHA-256 allowlist 與必要 build identity，禁止無 matching wheel 時靜默 source compilation，並將 PyMuPDF、MuPDF/native components 納入 SBOM／security scanning。這些 pin/hash 尚不在本文件建立。
+
+歷史審查的 [PyMuPDF 1.24.14 package metadata](https://pypi.org/project/PyMuPDF/1.24.14/) 宣告 Python >=3.9 與多平台 wheels；這只保留為相容性／決策歷史證據，不是目前候選或安全認證。現行 1.28.x candidate 的相容性與安全性仍須對選定 exact build 重新驗證。
+
+PyMuPDF／MuPDF 採 GNU AGPL 或 Artifex commercial license；本庫 MIT／公開 GitHub repository 不會自動消除依賴授權義務。production dependency adoption 前 MUST 明確選定 AGPL-compliant use/distribution 或有效 Artifex commercial entitlement，並完成 `LICENSE/DISTRIBUTION REVIEW REQUIRED` gate；兩者皆未建立時不得導入 real renderer。下游 proprietary 或 SaaS/service use 需依實際 distribution/use model review，不能僅由 requirements inclusion 推定法律結果。架構候選不等於 production dependency approved。
 
 必要 PR contract CI 使用 fake rasterizer，不依賴可變動的 host renderer；真實 renderer 驗證另屬 opt-in live/release validation，遵循 Phase 15.6 邊界。
 
@@ -38,11 +42,12 @@ PyMuPDF／MuPDF 採 AGPL 或 Artifex commercial license；本庫 MIT 不會消�
 | output_format | PNG |
 | colorspace | RGB |
 | alpha | false |
+| render_annotations | false |
 | rotation_policy | respect_effective_pdf_page_rotation |
 | box_policy | valid_explicit_cropbox_else_mediabox |
 | semantic_preprocessing | none |
 
-Effective rotation 依 PDF 有效（含繼承）頁面 rotation，正規化為 0／90／180／270 度；不得用 OCR orientation 或猜測修正。CropBox 的明確定義包含 PDF 合法繼承值：必須為有限座標、正面積且位於有效 MediaBox 內。缺漏或無效 CropBox 使用 MediaBox，不得讓 renderer 自動裁切政策取代此決策。MediaBox 無效或 rotation 不合法視為無效 PDF 輸入。頁框先選定，再套用有效 rotation；像素尺寸取 300 DPI 轉換後的向外整數邊界，並驗證實際輸出尺寸。
+Effective rotation 依 PDF 有效（含繼承）頁面 rotation，正規化為 0／90／180／270 度；不得用 OCR orientation 或猜測修正。CropBox 的明確定義包含 PDF 合法繼承值：必須為有限座標、正面積且位於有效 MediaBox 內。缺漏或無效 CropBox 使用 MediaBox，不得讓 renderer 自動裁切政策取代此決策。MediaBox 無效或 rotation 不合法視為無效 PDF 輸入。頁框先選定，再套用有效 rotation；像素尺寸取 300 DPI 轉換後的向外整數邊界，並驗證實際輸出尺寸。`render_annotations=false` 是保守基線：OCR 僅處理 base page content；annotation appearance 屬額外 mutable/interactive state，且此設定必須進入 canonical provenance。
 
 這些均為機械執行設定；不做 deskew、denoise、threshold、文字修補、語意 crop 或品質預測。不建立 force_ocr 覆寫；此功能需後續顯式契約。
 
@@ -54,8 +59,9 @@ Phase 15.2 orchestration 擁有逐 scanned page 的 `raster_provenance`，以原
 | --- | --- |
 | renderer_id | pymupdf |
 | renderer_version | 實際確切 PyMuPDF patch |
-| renderer_engine_version | 實際 MuPDF version/build identity |
-| dpi、output_format、colorspace、alpha | 實際有效固定設定 |
+| renderer_engine_version | 公開 runtime identity `pymupdf.mupdf_version` 與實際 MuPDF version/build identity |
+| approved_build_identity | 核准 wheel/build identity（依最終 adoption policy） |
+| dpi、output_format、colorspace、alpha、render_annotations | 實際有效固定設定 |
 | rotation_policy、box_policy | 第 4 節固定政策名稱 |
 | effective_rotation、selected_box、box_coordinates | 實際角度、CropBox／MediaBox 與原始 PDF 座標 |
 | width、height | 實際 raster 像素尺寸 |
@@ -63,9 +69,13 @@ Phase 15.2 orchestration 擁有逐 scanned page 的 `raster_provenance`，以原
 
 `raster_digest != source_digest` 表示兩者角色與被雜湊的 bytes 不同，不是要求用 digest 不相等作驗證。Raster digest 僅為衍生準備步驟 provenance，不是來源身分或語意權威。雜湊必須針對實際傳給 OCR 的 PNG bytes；不得雜湊另一份 preview 或重新編碼版本。Provider fallback 使用同一份已驗證 raster。
 
-Canonical provenance 排除 temporary path、host cache path、absolute renderer path、timestamps 與任意 environment dump；不得填入 unknown。Phase 15.2 不引入 persistent raster cache／reuse，不需要公開 `OCR_RASTER_CHANGED`。未來 caching 的 staleness／invalidation 必須另行設計。
+Canonical provenance 使用公開 `pymupdf.pymupdf_version` 與 `pymupdf.mupdf_version`，避免 legacy ambiguous aliases；排除 temporary path、host cache path、absolute renderer path、timestamps 與任意 environment dump；不得填入 unknown。Phase 15.2 不引入 persistent raster cache／reuse，不需要公開 `OCR_RASTER_CHANGED`。未來 caching 的 staleness／invalidation 必須另行設計。
 
 ## 6. 機械分類與 mixed-PDF 路由
+
+### Strict PDF admission
+
+Raster worker 只接受通過 deterministic PDF admission 的原始 bytes；filename extension 或 `filetype="pdf"` hint 單獨不是安全邊界。Admission 必須在 renderer format sniffing 前確認輸入為預期 PDF，保留 `source_digest = SHA-256(original raw PDF bytes)`，並在 worker 內對 unexpected/non-PDF document state deterministic reject。Phase 15.2 不擴大到 EPUB、XPS、CBZ 或其他格式。
 
 對每個原始頁面使用 Phase 13 的 deterministic pypdf page text extraction 語義（`page.extract_text() or ""`）。**只為分類**測試 `extracted_text.strip()`：非空為 SEARCHABLE，空字串或 Unicode whitespace-only 為 SCANNED；不改寫實際擷取文字。
 
@@ -111,7 +121,7 @@ MiB = 1,048,576 bytes。將提案的 100,000,000 pixels 降至 25,000,000，因 
 
 頁框／rotation 推算尺寸須在配置 pixel buffer 前驗證；實際 PNG bytes 與 decode 結果也須有界驗證。暫存寫入與 native allocation 需有真正的 quota／隔離限制。既有 Phase 15.1 provider timeout 仍適用，30 秒 renderer timeout 不覆蓋它。
 
-禁止 shell execution；只使用安全 API 或固定 executable 加獨立 argv，無網路需求、不下載模型／renderer，不帶 credentials。PyMuPDF 即使用 in-process library API，仍屬 untrusted-input processing；native 呼叫須在可終止、受 memory/time/storage 限制的 worker 邊界內，不能用無法中止的 thread timeout 宣稱已強制限制。平台無法強制任一上限時，啟動前以資源限制錯誤拒絕，不能 best-effort 繼續。
+禁止 shell execution；只使用安全 API 或固定 executable 加獨立 argv，無網路需求、不下載模型／renderer，不帶 credentials。主 process 不得透過 unrestricted in-process PyMuPDF render untrusted PDF。必要結構為 `parent/orchestrator → isolated raster worker process → PyMuPDF/MuPDF → bounded result IPC`；worker 必須在 open/parse bytes 前建立，具 killable dedicated subprocess、parent monotonic watchdog、page hard timeout、memory/CPU/resource ceiling（平台支援時）、bounded IPC/temp storage、minimal filesystem、無 credentials/network，以及 success/failure/timeout cleanup。native crash 必須隔離；不得用無法中止 native call 的 Python thread timeout 取代 worker。平台無法強制任一上限時，啟動前以資源限制錯誤拒絕，不能 best-effort 繼續。Linux 可採 cgroup 或等價機制；macOS/Windows 必須各自驗證 hard enforcement；有 PyMuPDF wheel 不代表該平台滿足本契約。
 
 僅清理本 transaction 擁有的暫存 raster／資源，成功、失敗、timeout 皆須 finally cleanup；不得刪除原始來源。不得保留 persistent raster cache。
 
@@ -130,6 +140,8 @@ MiB = 1,048,576 bytes。將提案的 100,000,000 pixels 降至 25,000,000，因 
 
 已知資源超限（包括 renderer timeout）優先使用 RESOURCE_LIMIT_EXCEEDED，不包成 RASTERIZATION_FAILED；無法解析／密碼／無效 page request 也不映射為 provider error。固定資源預檢順序為原始 bytes、頁數、寬、高、pixels、memory/storage 可強制性；執行期保留最先觀察的 stage failure，列出的次要診斷按頁碼及 stage 排序。相同輸入與相同觀察到的失敗保證排序；不保證不同 host load 下 timeout 結果一致。
 
+Worker crash 或 timeout 若是明確 resource ceiling／watchdog 觸發，使用 `OCR_PDF_RESOURCE_LIMIT_EXCEEDED`；若 worker 以非資源原因失敗且無法產生有效 raster，使用 `OCR_RASTERIZATION_FAILED`。現有 taxonomy 可區分 PDF input、password、page、resource、raster 與 cleanup，不新增 public code。Admission、worker、rasterization、cleanup failure 均在 provider fallback 外，不得觸發 OCR provider fallback。
+
 Rasterization 在 provider fallback **之外**：raster failure → Phase 15.2 failure → **NO provider fallback**，不轉成 OCR_FALLBACK_NOT_ALLOWED。有效 prepared image 存在後才套用 Phase 15.1 selection／fallback：預設 disabled，只有操作性 provider failures 可顯式 fallback，terminal errors 永不 fallback，每次頁面 provider invocation 最多一次 explicit fallback，無文件級重跑／fallback loop。
 
 `OCR_SOURCE_CHANGED` 僅為 original raw PDF bytes 改變；`OCR_MODEL_CHANGED` 僅為 OCR model/traineddata identity 改變；raster_digest 是衍生 provenance。不得借用 SOURCE_CHANGED、MODEL_CHANGED 或 PROVIDER_FAILED 表示 raster／PDF input／resource 錯誤。無 raster cache/reuse，故本階段不新增 OCR_RASTER_CHANGED。
@@ -142,7 +154,7 @@ Rasterization 在 provider fallback **之外**：raster failure → Phase 15.2 f
 
 Required PR deterministic CI MUST 使用 fake rasterizer、fake OCR provider、deterministic synthetic PDF fixtures/page models，覆蓋分類（含 whitespace、稀疏文字、大圖、空頁）、資源邊界、順序／失敗、source identity／locator／raster provenance、encrypted-readable／password-required 以及 cleanup。不得依賴 mutable host Tesseract accuracy、真實 renderer pixel equivalence、網路或 AI 額度。
 
-Real PyMuPDF + Tesseract 測試只在另行 opt-in live/release validation 中執行，與 Phase 15.6 真實來源 production validation 一致；不能以 fake CI PASS 宣稱真實引擎已通過發布驗證。本次不修改 CI／tests。
+Real PyMuPDF + Tesseract 測試只在另行 opt-in live/release validation 中執行，與 Phase 15.6 真實來源 production validation 一致；不能以 fake CI PASS 宣稱真實引擎已通過發布驗證。本次不修改 CI／tests。安全版本審查具時效性；首次 production adoption、每次 dependency upgrade、每次 public release 前，均須重查 PyMuPDF、bundled MuPDF、NVD/CVE/CERT 與實際 native components。形式受影響但聲稱 unreachable 的 build 必須有書面 VEX/risk acceptance，不得以 informal comment 接受。
 
 ## 11. 逐增量實作 gate
 
@@ -150,8 +162,12 @@ Real PyMuPDF + Tesseract 測試只在另行 opt-in live/release validation 中�
 | --- | --- |
 | Phase 15.2-A | Contracts、resource limits、deterministic fake rasterizer/provider、identity/error models；無 real renderer |
 | Phase 15.2-B | Mechanical searchable/scanned classification、mixed-PDF ordering；無語意 heuristic |
-| Phase 15.2-C | 經 dependency/security/license review 的 PyMuPDF adapter、raster provenance、resource enforcement；無 OCR orchestration |
+| Phase 15.2-C | **BLOCKED until real-renderer adoption gate passes**：exact PyMuPDF/MuPDF versions、current CVE review、license/distribution decision、supported platforms、wheel hashes/build identity、ABI/raster validation、worker/sandbox feasibility；其後才加入 adapter、raster provenance、resource enforcement；無 OCR orchestration |
 | Phase 15.2-D | Scanned-page raster → Phase 15.1 OCRProvider orchestration、evidence ordering、fail-closed transaction；無 Phase 12 grounding |
 | Phase 15.2-E | Contract consolidation、文件、full validation、PR readiness |
 
 每個增量的確切 GitHub contexts **`deterministic`** 與 **`repository`** 必須在該增量最新 commit **PASS**，下一增量才可開始。不得以 child jobs、歷史 PASS 或本機測試取代。此文件 PR 不啟動 A，也不代表 Phase 15.2 已實作；Phase 15.2 維持 **NOT STARTED**，OCR schemas 維持 **DEFERRED**。
+
+## 12. 架構修訂後狀態
+
+本文件是 documentation/governance amendment，不是實作或依賴核准。Phase 15.2 維持 **ARCHITECTURE READY / IMPLEMENTATION NOT STARTED**，並標記 **REAL RENDERER ADOPTION GATED**。15.2-A/B 可使用 deterministic fake contracts 且不安裝 real renderer；15.2-C 在 adoption gate 通過前不得開始。Phase 15.1 仍為 COMPLETE / MERGED / BASELINE FROZEN，Phase 12/13 維持 FROZEN，OCR JSON schemas 維持 DEFERRED。
