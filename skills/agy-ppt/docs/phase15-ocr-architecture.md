@@ -2,7 +2,7 @@
 
 本文件是 `agy-ppt` Phase 15（OCR Ingestion & Provider Architecture）的架構決策紀錄（Architecture Decision Record, ADR），定義提供者架構（Provider Architecture）、自備 OCR（Bring Your Own OCR, BYO-OCR）整合機制、預設本機引擎評估決策與工程實作路線圖。
 
-Phase 15.1 provider foundation 已由 PR #17 合併至 main；下圖描述跨階段目標。文件路由屬 Phase 15.2/15.3，接地整合屬 Phase 15.5，均不屬於 Phase 15.1。
+Phase 15.1 provider foundation 已由 PR #17 合併至 main，狀態為 COMPLETE / MERGED / BASELINE FROZEN；下圖描述跨階段目標。Phase 15.2 維持 NOT STARTED，規範以 [PDF rasterization/routing contract](phase15-2-raster-contract.md) 為準。文件路由屬 Phase 15.2/15.3，接地整合屬 Phase 15.5，均不屬於 Phase 15.1。OCR JSON schemas 維持 DEFERRED。
 
 ---
 
@@ -140,7 +140,7 @@ agy-ppt 仍需內建開箱即用的預設本機 OCR 解決方案，作為無顯�
    │        ↓
    │     Phase 13 確定性文字擷取（pypdf，無 OCR）
    │
-   ├── 純影像 / 掃描 PDF（無文字層或文字損壞）
+   ├── 純影像 / 掃描 PDF（deterministic extracted_text.strip() 為空）
    │        ↓
    │     確定性頁面光柵化（Rasterization） → OCR 提供者
    │
@@ -152,17 +152,19 @@ agy-ppt 仍需內建開箱即用的預設本機 OCR 解決方案，作為無顯�
    │
    ├── 已具備文字層之 Searchable / OCR PDF
    │        ↓
-   │     保守預設：優先使用既有文字層；
-   │     僅在使用者顯式宣告 force_ocr=true 時重新執行 OCR
+   │     使用既有文字層；稀疏非空白文字仍為 SEARCHABLE
+   │     Phase 15.2 不引入 force_ocr；品質式 OCR 覆寫需後續契約
    │
    └── 獨立圖片（PNG, JPEG, TIFF）
             ↓
          影像驗證與預處理 → OCR 提供者（使用影像原生 locator）
 ```
 
+Phase 15.2 逐原始頁碼升序機械分類與路由，不以抽取錯誤、文字品質或圖片面積判為 SCANNED。抽取失敗直接失敗。Scanned page 先完成有界 rasterization，再進入 Phase 15.1 provider resolution/fallback；任何必要頁面失敗皆 fail closed，不提供 partial success。詳細版本、資源、provenance 與錯誤規則見 [Phase 15.2 契約](phase15-2-raster-contract.md)。獨立圖片仍屬 Phase 15.3。
+
 ---
 
-## 5. 來源身分與確定性緩存（Identity & Provenance）
+## 5. 來源身分與衍生歷程（Identity & Provenance）
 
 ### 5.1 來源指紋唯一權威（Source Digest Authority）
 
@@ -176,7 +178,7 @@ source_digest = SHA-256(原始來源位元組 raw source bytes)
 
 ### 5.2 確定性 OCR 成果識別與失效機制（Stale Detection）
 
-OCR 結果之唯一識別與重用性由以下維度確定性決定：
+下列維度用於識別 OCR evidence；若未來設計成果重用，必須納入有效性判斷。Phase 15.2 不建立 persistent raster cache/reuse：
 - `source_digest`
 - 頁碼／影像 locator
 - 提供者身分與版本（`provider_id`, `provider_version`）
@@ -184,7 +186,7 @@ OCR 結果之唯一識別與重用性由以下維度確定性決定：
 - 語言與執行設定（`language_config`, `execution_config`）
 - 未來光柵化階段的設定與 renderer version（Phase 15.2 才產生，不在 15.1 虛構）
 
-任何一項變更皆視為**證據過期（Stale Evidence）**，必須重新執行辨識，確保結果的可追溯性與可驗證性。
+既有 evidence 的相關 identity 變更不得靜默沿用舊證據。Phase 15.2 每次處理產生實際 raster_digest 作衍生 provenance，不把它當 source_digest，不新增 OCR_RASTER_CHANGED；未來 raster cache 的 staleness/invalidation 另行治理。
 
 Canonical evidence 必須保留 `schema_version`、`source_id`、原始 bytes 的 `source_digest`、每筆 OCR-native `locator`／`raw_text`／`regions`、`capabilities`、provider ID/version、適用的 engine identity/version、有序 model manifest、語言／執行設定，以及 requested/actual provider、執行位置、外傳宣告、fallback_used/reason。欄位位置與必要性以 [canonical contract](ocr-provider-contract.md#6-標準化-ocr-證據模型canonical-ocr-evidence-schema) 為準。
 
@@ -219,11 +221,11 @@ OCR 辨識常見字形混淆（如 `0`/`O`、`1`/`I`/`l`、`5`/`S`、`8`/`B`、�
 Phase 15 分為七個嚴謹推進的子階段：
 
 ```text
-Phase 15.0 (Current)
+Phase 15.0
 OCR 提供者架構、BYO-OCR 契約與預設引擎評估決策 (AGY 主導架構/文件)
    │
 Phase 15.1
-OCR 提供者契約核心規格與預設本機提供者基礎建設 (Kiro 實作)
+OCR 提供者契約核心規格與預設本機提供者基礎建設 (COMPLETE / MERGED / BASELINE FROZEN)
    │
 Phase 15.2
 掃描與純影像 PDF OCR 支援 (光柵化與頁層級路由)
@@ -243,14 +245,14 @@ Phase 15.6
 
 ### 未來階段就緒狀態（Future Phase Readiness Status）
 
-- **Phase 15.1**: COMPLETE / MERGED (PR #17, squash merge `9a5059a47fbb474119bb895d2080b20adaaa31f4`); deterministic and repository required checks passed
-- **Phase 15.2**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
+- **Phase 15.1**: COMPLETE / MERGED / BASELINE FROZEN (PR #17, squash merge `9a5059a47fbb474119bb895d2080b20adaaa31f4`); deterministic and repository required checks passed
+- **Phase 15.2**: NOT STARTED；實作前遵守 [raster contract 與 A–E gates](phase15-2-raster-contract.md)
 - **Phase 15.3**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
 - **Phase 15.4**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
 - **Phase 15.5**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1–15.4
 - **Phase 15.6**: ARCHITECTURALLY SPECIFIED / DEPENDS ON PRIOR PHASES
 
-### 未來 Phase 15.1 範圍預備（Production-Engineering-Worker Scope）
+### 已合併 Phase 15.1 範圍（Production-Engineering-Worker Scope）
 
 - 定義 `OCRProvider` 抽象基底介面與 `OCRProviderCapabilities` 結構。
 - 建立 provider validation、canonical OCREvidence、provider-neutral provenance、有序 model manifest。

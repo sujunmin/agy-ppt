@@ -2,6 +2,8 @@
 
 本文件是 Phase 15.1 OCR provider foundation 的規範性架構文件。Phase 15.1 provider foundation 已由 PR #17 合併；公開 JSON schemas 與後續 ingestion/grounding 仍未建立。
 
+Phase 15.1 維持 COMPLETE / MERGED / BASELINE FROZEN；Phase 15.2 為 NOT STARTED，OCR schemas 為 DEFERRED。[Phase 15.2 PDF raster contract](phase15-2-raster-contract.md) 是 additive orchestration 文件，不改動本階段 provider 契約。
+
 ## 1. 提供者能力分級（Capability Tiers）
 
 | 分級 | 能力 | 缺漏行為 |
@@ -31,6 +33,8 @@ Phase 15.1 擁有 OCR-native source-relative locator，索引為 1-based 正整�
 ### 3.1 多頁文件（PDF）
 
 概念表示：`{"kind": "page", "page": 1, "total_pages": 42}`。page 必要；total_pages 可在已知時提供且不得小於 page。此位置由呼叫者提供，不表示 Phase 15.1 負責 PDF rasterization。
+
+Phase 15.2 呼叫者必須先驗證 PDF total_pages 並在逐頁呼叫提供它；此為 PDF orchestration 的較強前置條件，不改變 Phase 15.1 通用 optional 規則。
 
 ### 3.2 獨立圖片（PNG, JPEG, TIFF）
 
@@ -114,7 +118,7 @@ OCR namespace 與 frozen Phase 12/13 分離。下列後續階段代碼的定義�
 | OCR_MODEL_UNAVAILABLE | 必要模型／traineddata 未就緒；設定失敗，terminal |
 | OCR_EXTRACTION_FAILED | 輸入影像造成辨識失敗；操作性失敗 |
 | OCR_TEXT_UNAVAILABLE | 有效辨識未發現文字；警告，保留空 raw_text，不自動備援 |
-| OCR_RASTERIZATION_FAILED | 後續 Phase 15.2 rasterization 失敗；不屬 Phase 15.1 provider 備援 |
+| OCR_RASTERIZATION_FAILED | 後續 Phase 15.2 renderer 不可用／版本無效、render execution 或 raster output/provenance 失敗；在 provider fallback 之外；PDF input/resource 錯誤另依 Phase 15.2 契約 |
 | OCR_FALLBACK_NOT_ALLOWED | 原本可備援的操作性失敗，但備援未啟用；保留原始 cause |
 | OCR_SOURCE_CHANGED | 原始 bytes digest 改變；停止使用舊證據，terminal，不備援 |
 | OCR_MODEL_CHANGED | 已驗證的 model/traineddata identity 或 bytes digest 與執行前實際值不一致；provenance staleness，terminal，不備援 |
@@ -122,6 +126,8 @@ OCR namespace 與 frozen Phase 12/13 分離。下列後續階段代碼的定義�
 | OCR_CONFIG_CHANGED | 語言／執行設定改變，既有證據過期；不是備援觸發器 |
 
 ## 8. 解析、備援與版本政策
+
+Phase 15.2 的 OCR_PDF_PASSWORD_REQUIRED、OCR_PDF_INPUT_INVALID、OCR_PDF_PAGE_INVALID、OCR_PDF_RESOURCE_LIMIT_EXCEEDED、OCR_PDF_CLEANUP_FAILED 屬 [PDF orchestration error family](phase15-2-raster-contract.md)，不是 provider failures，不觸發備援。Raster provenance 置於 additive transaction envelope；raster_digest 不取代 source_digest，不新增 OCR_RASTER_CHANGED，也不發布 schema。
 
 選擇順序為 call/CLI override → project setting → user setting → default Tesseract。這是 selection precedence，不是 provider chain；CLI／設定檔語法仍屬概念。選定後不得因失敗改試較低優先設定。
 

@@ -18,6 +18,12 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Changed
 
+- Clarified the future Phase 15.2 PDF rasterization and routing architecture:
+  PyMuPDF 1.24.x target with dependency/security/license review, bounded raster
+  preparation, original-PDF identity, mechanical page classification, fail-closed
+  transactions, orchestration errors, and gated implementation increments.
+  Phase 15.2 remains not started; OCR JSON schemas remain deferred. (#20)
+
 - Corrected Phase 15.0 OCR evaluation baseline, recording current observed
   engine versions (Tesseract 5.5.3, PaddleOCR 3.7.0 / PP-OCRv6, OCRmyPDF 17.11.0,
   EasyOCR 1.7.2, RapidOCR 1.4.4) distinctly from supported version ranges,
