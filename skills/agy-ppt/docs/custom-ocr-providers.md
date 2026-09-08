@@ -48,7 +48,7 @@ model_manifest 逐模型記錄，不假設只有一個 model digest；固定排�
 
 Adapter 接收已準備影像，不自行 rasterize PDF。以安全 argv 呼叫本機引擎，禁止 shell=True 或不安全指令串接；採有限 timeout、驗證 exit code、解析 structured output，再組裝 raw_text、regions 與 provenance。只能清理由 adapter 擁有的暫存資源，不刪除呼叫者來源。
 
-Phase 15.2 先完成有界 rasterization 才進入 provider fallback 邊界；rasterization／PDF input／resource failure 不得觸發 provider fallback。呼叫者保留原始 PDF source_digest、原始 1-based page／total_pages，以及外層逐頁 raster_provenance；raster_digest 僅為实际 prepared PNG bytes 的衍生指紋，不是來源身分。沒有 persistent raster cache/reuse。必要 scanned page 最終失敗時整個 PDF transaction fail closed，不能交付部分成功。
+Phase 15.2 先完成有界 rasterization 才進入 provider fallback 邊界；rasterization／PDF input／resource failure 不得觸發 provider fallback。呼叫者保留原始 PDF source_digest、原始 1-based page／total_pages，以及外層逐頁 raster_provenance；raster_digest 僅為實際 prepared PNG bytes 的衍生指紋，不是來源身分。沒有 persistent raster cache/reuse。必要 scanned page 最終失敗時整個 PDF transaction fail closed，不能交付部分成功。
 
 Tesseract 是 Phase 15.1 預設 adapter 的目標，支援目標為 **Tesseract 5.x**。Provider/adapter version 與 engine version 分開記錄。必要版本無法確定時以 OCR_PROVIDER_VERSION_UNAVAILABLE 終止；已偵測但不符合相容政策時使用 OCR_PROVIDER_VERSION_UNSUPPORTED，不備援繞過。
 
