@@ -2,7 +2,7 @@
 
 本文件是 Phase 15.1 OCR provider foundation 的規範性架構文件。Phase 15.1 provider foundation 已由 PR #17 合併；公開 JSON schemas 與後續 ingestion/grounding 仍未建立。
 
-Phase 15.1 維持 COMPLETE / MERGED / BASELINE FROZEN；Phase 15.2 為 NOT STARTED，OCR schemas 為 DEFERRED。[Phase 15.2 PDF raster contract](phase15-2-raster-contract.md) 是 additive orchestration 文件，不改動本階段 provider 契約。
+Phase 15.1 維持 COMPLETE / MERGED / BASELINE FROZEN；Phase 15.2 已為 COMPLETE / MERGED / BASELINE FROZEN，Phase 15.3 已建立 additive [standalone image OCR contract](phase15-3-image-contract.md)，OCR schemas 為 DEFERRED。後續 ingestion/orchestration 文件不改動本階段 provider 契約。
 
 ## 1. 提供者能力分級（Capability Tiers）
 
@@ -36,9 +36,9 @@ Phase 15.1 擁有 OCR-native source-relative locator，索引為 1-based 正整�
 
 Phase 15.2 呼叫者必須先驗證 PDF total_pages 並在逐頁呼叫提供它；此為 PDF orchestration 的較強前置條件，不改變 Phase 15.1 通用 optional 規則。
 
-### 3.2 獨立圖片（PNG, JPEG, TIFF）
+### 3.2 獨立圖片（PNG, JPEG, single-frame TIFF）
 
-概念表示：`{"kind": "image", "ordinal": 1}`。不得虛構 PDF 頁碼。定義此 locator 不表示實作 standalone image ingestion。
+概念表示：`{"kind": "image", "ordinal": 1}`。不得虛構 PDF 頁碼。Phase 15.3 每個已接受來源恰為 image 1 of 1；多 frame TIFF 不在該階段。定義此 locator 本身不表示 provider 負責 standalone image ingestion。
 
 ### 3.3 Frozen ownership
 
@@ -128,6 +128,8 @@ OCR namespace 與 frozen Phase 12/13 分離。下列後續階段代碼的定義�
 ## 8. 解析、備援與版本政策
 
 Phase 15.2 的 OCR_PDF_PASSWORD_REQUIRED、OCR_PDF_INPUT_INVALID、OCR_PDF_PAGE_INVALID、OCR_PDF_RESOURCE_LIMIT_EXCEEDED、OCR_PDF_CLEANUP_FAILED 屬 [PDF orchestration error family](phase15-2-raster-contract.md)，不是 provider failures，不觸發備援。Raster provenance 置於 additive transaction envelope；raster_digest 不取代 source_digest，不新增 OCR_RASTER_CHANGED，也不發布 schema。
+
+Phase 15.3 的 OCR_IMAGE_FORMAT_UNSUPPORTED、OCR_IMAGE_INPUT_INVALID、OCR_IMAGE_RESOURCE_LIMIT_EXCEEDED、OCR_IMAGE_DECODE_FAILED、OCR_IMAGE_CLEANUP_FAILED 屬 [standalone image orchestration error family](phase15-3-image-contract.md#9-stable-image-error-taxonomy)，不是 provider failures，且不觸發備援。Prepared-image provenance 置於 additive transaction envelope；prepared_image_digest 不取代 source_digest，也不發布 schema。
 
 選擇順序為 call/CLI override → project setting → user setting → default Tesseract。這是 selection precedence，不是 provider chain；CLI／設定檔語法仍屬概念。選定後不得因失敗改試較低優先設定。
 
