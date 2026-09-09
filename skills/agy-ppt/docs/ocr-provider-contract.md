@@ -42,7 +42,7 @@ Phase 15.2 呼叫者必須先驗證 PDF total_pages 並在逐頁呼叫提供它�
 
 ### 3.3 Frozen ownership
 
-以上結構不直接相容於 frozen Phase 12 locator：Phase 12 page 使用 start/end，現有 validator 不接受 image kind。Phase 15.1 不修改 Phase 12 locator validation，也不直接將 OCR locator 交給它。轉換／整合契約屬 Phase 15.5，在該契約建立前不得宣稱直接相容。Phase 12 與 Phase 13 production contracts 維持 FROZEN。
+以上結構不直接相容於 frozen Phase 12 locator：Phase 12 page 使用 start/end，現有 validator 不接受 image kind。Phase 15.1 不修改 Phase 12 locator validation，也不直接將 OCR locator 交給它。已合併的 Phase 15.5 additive adapter 依 [grounding translation contract](phase15-5-grounding-translation-contract.md) 機械轉譯 locator；Phase 12 與 Phase 13 production contracts 維持 FROZEN。
 
 ## 4. 座標系統與邊界框規範（Bounding Box Contract）
 
