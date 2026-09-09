@@ -2,7 +2,7 @@
 
 本文件是 `agy-ppt` Phase 15（OCR Ingestion & Provider Architecture）的架構決策紀錄（Architecture Decision Record, ADR），定義提供者架構（Provider Architecture）、自備 OCR（Bring Your Own OCR, BYO-OCR）整合機制、預設本機引擎評估決策與工程實作路線圖。
 
-Phase 15.1 provider foundation 已由 PR #17 合併至 main，狀態為 COMPLETE / MERGED / BASELINE FROZEN；下圖描述跨階段目標。Phase 15.2 狀態為 **COMPLETE / MERGED / BASELINE FROZEN**（A–E 已由 PR #22 合併，squash merge `ffac8e77aab6e35d23f09fee01f1d261ba4b5171`）；規範以 [PDF rasterization/routing contract](phase15-2-raster-contract.md) 與 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 為準。文件路由屬 Phase 15.2/15.3，接地整合屬 Phase 15.5，均不屬於 Phase 15.1。OCR JSON schemas 維持 DEFERRED。
+Phase 15.1 provider foundation 已由 PR #17 合併至 main，狀態為 COMPLETE / MERGED / BASELINE FROZEN；下圖描述跨階段目標。Phase 15.2 狀態為 **COMPLETE / MERGED / BASELINE FROZEN**（A–E 已由 PR #22 合併，squash merge `ffac8e77aab6e35d23f09fee01f1d261ba4b5171`）；規範以 [PDF rasterization/routing contract](phase15-2-raster-contract.md) 與 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 為準。Phase 15.3 的 PNG、JPEG 與 single-frame TIFF 規範以 [standalone image OCR contract](phase15-3-image-contract.md) 為準。文件路由屬 Phase 15.2/15.3，接地整合屬 Phase 15.5，均不屬於 Phase 15.1。OCR JSON schemas 維持 DEFERRED。
 
 ---
 
@@ -155,12 +155,12 @@ agy-ppt 仍需內建開箱即用的預設本機 OCR 解決方案，作為無顯�
    │     使用既有文字層；稀疏非空白文字仍為 SEARCHABLE
    │     Phase 15.2 不引入 force_ocr；品質式 OCR 覆寫需後續契約
    │
-   └── 獨立圖片（PNG, JPEG, TIFF）
+   └── 獨立圖片（PNG, JPEG, single-frame TIFF）
             ↓
-         影像驗證與預處理 → OCR 提供者（使用影像原生 locator）
+         受限 worker 驗證與機械式 RGB PNG 準備 → OCR 提供者（使用影像原生 locator）
 ```
 
-Phase 15.2 逐原始頁碼升序機械分類與路由，不以抽取錯誤、文字品質或圖片面積判為 SCANNED。抽取失敗直接失敗。Scanned page 先完成有界 rasterization，再進入 Phase 15.1 provider resolution/fallback；任何必要頁面失敗皆 fail closed，不提供 partial success。詳細版本、資源、provenance 與錯誤規則見 [Phase 15.2 契約](phase15-2-raster-contract.md)。獨立圖片仍屬 Phase 15.3。
+Phase 15.2 逐原始頁碼升序機械分類與路由，不以抽取錯誤、文字品質或圖片面積判為 SCANNED。抽取失敗直接失敗。Scanned page 先完成有界 rasterization，再進入 Phase 15.1 provider resolution/fallback；任何必要頁面失敗皆 fail closed，不提供 partial success。詳細版本、資源、provenance 與錯誤規則見 [Phase 15.2 契約](phase15-2-raster-contract.md)。獨立 PNG、JPEG 與 single-frame TIFF 屬 Phase 15.3，使用受限 decoder worker、EXIF display orientation、opaque RGB PNG preparation 與獨立 image error family；完整規則見 [Phase 15.3 契約](phase15-3-image-contract.md)。
 
 ---
 
@@ -231,7 +231,7 @@ Phase 15.2
 掃描與純影像 PDF OCR 支援 (光柵化與頁層級路由)
    │
 Phase 15.3
-獨立圖片格式 (PNG, JPEG) OCR 支援與圖片原生 Locator
+獨立圖片格式 (PNG, JPEG, single-frame TIFF) OCR 支援與圖片原生 Locator
    │
 Phase 15.4
 自備 OCR (BYO-OCR) 與外部自訂提供者動態註冊整合
@@ -247,7 +247,7 @@ Phase 15.6
 
 - **Phase 15.1**: COMPLETE / MERGED / BASELINE FROZEN (PR #17, squash merge `9a5059a47fbb474119bb895d2080b20adaaa31f4`); deterministic and repository required checks passed
 - **Phase 15.2**: COMPLETE / MERGED / BASELINE FROZEN；PR #22 包含 A/B contracts、C PDFium renderer、D mixed-PDF OCR orchestration 與 E consolidation；production release validation 仍受 [PDFium production-adoption policy](phase15-2-pdfium-renderer-amendment.md#14-production-adoption-gate-與平台政策) 約束
-- **Phase 15.3**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
+- **Phase 15.3**: ARCHITECTURE READY / IMPLEMENTATION NOT STARTED；PNG、JPEG 與 single-frame TIFF 的 admission、preparation、isolation、resource、error 與 evidence 規則見 [Phase 15.3 contract](phase15-3-image-contract.md)
 - **Phase 15.4**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
 - **Phase 15.5**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1–15.4
 - **Phase 15.6**: ARCHITECTURALLY SPECIFIED / DEPENDS ON PRIOR PHASES
