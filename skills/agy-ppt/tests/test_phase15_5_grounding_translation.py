@@ -105,6 +105,15 @@ class TranslationTests(unittest.TestCase):
         with self.assertRaises(GroundingTranslationError) as caught:
             translate_pdf_ocr_page(wrong_source, page, evidence)
         self.assertEqual(caught.exception.error_code, "OCR_GROUNDING_SOURCE_MISMATCH")
+
+    def test_derived_digest_cannot_be_substituted_for_source_identity(self):
+        page = PDFPageIdentity(1, 1)
+        evidence, _ = pdf_evidence(page, "text")
+        raster_digest = hashlib.sha256(b"derived-raster").hexdigest()
+        substituted = PDFSourceIdentity("src_pdf", raster_digest)
+        with self.assertRaises(GroundingTranslationError) as caught:
+            translate_pdf_ocr_page(substituted, page, evidence, _Provenance("raster"))
+        self.assertEqual(caught.exception.error_code, "OCR_GROUNDING_SOURCE_MISMATCH")
         with self.assertRaises(GroundingTranslationError) as caught:
             translate_mixed_pdf(mixed_result(("",)), b"wrong")
         self.assertEqual(caught.exception.error_code, "OCR_GROUNDING_SOURCE_MISMATCH")
