@@ -6,6 +6,11 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Added
 
+- Phase 15.5 additive OCR-to-grounding translation with frozen Phase 12 locator
+  mapping, exact raw-text and original-source identity preservation,
+  mixed-PDF source ordering, evidence/provenance linkage, and fail-closed
+  validation without OCR or semantic side effects. (#32)
+
 - Phase 15.4 OCR provider management UX with deterministic provider discovery,
   effective configuration inspection, non-OCR validation, atomic project/user
   settings, explicit fallback visibility, and a trusted-code-only registration
