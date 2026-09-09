@@ -6,6 +6,11 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Added
 
+- Phase 15.2 PDFium renderer and mixed-PDF OCR orchestration: isolated
+  `pypdfium2==5.13.0` rasterization, source-identity-preserving page evidence,
+  deterministic mixed-page execution, and fail-closed transaction behavior.
+  (#22)
+
 - Phase 15.1 provider-neutral OCR foundation: canonical evidence/provenance,
   deterministic provider resolution, explicit fallback policy, and safe local
   Tesseract execution with structured evidence. (#17)
