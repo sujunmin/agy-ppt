@@ -94,3 +94,24 @@ as an official release of, or endorsed by, the upstream author. The upstream
 repository is not vendored in this repository; when required, `agy-ppt`
 resolves it as an external runtime dependency from the upstream repository
 using the resolver described above.
+
+## Phase 15.2 PDF renderer
+
+Phase 15.2 uses the official `pypdfium2==5.13.0` standard platform wheels,
+which bundle PDFium `153.0.7999.0` (build `7999`) from `pdfium-binaries` with
+V8 and XFA disabled. The pypdfium2 wrapper is offered under
+`Apache-2.0 OR BSD-3-Clause`; PDFium and its bundled native components carry
+their own license and notice requirements.
+
+The exact upstream wording shipped in the audited wheels is preserved under
+`third_party/pypdfium2-5.13.0/`; text encoding and line endings are normalized
+to repository UTF-8/LF. `BUILD_LICENSES/common/` contains notices whose text is
+identical across all six approved wheels after that normalization. PDFium's
+aggregated notice differs by platform, so `pdfium-linux-windows.txt` applies
+to the approved Linux and Windows wheels and `pdfium-macos.txt` applies to the
+approved macOS wheels. The approved filenames and SHA-256 values are recorded in
+`skills/agy-ppt/governance/pdfium-renderer-artifacts.json`; that manifest and
+the actual approved wheel remain authoritative for redistribution. Production
+installation uses the companion `pdfium-renderer-requirements.lock` with
+`--only-binary=:all:` and `--require-hashes`; a missing matching wheel fails
+closed rather than invoking pypdfium2 source setup.
