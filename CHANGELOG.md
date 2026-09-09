@@ -6,6 +6,11 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Added
 
+- Phase 15.6 deterministic OCR pipeline qualification with project-owned
+  PDF/image fixtures, end-to-end grounding traceability, exact runtime and
+  dependency identities, opt-in live Tesseract validation, stable failure
+  evidence, and explicit platform/release-readiness limitations. (#35)
+
 - Phase 15.5 additive OCR-to-grounding translation with frozen Phase 12 locator
   mapping, exact raw-text and original-source identity preservation,
   mixed-PDF source ordering, evidence/provenance linkage, and fail-closed

@@ -445,7 +445,7 @@ locator 為結構性，不會虛構頁碼或螢幕位置。
 結果不依賴檔案的絕對路徑。詳見
 [`skills/agy-ppt/docs/source-ingestion.md`](skills/agy-ppt/docs/source-ingestion.md)。
 
-### OCR 提供者、管理 UX 與接地轉譯（Phase 15.1–15.5）
+### OCR 提供者、接地轉譯與 qualification（Phase 15.1–15.6）
 
 > [!NOTE]
 > 目前版本（v0.3.0）尚未包含可執行的 OCR 功能。掃描 PDF 或純影像仍會以 `SOURCE_TEXT_UNAVAILABLE` 明確失敗。
@@ -459,7 +459,7 @@ python3 skills/agy-ppt/scripts/manage_ocr_providers.py set --scope project --pro
 python3 skills/agy-ppt/scripts/manage_ocr_providers.py unset --scope project
 ```
 
-Phase 15.5 在 PR #32 實作 additive OCR→grounding adapter：PDF OCR pages 機械映射到 frozen Phase 12 page locator，standalone image 映射到既有 deterministic generic locator；`raw_text`、原始 source digest 與 OCR/raster/preparation evidence 完整保留。此層不執行 OCR、不正規化文字，也不取得 AGY 的語意判斷權。Phase 15.6 真實來源 production validation 尚未開始；OCR JSON schemas 維持 deferred。
+Phase 15.5 在 PR #32 實作 additive OCR→grounding adapter：PDF OCR pages 機械映射到 frozen Phase 12 page locator，standalone image 映射到既有 deterministic generic locator；`raw_text`、原始 source digest 與 OCR/raster/preparation evidence 完整保留。Phase 15.6 在 PR #35 加入 project-owned synthetic real-structure E2E qualification、可選的 live Tesseract qualification 與 platform/security evidence。AGY 始終保有語意判斷權。Linux hard isolation 仍須 deployment environment validation；macOS 僅 development/API qualified，Windows 尚未 production-security qualified。OCR JSON schemas 維持 deferred。
 
 相關架構規範與整合指南請參閱：
 - [Phase 15 OCR Provider Architecture](skills/agy-ppt/docs/phase15-ocr-architecture.md)
@@ -467,6 +467,8 @@ Phase 15.5 在 PR #32 實作 additive OCR→grounding adapter：PDF OCR pages �
 - [Custom OCR Providers Guide](skills/agy-ppt/docs/custom-ocr-providers.md)
 - [Phase 15.4 Provider UX Contract](skills/agy-ppt/docs/phase15-4-provider-ux-contract.md)
 - [Phase 15.5 Grounding Translation Contract](skills/agy-ppt/docs/phase15-5-grounding-translation-contract.md)
+- [Phase 15.6 Validation Contract](skills/agy-ppt/docs/phase15-6-validation-contract.md)
+- [Phase 15.6 Qualification Report](skills/agy-ppt/docs/phase15-6-validation-report.md)
 
 ## Remote Source Acquisition
 

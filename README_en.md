@@ -503,7 +503,7 @@ block ids, locators, and ordering, and the result does not depend on the file's
 absolute path. See
 [`skills/agy-ppt/docs/source-ingestion.md`](skills/agy-ppt/docs/source-ingestion.md).
 
-### OCR Providers, Management UX, and Grounding Translation (Phases 15.1–15.5)
+### OCR Providers, Grounding Translation, and Qualification (Phases 15.1–15.6)
 
 > [!NOTE]
 > The current release (v0.3.0) does not yet include usable OCR functionality. Scanned PDFs or image-only documents fail explicitly with `SOURCE_TEXT_UNAVAILABLE`.
@@ -517,7 +517,7 @@ python3 skills/agy-ppt/scripts/manage_ocr_providers.py set --scope project --pro
 python3 skills/agy-ppt/scripts/manage_ocr_providers.py unset --scope project
 ```
 
-PR #32 implements the additive Phase 15.5 OCR-to-grounding adapter: PDF OCR pages map mechanically to frozen Phase 12 page locators, while standalone images map to the existing deterministic generic locator. Exact `raw_text`, the original source digest, and OCR/raster/preparation evidence remain preserved. This layer performs no OCR or text normalization and does not take semantic authority from AGY. Phase 15.6 real-source production validation has not started. OCR JSON schemas remain deferred.
+PR #32 implements the additive Phase 15.5 OCR-to-grounding adapter: PDF OCR pages map mechanically to frozen Phase 12 page locators, while standalone images map to the existing deterministic generic locator. Exact `raw_text`, the original source digest, and OCR/raster/preparation evidence remain preserved. PR #35 adds Phase 15.6 end-to-end qualification with project-owned synthetic real-world structures, optional live Tesseract qualification, and platform/security evidence. AGY retains semantic authority throughout. Linux hard isolation still requires deployment-environment validation; macOS is development/API qualified, and Windows is not production-security qualified. OCR JSON schemas remain deferred.
 
 For specifications and integration guides, see:
 - [Phase 15 OCR Provider Architecture](skills/agy-ppt/docs/phase15-ocr-architecture.md)
@@ -525,6 +525,8 @@ For specifications and integration guides, see:
 - [Custom OCR Providers Guide](skills/agy-ppt/docs/custom-ocr-providers.md)
 - [Phase 15.4 Provider UX Contract](skills/agy-ppt/docs/phase15-4-provider-ux-contract.md)
 - [Phase 15.5 Grounding Translation Contract](skills/agy-ppt/docs/phase15-5-grounding-translation-contract.md)
+- [Phase 15.6 Validation Contract](skills/agy-ppt/docs/phase15-6-validation-contract.md)
+- [Phase 15.6 Qualification Report](skills/agy-ppt/docs/phase15-6-validation-report.md)
 
 ## Remote Source Acquisition
 
