@@ -6,6 +6,11 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Added
 
+- Phase 15.3 standalone image OCR ingestion for PNG, JPEG, and single-frame
+  TIFF, with restricted Pillow decoding, deterministic EXIF-aware opaque RGB
+  PNG preparation, original-source and prepared-image identity separation,
+  bounded resource enforcement, and frozen provider fallback reuse. (#26)
+
 - Phase 15.2 PDFium renderer and mixed-PDF OCR orchestration: isolated
   `pypdfium2==5.13.0` rasterization, source-identity-preserving page evidence,
   deterministic mixed-page execution, and fail-closed transaction behavior.
