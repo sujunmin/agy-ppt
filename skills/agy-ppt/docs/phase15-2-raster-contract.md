@@ -1,8 +1,8 @@
 # Phase 15.2 PDF 光柵化與路由契約
 
-本文件是文件／治理契約，不是功能發布。基線為 `074625912bf1451fe6a60cf99cd55f4365410b28`。Phase 15.1 為 **COMPLETE / MERGED / BASELINE FROZEN**；Phase 15.2 為 **NOT STARTED**。OCR JSON schemas 維持 **DEFERRED**。AGY 保有唯一語意權威。
+本文件是文件／治理契約，不是功能發布。基線為 `074625912bf1451fe6a60cf99cd55f4365410b28`。Phase 15.1 為 **COMPLETE / MERGED / BASELINE FROZEN**；Phase 15.2 為 **ARCHITECTURE READY / A+B IMPLEMENTED / C NOT STARTED**（A/B 位於 Draft PR #22）。OCR JSON schemas 維持 **DEFERRED**。AGY 保有唯一語意權威。
 
-本契約補充 [Phase 15 架構](phase15-ocr-architecture.md)、沿用 [Phase 15.1 provider contract](ocr-provider-contract.md)，不改寫既有 provider 行為。
+本契約補充 [Phase 15 架構](phase15-ocr-architecture.md)、沿用 [Phase 15.1 provider contract](ocr-provider-contract.md)，不改寫既有 provider 行為。Renderer-specific candidate、license/notices、PDFium provenance、exact pixel geometry、box handling 與 production-adoption gate 已由 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 更新；衝突處以該修訂為準，其餘本契約持續有效。
 
 ## 1. 所有權與 additive 邊界
 
@@ -22,11 +22,14 @@ OCR locator 沿用 Phase 15.1：`{"kind": "page", "page": 1, "total_pages": 42}`
 
 ## 3. Renderer 與版本政策
 
+> [!IMPORTANT]
+> 本節保留 PyMuPDF 評估與安全／授權決策歷史。Primary candidate 已由 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 更新為 `pypdfium2==5.13.0`／PDFium `153.0.7999.0` build `7999`，狀態為 **PREFERRED / APPROVABLE WITH NOTICES / PRODUCTION ADOPTION GATED**。PyMuPDF 1.28.2 維持 **TECHNICALLY VIABLE / LICENSE BLOCKED / NOT PRIMARY**；本文件未導入任何 real renderer。
+
 先前考慮的 **PyMuPDF 1.24.x 已 REJECTED／SUPERSEDED**：不得導入 PyMuPDF 1.24.14（bundled MuPDF 1.24.11）作為 production raster dependency。其後續候選家族改為 **PyMuPDF 1.28.x candidate family**；目前評估起點可用 1.28.2，但本文件不將任何 1.28.x build 或 1.28.2 標記為 production-approved。候選版本必須逐一通過當期 CVE、bundled MuPDF source/build、Python/runtime、wheel/platform、ABI/raster smoke、supply-chain、license/distribution 與 sandbox/resource enforcement 審查；不得以版本號較新單獨宣稱修復。
 
 安全理由至少包括：NVD 將 MuPDF >=1.24.0 且 <1.26.7 列為 CVE-2025-55780 受影響範圍（描述為 EPUB/HTML layout path；PDF-only 不可達性未獲證明），以及 CVE-2026-3308 涉及 `pdf_load_image_imp` 的 PDF image decoding integer overflow／heap out-of-bounds write，對特製 PDF 可能造成 crash、memory corruption 或 code execution；CERT/CVE 資料涵蓋至 MuPDF 1.27.0。這些 finding 造成 vulnerability-management／risk-acceptance 負擔，不能由 PDF-only 意圖或較新的版本號靜默免除。若正式採用有形式受影響的 build，必須有明確、可審查的 VEX／risk-acceptance rationale。
 
-未來 production dependency policy 為 `PyMuPDF==X.Y.Z` exact pin；同時記錄 bundled MuPDF version、核准平台的 wheel-only 安裝、approved wheel SHA-256 allowlist 與必要 build identity，禁止無 matching wheel 時靜默 source compilation，並將 PyMuPDF、MuPDF/native components 納入 SBOM／security scanning。這些 pin/hash 尚不在本文件建立。
+若未來重新採用 PyMuPDF，production dependency policy 仍要求 `PyMuPDF==X.Y.Z` exact pin；同時記錄 bundled MuPDF version、核准平台的 wheel-only 安裝、approved wheel SHA-256 allowlist 與必要 build identity，禁止無 matching wheel 時靜默 source compilation，並將 PyMuPDF、MuPDF/native components 納入 SBOM／security scanning。這些 pin/hash 尚不在本文件建立。
 
 歷史審查的 [PyMuPDF 1.24.14 package metadata](https://pypi.org/project/PyMuPDF/1.24.14/) 宣告 Python >=3.9 與多平台 wheels；這只保留為相容性／決策歷史證據，不是目前候選或安全認證。現行 1.28.x candidate 的相容性與安全性仍須對選定 exact build 重新驗證。
 
@@ -57,9 +60,9 @@ Phase 15.2 orchestration 擁有逐 scanned page 的 `raster_provenance`，以原
 
 | 必要欄位 | 意義 |
 | --- | --- |
-| renderer_id | pymupdf |
-| renderer_version | 實際確切 PyMuPDF patch |
-| renderer_engine_version | 公開 runtime identity `pymupdf.mupdf_version` 與實際 MuPDF version/build identity |
+| renderer_id | 核准 renderer 的 stable ID；目前 preferred candidate 為 `pypdfium2` |
+| renderer_version | 實際確切 wrapper patch；目前候選為 `5.13.0` |
+| renderer_engine_version | 公開 runtime engine identity；PDFium 候選為 `153.0.7999.0`／build `7999` |
 | approved_build_identity | 核准 wheel/build identity（依最終 adoption policy） |
 | dpi、output_format、colorspace、alpha、render_annotations | 實際有效固定設定 |
 | rotation_policy、box_policy | 第 4 節固定政策名稱 |
@@ -69,7 +72,7 @@ Phase 15.2 orchestration 擁有逐 scanned page 的 `raster_provenance`，以原
 
 `raster_digest != source_digest` 表示兩者角色與被雜湊的 bytes 不同，不是要求用 digest 不相等作驗證。Raster digest 僅為衍生準備步驟 provenance，不是來源身分或語意權威。雜湊必須針對實際傳給 OCR 的 PNG bytes；不得雜湊另一份 preview 或重新編碼版本。Provider fallback 使用同一份已驗證 raster。
 
-Canonical provenance 使用公開 `pymupdf.pymupdf_version` 與 `pymupdf.mupdf_version`，避免 legacy ambiguous aliases；排除 temporary path、host cache path、absolute renderer path、timestamps 與任意 environment dump；不得填入 unknown。Phase 15.2 不引入 persistent raster cache／reuse，不需要公開 `OCR_RASTER_CHANGED`。未來 caching 的 staleness／invalidation 必須另行設計。
+Canonical provenance 對 preferred candidate 使用公開 `pypdfium2.version.PYPDFIUM_INFO` 與 `pypdfium2.version.PDFIUM_INFO`，並依 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 保存 PDFium build、origin、flags 與 approved wheel filename/SHA-256；排除 temporary path、host cache path、absolute renderer path、timestamps 與任意 environment dump；不得填入 unknown。Phase 15.2 不引入 persistent raster cache／reuse，不需要公開 `OCR_RASTER_CHANGED`。未來 caching 的 staleness／invalidation 必須另行設計。
 
 ## 6. 機械分類與 mixed-PDF 路由
 
@@ -121,7 +124,7 @@ MiB = 1,048,576 bytes。將提案的 100,000,000 pixels 降至 25,000,000，因 
 
 頁框／rotation 推算尺寸須在配置 pixel buffer 前驗證；實際 PNG bytes 與 decode 結果也須有界驗證。暫存寫入與 native allocation 需有真正的 quota／隔離限制。既有 Phase 15.1 provider timeout 仍適用，30 秒 renderer timeout 不覆蓋它。
 
-禁止 shell execution；只使用安全 API 或固定 executable 加獨立 argv，無網路需求、不下載模型／renderer，不帶 credentials。主 process 不得透過 unrestricted in-process PyMuPDF render untrusted PDF。必要結構為 `parent/orchestrator → isolated raster worker process → PyMuPDF/MuPDF → bounded result IPC`；worker 必須在 open/parse bytes 前建立，具 killable dedicated subprocess、parent monotonic watchdog、page hard timeout、memory/CPU/resource ceiling（平台支援時）、bounded IPC/temp storage、minimal filesystem、無 credentials/network，以及 success/failure/timeout cleanup。native crash 必須隔離；不得用無法中止 native call 的 Python thread timeout 取代 worker。平台無法強制任一上限時，啟動前以資源限制錯誤拒絕，不能 best-effort 繼續。Linux 可採 cgroup 或等價機制；macOS/Windows 必須各自驗證 hard enforcement；有 PyMuPDF wheel 不代表該平台滿足本契約。
+禁止 shell execution；只使用安全 API 或固定 executable 加獨立 argv，無網路需求、不下載模型／renderer，不帶 credentials。主 process 不得透過 unrestricted in-process renderer parse/render untrusted PDF。必要結構為 `parent/orchestrator → isolated raster worker process → approved renderer/native engine → bounded result IPC`；preferred candidate 的 engine 是 `pypdfium2/PDFium`。worker 必須在接收、open 或 parse bytes 前完成 restriction，關閉 inherited descriptors，並具 process-group isolation、killable dedicated subprocess、parent monotonic watchdog、page hard timeout、memory/CPU/resource ceiling（平台支援時）、bounded IPC/temp storage、minimal filesystem、無 credentials/network，以及 success/failure/timeout cleanup。native crash 必須隔離；不得用無法中止 native call 的 Python thread timeout 取代 worker。平台無法強制任一上限時，啟動前以資源限制錯誤拒絕，不能 best-effort 繼續。Linux x86_64 是 cgroup/sandbox 驗證後的 primary production-security candidate；macOS/Windows 有 wheel 不代表該平台滿足本契約。
 
 僅清理本 transaction 擁有的暫存 raster／資源，成功、失敗、timeout 皆須 finally cleanup；不得刪除原始來源。不得保留 persistent raster cache。
 
@@ -154,7 +157,7 @@ Rasterization 在 provider fallback **之外**：raster failure → Phase 15.2 f
 
 Required PR deterministic CI MUST 使用 fake rasterizer、fake OCR provider、deterministic synthetic PDF fixtures/page models，覆蓋分類（含 whitespace、稀疏文字、大圖、空頁）、資源邊界、順序／失敗、source identity／locator／raster provenance、encrypted-readable／password-required 以及 cleanup。不得依賴 mutable host Tesseract accuracy、真實 renderer pixel equivalence、網路或 AI 額度。
 
-Real PyMuPDF + Tesseract 測試只在另行 opt-in live/release validation 中執行，與 Phase 15.6 真實來源 production validation 一致；不能以 fake CI PASS 宣稱真實引擎已通過發布驗證。本次不修改 CI／tests。安全版本審查具時效性；首次 production adoption、每次 dependency upgrade、每次 public release 前，均須重查 PyMuPDF、bundled MuPDF、NVD/CVE/CERT 與實際 native components。形式受影響但聲稱 unreachable 的 build 必須有書面 VEX/risk acceptance，不得以 informal comment 接受。
+Real pypdfium2/PDFium + Tesseract 測試只在另行 opt-in live/release validation 中執行，與 Phase 15.6 真實來源 production validation 一致；不能以 fake CI PASS 宣稱真實引擎已通過發布驗證。本次不修改 CI／tests。安全版本審查具時效性；首次 production adoption、每次 dependency/engine/wheel upgrade、每次 public release 前，均須重查 pypdfium2 wrapper、bundled PDFium/native components、Chromium/PDFium affected-version boundaries 與 NVD/CVE/OSV/GitHub/distro security references。形式受影響但聲稱 unreachable 的 build 必須有書面 VEX/risk acceptance，不得以 informal comment 接受。
 
 ## 11. 逐增量實作 gate
 
@@ -162,12 +165,12 @@ Real PyMuPDF + Tesseract 測試只在另行 opt-in live/release validation 中�
 | --- | --- |
 | Phase 15.2-A | Contracts、resource limits、deterministic fake rasterizer/provider、identity/error models；無 real renderer |
 | Phase 15.2-B | Mechanical searchable/scanned classification、mixed-PDF ordering；無語意 heuristic |
-| Phase 15.2-C | **BLOCKED until real-renderer adoption gate passes**：exact PyMuPDF/MuPDF versions、current CVE review、license/distribution decision、supported platforms、wheel hashes/build identity、ABI/raster validation、worker/sandbox feasibility；其後才加入 adapter、raster provenance、resource enforcement；無 OCR orchestration |
+| Phase 15.2-C | **NOT STARTED / BLOCKED until real-renderer adoption gate passes**：依 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 完成 exact `pypdfium2==5.13.0`／PDFium build、current security review、per-platform wheel hash、license/notices、SBOM、exact geometry、ABI/raster validation 與 worker/sandbox feasibility；其後才可加入 dependency、adapter、raster provenance、resource enforcement；無 OCR orchestration |
 | Phase 15.2-D | Scanned-page raster → Phase 15.1 OCRProvider orchestration、evidence ordering、fail-closed transaction；無 Phase 12 grounding |
 | Phase 15.2-E | Contract consolidation、文件、full validation、PR readiness |
 
-每個增量的確切 GitHub contexts **`deterministic`** 與 **`repository`** 必須在該增量最新 commit **PASS**，下一增量才可開始。不得以 child jobs、歷史 PASS 或本機測試取代。此文件 PR 不啟動 A，也不代表 Phase 15.2 已實作；Phase 15.2 維持 **NOT STARTED**，OCR schemas 維持 **DEFERRED**。
+每個增量的確切 GitHub contexts **`deterministic`** 與 **`repository`** 必須在該增量最新 commit **PASS**，下一增量才可開始。不得以 child jobs、歷史 PASS 或本機測試取代。Draft PR #22 已完成 A/B；本架構修訂不修改該 PR、不啟動 C，也不代表 real renderer 已 production-adopted。OCR schemas 維持 **DEFERRED**。
 
 ## 12. 架構修訂後狀態
 
-本文件是 documentation/governance amendment，不是實作或依賴核准。Phase 15.2 維持 **ARCHITECTURE READY / IMPLEMENTATION NOT STARTED**，並標記 **REAL RENDERER ADOPTION GATED**。15.2-A/B 可使用 deterministic fake contracts 且不安裝 real renderer；15.2-C 在 adoption gate 通過前不得開始。Phase 15.1 仍為 COMPLETE / MERGED / BASELINE FROZEN，Phase 12/13 維持 FROZEN，OCR JSON schemas 維持 DEFERRED。
+本文件與 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 均為 documentation/governance contract，不是實作或 dependency adoption。Phase 15.2 狀態為 **ARCHITECTURE READY / A+B IMPLEMENTED / C NOT STARTED**，並標記 **REAL RENDERER PRODUCTION ADOPTION GATED**。Preferred candidate 為 `pypdfium2==5.13.0`／PDFium `153.0.7999.0` build `7999`，狀態為 **APPROVABLE WITH NOTICES**；15.2-C 在 final adoption checklist 通過前不得開始。Phase 15.1 仍為 COMPLETE / MERGED / BASELINE FROZEN，Phase 12/13 維持 FROZEN，OCR JSON schemas 維持 DEFERRED。
