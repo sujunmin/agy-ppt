@@ -14,6 +14,12 @@ from .models import (
 )
 from .rasterizer import PDFRasterizer, RasterRequest, RasterResult
 from .planning import MixedPDFPlan, PDFPageInput, PDFPagePlan, PageRoute, plan_pdf_pages
+from .orchestration import (
+    MixedPDFExecutionResult,
+    OCRPageExecution,
+    TextPageExecution,
+    execute_mixed_pdf,
+)
 
 __all__ = [
     "ERROR_CODES",
@@ -36,4 +42,8 @@ __all__ = [
     "WorkerIsolationPolicy",
     "classify_page_text",
     "plan_pdf_pages",
+    "MixedPDFExecutionResult",
+    "OCRPageExecution",
+    "TextPageExecution",
+    "execute_mixed_pdf",
 ]
