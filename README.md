@@ -445,17 +445,27 @@ locator 為結構性，不會虛構頁碼或螢幕位置。
 結果不依賴檔案的絕對路徑。詳見
 [`skills/agy-ppt/docs/source-ingestion.md`](skills/agy-ppt/docs/source-ingestion.md)。
 
-### OCR 提供者架構（Phase 15.1 — 已合併）
+### OCR 提供者與管理 UX（Phase 15.1–15.4）
 
 > [!NOTE]
 > 目前版本（v0.3.0）尚未包含可執行的 OCR 功能。掃描 PDF 或純影像仍會以 `SOURCE_TEXT_UNAVAILABLE` 明確失敗。
 
-Phase 15.1 已實作 provider-neutral OCR 契約、確定性解析／備援規則，以及安全執行與結構化證據的預設本機 Tesseract 5 provider，並透過 PR #17 合併至 main。掃描 PDF 流程、公開圖片匯入、雲端／自訂 provider registration UX、grounding 整合與真實來源 production validation 仍不在範圍內。
+Phase 15.1–15.3 已在 main 建立 provider-neutral OCR、掃描／混合 PDF 與 PNG、JPEG、single-frame TIFF ingestion。Phase 15.4 的管理 UX 在 PR #29 實作，可列出受信任程式碼已註冊的 providers、檢視有效設定、執行不產生 OCR evidence 的 validation，以及原子化設定／取消 project 與 user provider。解析順序維持 explicit > project > user > default Tesseract；fallback 預設關閉且只能顯式啟用。設定不能載入任意 Python、shell、URL 或儲存 secrets。
+
+```bash
+python3 skills/agy-ppt/scripts/manage_ocr_providers.py list
+python3 skills/agy-ppt/scripts/manage_ocr_providers.py show
+python3 skills/agy-ppt/scripts/manage_ocr_providers.py set --scope project --provider tesseract --no-allow-fallback
+python3 skills/agy-ppt/scripts/manage_ocr_providers.py unset --scope project
+```
+
+Phase 15.5 grounding 整合與 Phase 15.6 真實來源 production validation 尚未開始；OCR JSON schemas 維持 deferred。
 
 相關架構規範與整合指南請參閱：
 - [Phase 15 OCR Provider Architecture](skills/agy-ppt/docs/phase15-ocr-architecture.md)
 - [OCR Provider Contract Specification](skills/agy-ppt/docs/ocr-provider-contract.md)
 - [Custom OCR Providers Guide](skills/agy-ppt/docs/custom-ocr-providers.md)
+- [Phase 15.4 Provider UX Contract](skills/agy-ppt/docs/phase15-4-provider-ux-contract.md)
 
 ## Remote Source Acquisition
 

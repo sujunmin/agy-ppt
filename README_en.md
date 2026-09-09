@@ -503,17 +503,27 @@ block ids, locators, and ordering, and the result does not depend on the file's
 absolute path. See
 [`skills/agy-ppt/docs/source-ingestion.md`](skills/agy-ppt/docs/source-ingestion.md).
 
-### OCR Provider Architecture (Phase 15.1 — merged)
+### OCR Providers and Management UX (Phases 15.1–15.4)
 
 > [!NOTE]
 > The current release (v0.3.0) does not yet include usable OCR functionality. Scanned PDFs or image-only documents fail explicitly with `SOURCE_TEXT_UNAVAILABLE`.
 
-Phase 15.1 implements the provider-neutral OCR contract, deterministic resolution/fallback rules, and a default local Tesseract 5 provider with safe execution and structured evidence. It was merged through PR #17. Scanned-PDF workflows, public image ingestion, cloud/custom registration UX, grounding integration, and real-source production validation remain out of scope.
+Phases 15.1–15.3 on main provide provider-neutral OCR, scanned/mixed-PDF processing, and PNG, JPEG, and single-frame TIFF ingestion. PR #29 implements the Phase 15.4 management UX: list providers registered by trusted application code, inspect effective settings, validate without producing OCR evidence, and atomically set or unset project and user provider settings. Resolution remains explicit > project > user > default Tesseract; fallback is off by default and requires an explicit opt-in. Configuration cannot load arbitrary Python, shell commands, URLs, or stored secrets.
+
+```bash
+python3 skills/agy-ppt/scripts/manage_ocr_providers.py list
+python3 skills/agy-ppt/scripts/manage_ocr_providers.py show
+python3 skills/agy-ppt/scripts/manage_ocr_providers.py set --scope project --provider tesseract --no-allow-fallback
+python3 skills/agy-ppt/scripts/manage_ocr_providers.py unset --scope project
+```
+
+Phase 15.5 grounding integration and Phase 15.6 real-source production validation have not started. OCR JSON schemas remain deferred.
 
 For specifications and integration guides, see:
 - [Phase 15 OCR Provider Architecture](skills/agy-ppt/docs/phase15-ocr-architecture.md)
 - [OCR Provider Contract Specification](skills/agy-ppt/docs/ocr-provider-contract.md)
 - [Custom OCR Providers Guide](skills/agy-ppt/docs/custom-ocr-providers.md)
+- [Phase 15.4 Provider UX Contract](skills/agy-ppt/docs/phase15-4-provider-ux-contract.md)
 
 ## Remote Source Acquisition
 

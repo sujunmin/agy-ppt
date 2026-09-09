@@ -234,7 +234,7 @@ Phase 15.3
 獨立圖片格式 (PNG, JPEG, single-frame TIFF) OCR 支援與圖片原生 Locator
    │
 Phase 15.4
-自備 OCR (BYO-OCR) 與外部自訂提供者動態註冊整合
+自備 OCR (BYO-OCR) 管理 UX 與受信任程式碼 provider registration
    │
 Phase 15.5
 OCR 證據 → AGY 語意層 → Phase 12 來源接地整合
@@ -248,7 +248,7 @@ Phase 15.6
 - **Phase 15.1**: COMPLETE / MERGED / BASELINE FROZEN (PR #17, squash merge `9a5059a47fbb474119bb895d2080b20adaaa31f4`); deterministic and repository required checks passed
 - **Phase 15.2**: COMPLETE / MERGED / BASELINE FROZEN；PR #22 包含 A/B contracts、C PDFium renderer、D mixed-PDF OCR orchestration 與 E consolidation；production release validation 仍受 [PDFium production-adoption policy](phase15-2-pdfium-renderer-amendment.md#14-production-adoption-gate-與平台政策) 約束
 - **Phase 15.3**: COMPLETE / MERGED / BASELINE FROZEN（PR #26，squash merge `54c3cd5a26b98f1eb6a6a2fbc1ea08fbe5cccd9f`）；PNG、JPEG 與 single-frame TIFF 的 admission、preparation、isolation、resource、error 與 evidence 規則見 [Phase 15.3 contract](phase15-3-image-contract.md)
-- **Phase 15.4**: NOT STARTED / CONTRACT READY / DEPENDS ON 15.1；operator/configuration UX 見 [Phase 15.4 contract](phase15-4-provider-ux-contract.md)
+- **Phase 15.4**: IMPLEMENTED / PR REVIEW PENDING（PR #29）；operator/configuration UX 見 [Phase 15.4 contract](phase15-4-provider-ux-contract.md)
 - **Phase 15.5**: NOT STARTED / ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1–15.4
 - **Phase 15.6**: NOT STARTED / ARCHITECTURALLY SPECIFIED / DEPENDS ON PRIOR PHASES
 
