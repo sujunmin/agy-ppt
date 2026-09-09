@@ -1,6 +1,6 @@
 # Phase 15.2 PDF 光柵化與路由契約
 
-本文件是文件／治理契約，不是功能發布。基線為 `074625912bf1451fe6a60cf99cd55f4365410b28`。Phase 15.1 為 **COMPLETE / MERGED / BASELINE FROZEN**；Phase 15.2 為 **ARCHITECTURE READY / A+B IMPLEMENTED / C NOT STARTED**（A/B 位於 Draft PR #22）。OCR JSON schemas 維持 **DEFERRED**。AGY 保有唯一語意權威。
+本文件是文件／治理契約，不是功能發布。基線為 `074625912bf1451fe6a60cf99cd55f4365410b28`。Phase 15.1 為 **COMPLETE / MERGED / BASELINE FROZEN**；Phase 15.2 為 **IMPLEMENTED / PR REVIEW PENDING**（A–E 位於 Draft PR #22）。OCR JSON schemas 維持 **DEFERRED**。AGY 保有唯一語意權威。
 
 本契約補充 [Phase 15 架構](phase15-ocr-architecture.md)、沿用 [Phase 15.1 provider contract](ocr-provider-contract.md)，不改寫既有 provider 行為。Renderer-specific candidate、license/notices、PDFium provenance、exact pixel geometry、box handling 與 production-adoption gate 已由 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 更新；衝突處以該修訂為準，其餘本契約持續有效。
 
@@ -130,7 +130,7 @@ MiB = 1,048,576 bytes。將提案的 100,000,000 pixels 降至 25,000,000，因 
 
 ## 9. Orchestration error taxonomy 與 fallback
 
-下列是 Phase 15.2 公開 orchestration-layer 代碼的文件契約，尚未實作；既有 Phase 15.1 provider errors 不改動。
+下列是 Phase 15.2 orchestration-layer 代碼的文件契約，實作位於 Draft PR #22；既有 Phase 15.1 provider errors 不改動。
 
 | 代碼 | 條件 |
 | --- | --- |
@@ -157,7 +157,7 @@ Rasterization 在 provider fallback **之外**：raster failure → Phase 15.2 f
 
 Required PR deterministic CI MUST 使用 fake rasterizer、fake OCR provider、deterministic synthetic PDF fixtures/page models，覆蓋分類（含 whitespace、稀疏文字、大圖、空頁）、資源邊界、順序／失敗、source identity／locator／raster provenance、encrypted-readable／password-required 以及 cleanup。不得依賴 mutable host Tesseract accuracy、真實 renderer pixel equivalence、網路或 AI 額度。
 
-Real pypdfium2/PDFium + Tesseract 測試只在另行 opt-in live/release validation 中執行，與 Phase 15.6 真實來源 production validation 一致；不能以 fake CI PASS 宣稱真實引擎已通過發布驗證。本次不修改 CI／tests。安全版本審查具時效性；首次 production adoption、每次 dependency/engine/wheel upgrade、每次 public release 前，均須重查 pypdfium2 wrapper、bundled PDFium/native components、Chromium/PDFium affected-version boundaries 與 NVD/CVE/OSV/GitHub/distro security references。形式受影響但聲稱 unreachable 的 build 必須有書面 VEX/risk acceptance，不得以 informal comment 接受。
+Real pypdfium2/PDFium + Tesseract accuracy 測試仍屬 opt-in live/release validation，與 Phase 15.6 真實來源 production validation 一致；fake CI PASS 不代表真實 OCR 準確度已完成發布驗證。安全審查具時效性；首次 production release adoption、每次 dependency／engine／wheel upgrade 及每次 public release 前，均須重新檢查 pypdfium2 wrapper、bundled PDFium/native components、Chromium/PDFium affected-version boundaries 與 NVD/CVE/OSV/GitHub/distro references。形式受影響的 build 必須有書面 VEX／risk acceptance。
 
 ## 11. 逐增量實作 gate
 
@@ -165,12 +165,12 @@ Real pypdfium2/PDFium + Tesseract 測試只在另行 opt-in live/release validat
 | --- | --- |
 | Phase 15.2-A | Contracts、resource limits、deterministic fake rasterizer/provider、identity/error models；無 real renderer |
 | Phase 15.2-B | Mechanical searchable/scanned classification、mixed-PDF ordering；無語意 heuristic |
-| Phase 15.2-C | **NOT STARTED / BLOCKED until real-renderer adoption gate passes**：依 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 完成 exact `pypdfium2==5.13.0`／PDFium build、current security review、per-platform wheel hash、license/notices、SBOM、exact geometry、ABI/raster validation 與 worker/sandbox feasibility；其後才可加入 dependency、adapter、raster provenance、resource enforcement；無 OCR orchestration |
+| Phase 15.2-C | **IMPLEMENTED in Draft PR #22**：exact `pypdfium2==5.13.0`／PDFium build、per-platform wheel hash、license/notices、SBOM、exact geometry、ABI/raster validation 與 isolated worker；無 OCR orchestration |
 | Phase 15.2-D | Scanned-page raster → Phase 15.1 OCRProvider orchestration、evidence ordering、fail-closed transaction；無 Phase 12 grounding |
 | Phase 15.2-E | Contract consolidation、文件、full validation、PR readiness |
 
-每個增量的確切 GitHub contexts **`deterministic`** 與 **`repository`** 必須在該增量最新 commit **PASS**，下一增量才可開始。不得以 child jobs、歷史 PASS 或本機測試取代。Draft PR #22 已完成 A/B；本架構修訂不修改該 PR、不啟動 C，也不代表 real renderer 已 production-adopted。OCR schemas 維持 **DEFERRED**。
+每個增量的確切 GitHub contexts **`deterministic`** 與 **`repository`** 必須在該增量最新 commit **PASS**，下一增量才可開始。不得以 child jobs、歷史 PASS 或本機測試取代。Draft PR #22 已完成 A/B/C/D，E consolidation 正在同一 PR；real renderer 的 release production validation 仍受控。OCR schemas 維持 **DEFERRED**。
 
 ## 12. 架構修訂後狀態
 
-本文件與 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 均為 documentation/governance contract，不是實作或 dependency adoption。Phase 15.2 狀態為 **ARCHITECTURE READY / A+B IMPLEMENTED / C NOT STARTED**，並標記 **REAL RENDERER PRODUCTION ADOPTION GATED**。Preferred candidate 為 `pypdfium2==5.13.0`／PDFium `153.0.7999.0` build `7999`，狀態為 **APPROVABLE WITH NOTICES**；15.2-C 在 final adoption checklist 通過前不得開始。Phase 15.1 仍為 COMPLETE / MERGED / BASELINE FROZEN，Phase 12/13 維持 FROZEN，OCR JSON schemas 維持 DEFERRED。
+本文件與 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 均為 documentation/governance contract。Phase 15.2 狀態為 **IMPLEMENTED / PR REVIEW PENDING**；A/B contracts、C PDFium renderer、D mixed-PDF OCR orchestration 與 E consolidation 均位於 Draft PR #22，並保留 **REAL RENDERER PRODUCTION RELEASE VALIDATION GATED**。Preferred candidate 為 `pypdfium2==5.13.0`／PDFium `153.0.7999.0` build `7999`，狀態為 **APPROVABLE WITH NOTICES**。Phase 15.1 仍為 COMPLETE / MERGED / BASELINE FROZEN，Phase 12/13 維持 FROZEN，OCR JSON schemas 維持 DEFERRED。

@@ -1,17 +1,17 @@
 # Phase 15.2 PDFium Renderer 架構修訂
 
-本文件是 Phase 15.2 的 documentation/governance amendment，不是 production dependency adoption、功能發布或 Phase 15.2-C 實作。它補充並在 renderer-specific 決策上優先於 [Phase 15.2 raster contract](phase15-2-raster-contract.md) 與 [Phase 15 OCR architecture](phase15-ocr-architecture.md)；原始來源身分、逐頁路由、固定 raster 語義、錯誤 taxonomy、worker isolation、Phase 12/13 與 Phase 15.1 frozen boundaries 全部保留。
+本文件是 Phase 15.2 的 documentation/governance amendment；PR #22 已實作其 C renderer、D orchestration 與 E validation，production release validation 仍另行受控。它補充並在 renderer-specific 決策上優先於 [Phase 15.2 raster contract](phase15-2-raster-contract.md) 與 [Phase 15 OCR architecture](phase15-ocr-architecture.md)；原始來源身分、逐頁路由、固定 raster 語義、錯誤 taxonomy、worker isolation、Phase 12/13 與 Phase 15.1 frozen boundaries 全部保留。
 
 修訂後狀態：
 
-- **Phase 15.2 — ARCHITECTURE READY / A+B IMPLEMENTED / C NOT STARTED**（A/B 位於 Draft PR #22，尚未因本文件而合併或發布）。
+- **Phase 15.2 — IMPLEMENTED / PR REVIEW PENDING**（A–E 位於 Draft PR #22；尚未合併或發布）。
 - **pypdfium2 5.13.0 / PDFium 153.0.7999.0 — PREFERRED / APPROVABLE WITH NOTICES / PRODUCTION ADOPTION GATED**。
 - **PyMuPDF 1.28.2 — TECHNICALLY VIABLE / LICENSE BLOCKED / NOT PRIMARY**。
 - OCR JSON schemas 維持 **DEFERRED**；本文件不發布 schema。
 
 ## 1. Renderer 決策與歷史
 
-Phase 15.2 的 primary renderer candidate 改為 exact package `pypdfium2==5.13.0`，搭配該版本官方 standard wheel 內含的 **PDFium 153.0.7999.0 / Chromium-PDFium build 7999**。核准候選 build 的 origin 為 `pdfium-binaries`，engine flags 必須為空，代表 V8 與 XFA 均未啟用。此狀態是 **PREFERRED / APPROVABLE WITH NOTICES**，不是 production-adopted；requirements、lock、worker adapter 與 production execution 均須等第 14 節 adoption gate 通過後，才可在 Phase 15.2-C 的獨立 implementation change 導入。
+Phase 15.2 的 primary renderer candidate 改為 exact package `pypdfium2==5.13.0`，搭配該版本官方 standard wheel 內含的 **PDFium 153.0.7999.0 / Chromium-PDFium build 7999**。核准候選 build 的 origin 為 `pdfium-binaries`，engine flags 必須為空，代表 V8 與 XFA 均未啟用。此狀態是 **PREFERRED / APPROVABLE WITH NOTICES**；PR #22 已導入 requirements、lock、worker adapter 與 production-shaped execution，但 release production adoption 仍須通過當期安全與發布驗證。
 
 先前決策歷史不得移除：
 
@@ -189,7 +189,7 @@ Known watchdog/cgroup/storage/pixel/IPC ceiling 使用 `OCR_PDF_RESOURCE_LIMIT_E
 
 ## 14. Production adoption gate 與平台政策
 
-本架構修訂合併後 Phase 15.2-C 仍為 **NOT STARTED**。在提交 dependency 前，production-adoption review 必須確認：
+本架構修訂列出的 production-adoption review 已由 PR #22 的 C/E 變更完成文件、artifact、license、SBOM、geometry、worker、admission 與 smoke-test gate；後續每次 upgrade 或 public release 仍須重新確認：
 
 - 要支援平台的 exact official wheel SHA-256 allowlist 已核准；
 - `THIRD_PARTY_NOTICES / LICENSE BUNDLE COMPLETE`；
@@ -200,7 +200,7 @@ Known watchdog/cgroup/storage/pixel/IPC ceiling 使用 `OCR_PDF_RESOURCE_LIMIT_E
 - worker sandbox、hard limits、watchdog、temp quota、bounded IPC 與 native crash isolation feasibility 已確認；
 - raw-byte admission、password、RGB/no-alpha、annotations/forms-off、PNG digest、cleanup 與 repeated raster smoke tests 通過。
 
-通過後才可由 Phase 15.2-C 的 implementation PR 導入 dependency 與 worker adapter。
+PR #22 不代表已合併或完成 release production validation。
 
 平台分類：
 
