@@ -4,7 +4,7 @@
 
 修訂後狀態：
 
-- **Phase 15.2 — IMPLEMENTED / PR REVIEW PENDING**（A–E 位於 Draft PR #22；尚未合併或發布）。
+- **Phase 15.2 — COMPLETE / MERGED / BASELINE FROZEN**（A–E 已由 PR #22 合併，squash merge `ffac8e77aab6e35d23f09fee01f1d261ba4b5171`）。
 - **pypdfium2 5.13.0 / PDFium 153.0.7999.0 — PREFERRED / APPROVABLE WITH NOTICES / PRODUCTION ADOPTION GATED**。
 - **PyMuPDF 1.28.2 — TECHNICALLY VIABLE / LICENSE BLOCKED / NOT PRIMARY**。
 - OCR JSON schemas 維持 **DEFERRED**；本文件不發布 schema。
