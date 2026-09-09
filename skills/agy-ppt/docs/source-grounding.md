@@ -85,6 +85,8 @@ source_grounding_enabled(workspace_root)  # False when file absent or enabled=fa
 
 沒有任何 ID 使用 random UUID 作為唯一身分，也沒有任何 ID 包含 OS 絕對路徑。
 
+Phase 15.5 OCR 接地轉譯沿用本節 frozen locator union：PDF page 使用 `start/end`，standalone single image 使用既有 `generic` kind 的 deterministic label `image:1-of-1`。轉譯只建立可供 AGY promotion 的 additive evidence envelope，不改變本模組的 locator schema 或 semantic authority。
+
 ## 6. Source Locator Contract
 
 `locator` 是一個可擴充的 tagged union，**不綁死 OS 絕對檔案路徑**：
