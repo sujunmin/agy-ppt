@@ -1,5 +1,7 @@
 # Phase 15.5 OCR 接地轉譯契約
 
+目前狀態：**IMPLEMENTED / PR REVIEW PENDING**（PR #32）。Phase 15.6 仍為 NOT STARTED，OCR JSON schemas 仍為 DEFERRED。
+
 本文件定義 OCR-native evidence 進入既有 Phase 12 source-grounding workflow 的 additive adapter。AGY 仍是唯一 semantic authority；Phase 15.5 只驗證身分、位置、順序與 evidence association，不修正 OCR 文字、不產生 claim、不判斷事實或 citation relevance。
 
 ## 1. Frozen handoff
