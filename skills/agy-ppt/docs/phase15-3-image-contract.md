@@ -1,6 +1,6 @@
 # Phase 15.3 Standalone Image OCR Contract
 
-本文件是 Phase 15.3 獨立圖片 OCR ingestion 的規範性架構契約。Phase 15.3 狀態為 **IMPLEMENTED / PR REVIEW PENDING**（implementation PR #26）；Phase 15.1 provider foundation 與 Phase 15.2 PDF OCR baseline 均維持 FROZEN。本階段只新增 PNG、JPEG 與單 frame TIFF 的機械式 admission、準備與 OCR evidence orchestration，不修改 Phase 12/13、Phase 15.1 或 Phase 15.2 契約。OCR JSON schemas 維持 DEFERRED。
+本文件是 Phase 15.3 獨立圖片 OCR ingestion 的規範性架構契約。Phase 15.3 狀態為 **COMPLETE / MERGED / BASELINE FROZEN**（implementation PR #26，squash merge `54c3cd5a26b98f1eb6a6a2fbc1ea08fbe5cccd9f`）；Phase 15.1 provider foundation 與 Phase 15.2 PDF OCR baseline 均維持 FROZEN。本階段只新增 PNG、JPEG 與單 frame TIFF 的機械式 admission、準備與 OCR evidence orchestration，不修改 Phase 12/13、Phase 15.1 或 Phase 15.2 契約。OCR JSON schemas 維持 DEFERRED。未來若需改變本契約，必須經明確治理，不得在 Phase 15.4+ incidental 修改。
 
 ## 1. 支援範圍與凍結邊界
 
