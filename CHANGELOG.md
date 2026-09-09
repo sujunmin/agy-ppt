@@ -6,6 +6,11 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Added
 
+- Phase 15.4 OCR provider management UX with deterministic provider discovery,
+  effective configuration inspection, non-OCR validation, atomic project/user
+  settings, explicit fallback visibility, and a trusted-code-only registration
+  boundary. (#29)
+
 - Phase 15.3 standalone image OCR ingestion for PNG, JPEG, and single-frame
   TIFF, with restricted Pillow decoding, deterministic EXIF-aware opaque RGB
   PNG preparation, original-source and prepared-image identity separation,

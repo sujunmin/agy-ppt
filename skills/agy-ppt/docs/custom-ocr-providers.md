@@ -2,7 +2,7 @@
 
 本文件提供 BYO-OCR 的架構整合指引。Phase 15.1 provider foundation 已由 PR #17 合併；Phase 15.4 operator/configuration UX 依 [Phase 15.4 provider UX contract](phase15-4-provider-ux-contract.md) 實作，僅管理受信任程式碼已註冊的 provider，不允許設定驅動的任意程式碼載入。
 
-Phase 15.1、Phase 15.2 與 Phase 15.3 均為 COMPLETE / MERGED / BASELINE FROZEN；Phase 15.3 standalone image OCR ingestion 已由 PR #26 合併（squash merge `54c3cd5a26b98f1eb6a6a2fbc1ea08fbe5cccd9f`），遵守 [standalone image OCR contract](phase15-3-image-contract.md)。OCR JSON schemas 維持 DEFERRED；grounding 與 real-source production validation 仍分別屬尚未開始的 Phase 15.5／15.6。
+Phase 15.1、Phase 15.2 與 Phase 15.3 均為 COMPLETE / MERGED / BASELINE FROZEN；Phase 15.4 為 IMPLEMENTED / PR REVIEW PENDING（PR #29）。OCR JSON schemas 維持 DEFERRED；grounding 與 real-source production validation 仍分別屬尚未開始的 Phase 15.5／15.6。
 
 ## 1. 核心整合原則
 
@@ -10,7 +10,19 @@ Provider 只產出辨識與來源位置證據；AGY 是唯一語意權威。所�
 
 Phase 15.1 建立 OCRProvider、OCRProviderCapabilities、provider validation、canonical OCREvidence、provider-neutral provenance、resolution foundation、no-silent-fallback、stable errors、Tesseract default adapter、availability/version detection、structured output parsing、traineddata provenance、deterministic fake provider 與 contract tests。
 
-不含 PDF rasterization、scanned-PDF workflow、mixed-page routing、standalone image ingestion、Phase 12 grounding integration、cloud OCR、PaddleOCR、Apple Vision 實作或 dynamic custom-provider registration UX。以下自訂整合模式是後續設計方向，不是已可用功能。
+Phase 15.4 已提供受信任 registry 的 discovery、inspection、validation 與 project/user configuration UX；不包含 Phase 12 grounding integration、cloud OCR、PaddleOCR、Apple Vision adapter 或設定驅動的 dynamic code loading。
+
+### Operator commands
+
+```bash
+python3 skills/agy-ppt/scripts/manage_ocr_providers.py list
+python3 skills/agy-ppt/scripts/manage_ocr_providers.py show [--provider ID]
+python3 skills/agy-ppt/scripts/manage_ocr_providers.py validate [--provider ID] [--language LANG]
+python3 skills/agy-ppt/scripts/manage_ocr_providers.py set --scope project|user --provider ID [--allow-fallback|--no-allow-fallback]
+python3 skills/agy-ppt/scripts/manage_ocr_providers.py unset --scope project|user
+```
+
+命令輸出為 bounded deterministic JSON。`list`、`show`、`validate`、`set` 與 `unset` 均不執行 OCR、不建立 evidence、不下載模型，也不觸發 fallback。Project 設定為 `<project>/.agy/ocr-provider.json`；user 設定位於 operator config root 的 `agy-ppt/ocr-provider.json`。設定只接受 `provider` 與 boolean `allow_fallback`，不儲存 secrets。
 
 ## 2. 必要證據與可選能力
 
@@ -40,7 +52,7 @@ model_manifest 逐模型記錄，不假設只有一個 model digest；固定排�
 
 ### 模式 A：Python 內部類別適配器（In-Process Adapter）
 
-概念 OCRProvider 介面宣告 provider_id、provider_version 與 OCRProviderCapabilities，接收呼叫者準備好的影像、原始來源身分、OCR-native locator 與執行設定，回傳或轉換為 canonical OCREvidence。此處不固定 Python method signature，也不實作 custom-provider registration。
+概念 OCRProvider 介面宣告 provider_id、provider_version 與 OCRProviderCapabilities，接收呼叫者準備好的影像、原始來源身分、OCR-native locator 與執行設定，回傳或轉換為 canonical OCREvidence。Phase 15.4 只允許受信任 application code 建立並注入 `Mapping[str, OCRProvider]`；registry key 必須等於 provider ID，設定檔不能載入 provider 程式碼。
 
 辨識前驗證必要契約；辨識後驗證 raw evidence 與 provenance。不能由 region 自動產生 Phase 12 semantic source unit。
 
@@ -66,7 +78,7 @@ Phase 15.1 擁有 OCR-native source-relative locator，page／image 索引均為
 
 ### 5.1 選擇優先序
 
-概念設定選擇順序為 call/CLI override → project setting → user setting → default tesseract。這是 selection precedence，不是依次嘗試 provider 的 chain。Phase 15.1 僅建立 resolution foundation，不新增 CLI／設定檔／dynamic registration UX。
+設定選擇順序為 call/CLI override → project setting → user setting → default tesseract。這是 selection precedence，不是依次嘗試 provider 的 chain；Phase 15.4 管理層直接重用 Phase 15.1 resolver。
 
 ### 5.2 Terminal failures
 
