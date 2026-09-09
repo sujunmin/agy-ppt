@@ -160,7 +160,15 @@ class RealPreparationTests(unittest.TestCase):
 
     def test_content_is_authoritative_and_unsupported_format_fails(self):
         png_named_jpeg = image_bytes("PNG")
-        self.assertEqual(self.prepare(png_named_jpeg).provenance.source_format, "PNG")
+        provider = FakeOCRProvider(provider_id="tesseract")
+        transaction = execute_standalone_image_ocr(
+            png_named_jpeg,
+            "misleading-name.jpg",
+            self.preparer,
+            {"tesseract": provider},
+        )
+        self.assertEqual(transaction.preparation.source_format, "PNG")
+        self.assertEqual(provider.calls[0].image_bytes, self.prepare(png_named_jpeg).png_bytes)
         with self.assertRaises(ImageOCRError) as caught:
             self.prepare(image_bytes("GIF"))
         self.assertEqual(caught.exception.error_code, "OCR_IMAGE_FORMAT_UNSUPPORTED")
