@@ -1,8 +1,8 @@
 # 自訂 OCR 提供者整合指南（Custom OCR Providers Guide）
 
-本文件提供 BYO-OCR 的架構整合指引。Phase 15.1 provider foundation 已由 PR #17 合併；自訂 provider registration UX 仍未建立。
+本文件提供 BYO-OCR 的架構整合指引。Phase 15.1 provider foundation 已由 PR #17 合併；Phase 15.4 operator/configuration UX 依 [Phase 15.4 provider UX contract](phase15-4-provider-ux-contract.md) 實作，僅管理受信任程式碼已註冊的 provider，不允許設定驅動的任意程式碼載入。
 
-Phase 15.1、Phase 15.2 與 Phase 15.3 均為 COMPLETE / MERGED / BASELINE FROZEN；Phase 15.3 standalone image OCR ingestion 已由 PR #26 合併（squash merge `54c3cd5a26b98f1eb6a6a2fbc1ea08fbe5cccd9f`），遵守 [standalone image OCR contract](phase15-3-image-contract.md)。OCR JSON schemas 維持 DEFERRED；完整 registration UX、grounding 與 real-source production validation 仍分別屬尚未開始的 Phase 15.4／15.5／15.6。
+Phase 15.1、Phase 15.2 與 Phase 15.3 均為 COMPLETE / MERGED / BASELINE FROZEN；Phase 15.3 standalone image OCR ingestion 已由 PR #26 合併（squash merge `54c3cd5a26b98f1eb6a6a2fbc1ea08fbe5cccd9f`），遵守 [standalone image OCR contract](phase15-3-image-contract.md)。OCR JSON schemas 維持 DEFERRED；grounding 與 real-source production validation 仍分別屬尚未開始的 Phase 15.5／15.6。
 
 ## 1. 核心整合原則
 
