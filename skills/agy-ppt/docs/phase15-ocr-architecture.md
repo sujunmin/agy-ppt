@@ -2,7 +2,7 @@
 
 本文件是 `agy-ppt` Phase 15（OCR Ingestion & Provider Architecture）的架構決策紀錄（Architecture Decision Record, ADR），定義提供者架構（Provider Architecture）、自備 OCR（Bring Your Own OCR, BYO-OCR）整合機制、預設本機引擎評估決策與工程實作路線圖。
 
-Phase 15.1 provider foundation 已由 PR #17 合併至 main，狀態為 COMPLETE / MERGED / BASELINE FROZEN；下圖描述跨階段目標。Phase 15.2 狀態為 **COMPLETE / MERGED / BASELINE FROZEN**（A–E 已由 PR #22 合併，squash merge `ffac8e77aab6e35d23f09fee01f1d261ba4b5171`）；規範以 [PDF rasterization/routing contract](phase15-2-raster-contract.md) 與 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 為準。Phase 15.3 狀態為 **COMPLETE / MERGED / BASELINE FROZEN**（PR #26，squash merge `54c3cd5a26b98f1eb6a6a2fbc1ea08fbe5cccd9f`），其 PNG、JPEG 與 single-frame TIFF 規範以 [standalone image OCR contract](phase15-3-image-contract.md) 為準。Phase 15.4 的 operator/configuration UX 以 [provider UX contract](phase15-4-provider-ux-contract.md) 為準。Phase 15.5 的 OCR→Phase 12 additive translation 以 [grounding translation contract](phase15-5-grounding-translation-contract.md) 為準。文件路由屬 Phase 15.2/15.3，接地整合屬 Phase 15.5，均不屬於 Phase 15.1。OCR JSON schemas 維持 DEFERRED。
+Phase 15.1 provider foundation 已由 PR #17 合併至 main，狀態為 COMPLETE / MERGED / BASELINE FROZEN；下圖描述跨階段目標。Phase 15.2 狀態為 **COMPLETE / MERGED / BASELINE FROZEN**（A–E 已由 PR #22 合併，squash merge `ffac8e77aab6e35d23f09fee01f1d261ba4b5171`）；規範以 [PDF rasterization/routing contract](phase15-2-raster-contract.md) 與 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 為準。Phase 15.3 狀態為 **COMPLETE / MERGED / BASELINE FROZEN**（PR #26，squash merge `54c3cd5a26b98f1eb6a6a2fbc1ea08fbe5cccd9f`），其 PNG、JPEG 與 single-frame TIFF 規範以 [standalone image OCR contract](phase15-3-image-contract.md) 為準。Phase 15.4 的 operator/configuration UX 以 [provider UX contract](phase15-4-provider-ux-contract.md) 為準。Phase 15.5 的 OCR→Phase 12 additive translation 以 [grounding translation contract](phase15-5-grounding-translation-contract.md) 為準。Phase 15.6 qualification 以 [validation contract](phase15-6-validation-contract.md) 為準。文件路由屬 Phase 15.2/15.3，接地整合屬 Phase 15.5，均不屬於 Phase 15.1。OCR JSON schemas 維持 DEFERRED。
 
 ---
 
@@ -250,7 +250,7 @@ Phase 15.6
 - **Phase 15.3**: COMPLETE / MERGED / BASELINE FROZEN（PR #26，squash merge `54c3cd5a26b98f1eb6a6a2fbc1ea08fbe5cccd9f`）；PNG、JPEG 與 single-frame TIFF 的 admission、preparation、isolation、resource、error 與 evidence 規則見 [Phase 15.3 contract](phase15-3-image-contract.md)
 - **Phase 15.4**: COMPLETE / MERGED / BASELINE FROZEN（PR #29，squash merge `1340fbc4bc9e7e570871d2ea8d7d907900a821cb`）；operator/configuration UX 見 [Phase 15.4 contract](phase15-4-provider-ux-contract.md)
 - **Phase 15.5**: COMPLETE / MERGED / BASELINE FROZEN（PR #32，squash merge `5393c3e3e3cfee6cbf6891c452ac1bdd71a5418d`）；OCR→Phase 12 additive translation 見 [Phase 15.5 contract](phase15-5-grounding-translation-contract.md)
-- **Phase 15.6**: NOT STARTED / ARCHITECTURALLY SPECIFIED / DEPENDS ON PRIOR PHASES
+- **Phase 15.6**: CONTRACT READY / IMPLEMENTATION NOT STARTED；real-source、E2E、platform、security 與 release-readiness 規範見 [Phase 15.6 contract](phase15-6-validation-contract.md)
 
 ### 已合併 Phase 15.1 範圍（Production-Engineering-Worker Scope）
 
