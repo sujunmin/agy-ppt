@@ -250,7 +250,7 @@ Phase 15.6
 - **Phase 15.3**: COMPLETE / MERGED / BASELINE FROZEN（PR #26，squash merge `54c3cd5a26b98f1eb6a6a2fbc1ea08fbe5cccd9f`）；PNG、JPEG 與 single-frame TIFF 的 admission、preparation、isolation、resource、error 與 evidence 規則見 [Phase 15.3 contract](phase15-3-image-contract.md)
 - **Phase 15.4**: COMPLETE / MERGED / BASELINE FROZEN（PR #29，squash merge `1340fbc4bc9e7e570871d2ea8d7d907900a821cb`）；operator/configuration UX 見 [Phase 15.4 contract](phase15-4-provider-ux-contract.md)
 - **Phase 15.5**: COMPLETE / MERGED / BASELINE FROZEN（PR #32，squash merge `5393c3e3e3cfee6cbf6891c452ac1bdd71a5418d`）；OCR→Phase 12 additive translation 見 [Phase 15.5 contract](phase15-5-grounding-translation-contract.md)
-- **Phase 15.6**: CONTRACT READY / IMPLEMENTATION NOT STARTED；real-source、E2E、platform、security 與 release-readiness 規範見 [Phase 15.6 contract](phase15-6-validation-contract.md)
+- **Phase 15.6**: IMPLEMENTED / VALIDATION COMPLETE / PR REVIEW PENDING（PR #35）；real-source、E2E、platform、security 與 release-readiness 規範見 [Phase 15.6 contract](phase15-6-validation-contract.md) 與 [qualification report](phase15-6-validation-report.md)
 
 ### 已合併 Phase 15.1 範圍（Production-Engineering-Worker Scope）
 
