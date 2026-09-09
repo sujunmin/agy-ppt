@@ -2,7 +2,7 @@
 
 本文件是 `agy-ppt` Phase 15（OCR Ingestion & Provider Architecture）的架構決策紀錄（Architecture Decision Record, ADR），定義提供者架構（Provider Architecture）、自備 OCR（Bring Your Own OCR, BYO-OCR）整合機制、預設本機引擎評估決策與工程實作路線圖。
 
-Phase 15.1 provider foundation 已由 PR #17 合併至 main，狀態為 COMPLETE / MERGED / BASELINE FROZEN；下圖描述跨階段目標。Phase 15.2 狀態為 **COMPLETE / MERGED / BASELINE FROZEN**（A–E 已由 PR #22 合併，squash merge `ffac8e77aab6e35d23f09fee01f1d261ba4b5171`）；規範以 [PDF rasterization/routing contract](phase15-2-raster-contract.md) 與 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 為準。Phase 15.3 的 PNG、JPEG 與 single-frame TIFF 規範以 [standalone image OCR contract](phase15-3-image-contract.md) 為準。文件路由屬 Phase 15.2/15.3，接地整合屬 Phase 15.5，均不屬於 Phase 15.1。OCR JSON schemas 維持 DEFERRED。
+Phase 15.1 provider foundation 已由 PR #17 合併至 main，狀態為 COMPLETE / MERGED / BASELINE FROZEN；下圖描述跨階段目標。Phase 15.2 狀態為 **COMPLETE / MERGED / BASELINE FROZEN**（A–E 已由 PR #22 合併，squash merge `ffac8e77aab6e35d23f09fee01f1d261ba4b5171`）；規範以 [PDF rasterization/routing contract](phase15-2-raster-contract.md) 與 [PDFium renderer 架構修訂](phase15-2-pdfium-renderer-amendment.md) 為準。Phase 15.3 狀態為 **IMPLEMENTED / PR REVIEW PENDING**（PR #26），其 PNG、JPEG 與 single-frame TIFF 規範以 [standalone image OCR contract](phase15-3-image-contract.md) 為準。文件路由屬 Phase 15.2/15.3，接地整合屬 Phase 15.5，均不屬於 Phase 15.1。OCR JSON schemas 維持 DEFERRED。
 
 ---
 
@@ -247,7 +247,7 @@ Phase 15.6
 
 - **Phase 15.1**: COMPLETE / MERGED / BASELINE FROZEN (PR #17, squash merge `9a5059a47fbb474119bb895d2080b20adaaa31f4`); deterministic and repository required checks passed
 - **Phase 15.2**: COMPLETE / MERGED / BASELINE FROZEN；PR #22 包含 A/B contracts、C PDFium renderer、D mixed-PDF OCR orchestration 與 E consolidation；production release validation 仍受 [PDFium production-adoption policy](phase15-2-pdfium-renderer-amendment.md#14-production-adoption-gate-與平台政策) 約束
-- **Phase 15.3**: ARCHITECTURE READY / IMPLEMENTATION NOT STARTED；PNG、JPEG 與 single-frame TIFF 的 admission、preparation、isolation、resource、error 與 evidence 規則見 [Phase 15.3 contract](phase15-3-image-contract.md)
+- **Phase 15.3**: IMPLEMENTED / PR REVIEW PENDING（PR #26）；PNG、JPEG 與 single-frame TIFF 的 admission、preparation、isolation、resource、error 與 evidence 規則見 [Phase 15.3 contract](phase15-3-image-contract.md)
 - **Phase 15.4**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1
 - **Phase 15.5**: ARCHITECTURALLY SPECIFIED / DEPENDS ON 15.1–15.4
 - **Phase 15.6**: ARCHITECTURALLY SPECIFIED / DEPENDS ON PRIOR PHASES

@@ -2,7 +2,7 @@
 
 本文件提供 BYO-OCR 的架構整合指引。Phase 15.1 provider foundation 已由 PR #17 合併；自訂 provider registration UX 仍未建立。
 
-Phase 15.1 為 COMPLETE / MERGED / BASELINE FROZEN；Phase 15.2 為 NOT STARTED，遵守 [PDF rasterization/routing contract](phase15-2-raster-contract.md)。OCR JSON schemas 維持 DEFERRED；public standalone image ingestion、完整 registration UX、grounding 與 real-source production validation 仍分別屬 Phase 15.3／15.4／15.5／15.6。
+Phase 15.1 與 Phase 15.2 均為 COMPLETE / MERGED / BASELINE FROZEN；Phase 15.3 standalone image OCR ingestion 為 IMPLEMENTED / PR REVIEW PENDING（PR #26），遵守 [standalone image OCR contract](phase15-3-image-contract.md)。OCR JSON schemas 維持 DEFERRED；完整 registration UX、grounding 與 real-source production validation 仍分別屬 Phase 15.4／15.5／15.6。
 
 ## 1. 核心整合原則
 
