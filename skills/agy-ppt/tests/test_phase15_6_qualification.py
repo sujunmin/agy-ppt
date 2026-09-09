@@ -12,7 +12,10 @@ sys.path.insert(0, "skills/agy-ppt/scripts")
 sys.path.insert(0, "skills/agy-ppt/tests")
 
 from image_ocr import ImageOCRError, ImagePreparationConfiguration, ImagePreparationRequest, ImageResourceLimits, ImageSourceIdentity, PillowImagePreparer
+from helpers.fake_ocr_provider import FakeOCRProvider
 from ocr_qualification import image_fixture, multipage_tiff_fixture, pdf_fixture, run_contract_qualification
+from ocr_providers import OCRRequest, execute_with_fallback
+from ocr_providers.errors import OCRError
 from pdf_ocr import PDFAdmissionResult, PDFOCRError, PDFPageIdentity, PDFSourceIdentity, RasterConfiguration, RasterRequest, ResourceLimits, WorkerIsolationPolicy
 from pdf_ocr.pdfium_rasterizer import PDFiumRasterizer
 from source_grounding import compute_source_digest
@@ -109,6 +112,36 @@ class QualificationTests(unittest.TestCase):
         with self.assertRaises(ImageOCRError) as caught:
             preparer.prepare(limited)
         self.assertEqual(caught.exception.error_code, "OCR_IMAGE_RESOURCE_LIMIT_EXCEEDED")
+
+    def test_malformed_and_unsupported_images_fail_before_provider_execution(self):
+        preparer = PillowImagePreparer(_worker_pythonpath=worker_paths())
+        for raw, code in ((b"not an image", "OCR_IMAGE_INPUT_INVALID"), (image_fixture("PNG")[:20], "OCR_IMAGE_INPUT_INVALID")):
+            source = ImageSourceIdentity("src_bad_image", compute_source_digest(raw))
+            request = ImagePreparationRequest(raw, source, ImagePreparationConfiguration(), ImageResourceLimits())
+            with self.subTest(code=code), self.assertRaises(ImageOCRError) as caught:
+                preparer.prepare(request)
+            self.assertEqual(caught.exception.error_code, code)
+
+    def test_provider_failure_and_single_fallback_rules_remain_frozen(self):
+        request = OCRRequest(b"prepared", "src_provider", "1" * 64, {"kind": "image", "ordinal": 1})
+        primary = FakeOCRProvider(provider_id="primary", fail_code="OCR_PROVIDER_UNAVAILABLE")
+        fallback = FakeOCRProvider(provider_id="tesseract", text="fallback")
+        with self.assertRaises(OCRError) as caught:
+            execute_with_fallback({"primary": primary, "tesseract": fallback}, request, explicit="primary", allow_fallback=False)
+        self.assertEqual(caught.exception.error_code, "OCR_FALLBACK_NOT_ALLOWED")
+        self.assertEqual(fallback.calls, [])
+
+        result = execute_with_fallback({"primary": primary, "tesseract": fallback}, request, explicit="primary", allow_fallback=True)
+        self.assertTrue(result.provenance.fallback_used)
+        self.assertEqual(result.provenance.fallback_reason, "OCR_PROVIDER_UNAVAILABLE")
+        self.assertEqual(len(fallback.calls), 1)
+
+        terminal = FakeOCRProvider(provider_id="terminal", fail_code="OCR_PROVIDER_VERSION_UNSUPPORTED")
+        untouched = FakeOCRProvider(provider_id="tesseract")
+        with self.assertRaises(OCRError) as caught:
+            execute_with_fallback({"terminal": terminal, "tesseract": untouched}, request, explicit="terminal", allow_fallback=True)
+        self.assertEqual(caught.exception.error_code, "OCR_PROVIDER_VERSION_UNSUPPORTED")
+        self.assertEqual(untouched.calls, [])
 
     def test_worker_timeout_and_abnormal_exit_are_stable(self):
         raw = image_fixture("PNG")
