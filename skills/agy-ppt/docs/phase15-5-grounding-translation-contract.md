@@ -1,6 +1,6 @@
 # Phase 15.5 OCR 接地轉譯契約
 
-目前狀態：**COMPLETE / MERGED / BASELINE FROZEN**（PR #32，squash merge `5393c3e3e3cfee6cbf6891c452ac1bdd71a5418d`）。Phase 15.6 仍為 NOT STARTED，OCR JSON schemas 仍為 DEFERRED。
+目前狀態：**COMPLETE / MERGED / BASELINE FROZEN**（PR #32，squash merge `5393c3e3e3cfee6cbf6891c452ac1bdd71a5418d`）。Phase 15.6 已完成並合併；OCR JSON schemas 仍為 DEFERRED。
 
 本文件定義 OCR-native evidence 進入既有 Phase 12 source-grounding workflow 的 additive adapter。AGY 仍是唯一 semantic authority；Phase 15.5 只驗證身分、位置、順序與 evidence association，不修正 OCR 文字、不產生 claim、不判斷事實或 citation relevance。
 
@@ -52,4 +52,4 @@ original source bytes
   → AGY semantic segmentation, support and grounding decisions
 ```
 
-Phase 15.5 不判斷 OCR 是否正確、不修補 wording、不產生 claim、不比較 extracted/OCR meaning、不翻譯 locator 至其他格式，也不執行 Phase 12 semantic grounding。Phase 15.6 real-source/release validation 與 OCR JSON schemas 維持 NOT STARTED／DEFERRED。
+Phase 15.5 不判斷 OCR 是否正確、不修補 wording、不產生 claim、不比較 extracted/OCR meaning、不翻譯 locator 至其他格式，也不執行 Phase 12 semantic grounding。Phase 15.6 real-source/release validation 已完成；OCR JSON schemas 維持 DEFERRED。

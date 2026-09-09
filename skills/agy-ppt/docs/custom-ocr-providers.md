@@ -2,7 +2,7 @@
 
 本文件提供 BYO-OCR 的架構整合指引。Phase 15.1 provider foundation 已由 PR #17 合併；Phase 15.4 operator/configuration UX 依 [Phase 15.4 provider UX contract](phase15-4-provider-ux-contract.md) 實作，僅管理受信任程式碼已註冊的 provider，不允許設定驅動的任意程式碼載入。
 
-Phase 15.1 至 Phase 15.5 均為 COMPLETE / MERGED / BASELINE FROZEN；Phase 15.4 已由 PR #29 合併（squash merge `1340fbc4bc9e7e570871d2ea8d7d907900a821cb`），Phase 15.5 已由 PR #32 合併（squash merge `5393c3e3e3cfee6cbf6891c452ac1bdd71a5418d`）。OCR JSON schemas 維持 DEFERRED；real-source production validation 仍屬尚未開始的 Phase 15.6。
+Phase 15.1 至 Phase 15.6 均為 COMPLETE / MERGED / BASELINE FROZEN；Phase 15.4 已由 PR #29 合併（squash merge `1340fbc4bc9e7e570871d2ea8d7d907900a821cb`），Phase 15.5 已由 PR #32 合併（squash merge `5393c3e3e3cfee6cbf6891c452ac1bdd71a5418d`），Phase 15.6 已由 PR #35 合併（squash merge `ffab67e057a4d3b0028625399c4732272b9d9183`）。OCR JSON schemas 維持 DEFERRED。
 
 ## 1. 核心整合原則
 

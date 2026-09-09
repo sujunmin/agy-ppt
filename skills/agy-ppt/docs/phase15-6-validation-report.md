@@ -1,6 +1,6 @@
 # Phase 15.6 qualification report
 
-狀態：**IMPLEMENTED / VALIDATION COMPLETE / PR REVIEW PENDING**（PR #35）。本報告是 internal governance evidence，不是 OCR public schema，也不是 release announcement。
+狀態：**COMPLETE / MERGED / VALIDATED / BASELINE FROZEN**（PR #35，squash merge `ffab67e057a4d3b0028625399c4732272b9d9183`）。本報告是 internal governance evidence，不是 OCR public schema，也不是 release announcement。
 
 ## Qualification identity
 
@@ -55,4 +55,4 @@ The exact pypdfium2 pin, six-platform wheel hash allowlist, wheel-only/no-sdist 
 
 Result: **RELEASE READY WITH DOCUMENTED PLATFORM LIMITATIONS**.
 
-Phase 15 engineering and contract qualification are complete when PR #35 merges. A production release still requires deployment-environment Linux hard-isolation validation plus a fresh security/dependency/license/SBOM review. This report creates no version bump, tag, package publication or GitHub Release. OCR JSON schemas remain DEFERRED.
+Phase 15 engineering and contract qualification are complete. A production release still requires deployment-environment Linux hard-isolation validation plus a fresh security/dependency/license/SBOM review. This report creates no version bump, tag, package publication or GitHub Release. OCR JSON schemas remain DEFERRED.

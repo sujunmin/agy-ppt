@@ -519,6 +519,8 @@ python3 skills/agy-ppt/scripts/manage_ocr_providers.py unset --scope project
 
 PR #32 implements the additive Phase 15.5 OCR-to-grounding adapter: PDF OCR pages map mechanically to frozen Phase 12 page locators, while standalone images map to the existing deterministic generic locator. Exact `raw_text`, the original source digest, and OCR/raster/preparation evidence remain preserved. PR #35 adds Phase 15.6 end-to-end qualification with project-owned synthetic real-world structures, optional live Tesseract qualification, and platform/security evidence. AGY retains semantic authority throughout. Linux hard isolation still requires deployment-environment validation; macOS is development/API qualified, and Windows is not production-security qualified. OCR JSON schemas remain deferred.
 
+Phase 15 is now **COMPLETE / MERGED / BASELINE FROZEN**. Release readiness is **RELEASE READY WITH DOCUMENTED PLATFORM LIMITATIONS**; this status does not mean a release has been published.
+
 For specifications and integration guides, see:
 - [Phase 15 OCR Provider Architecture](skills/agy-ppt/docs/phase15-ocr-architecture.md)
 - [OCR Provider Contract Specification](skills/agy-ppt/docs/ocr-provider-contract.md)

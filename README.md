@@ -461,6 +461,8 @@ python3 skills/agy-ppt/scripts/manage_ocr_providers.py unset --scope project
 
 Phase 15.5 在 PR #32 實作 additive OCR→grounding adapter：PDF OCR pages 機械映射到 frozen Phase 12 page locator，standalone image 映射到既有 deterministic generic locator；`raw_text`、原始 source digest 與 OCR/raster/preparation evidence 完整保留。Phase 15.6 在 PR #35 加入 project-owned synthetic real-structure E2E qualification、可選的 live Tesseract qualification 與 platform/security evidence。AGY 始終保有語意判斷權。Linux hard isolation 仍須 deployment environment validation；macOS 僅 development/API qualified，Windows 尚未 production-security qualified。OCR JSON schemas 維持 deferred。
 
+Phase 15 目前為 **COMPLETE / MERGED / BASELINE FROZEN**；release readiness 為 **RELEASE READY WITH DOCUMENTED PLATFORM LIMITATIONS**。此狀態不代表已發布 release。
+
 相關架構規範與整合指南請參閱：
 - [Phase 15 OCR Provider Architecture](skills/agy-ppt/docs/phase15-ocr-architecture.md)
 - [OCR Provider Contract Specification](skills/agy-ppt/docs/ocr-provider-contract.md)
