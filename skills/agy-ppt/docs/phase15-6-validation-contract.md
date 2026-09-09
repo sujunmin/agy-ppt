@@ -2,7 +2,7 @@
 
 本文件定義 Phase 15.6 的 real-source／end-to-end／platform／security／release-readiness qualification。它只驗證已凍結的 Phase 15.1–15.5 pipeline，不建立新的 OCR execution、evidence、locator、fallback 或 grounding 語意。AGY 仍是 sole orchestrator、semantic authority 與 single source of truth；OCR 仍只提供 extraction、evidence 與 provenance。
 
-目前狀態：**IMPLEMENTED / VALIDATION COMPLETE / PR REVIEW PENDING**（PR #35）；實際結果見 [qualification report](phase15-6-validation-report.md)。OCR JSON schemas 維持 **DEFERRED**。
+目前狀態：**COMPLETE / MERGED / VALIDATED / BASELINE FROZEN**（PR #35，squash merge `ffab67e057a4d3b0028625399c4732272b9d9183`）；實際結果見 [qualification report](phase15-6-validation-report.md)。OCR JSON schemas 維持 **DEFERRED**。
 
 ## 1. Qualification objective
 
