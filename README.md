@@ -448,7 +448,7 @@ locator 為結構性，不會虛構頁碼或螢幕位置。
 ### OCR 提供者、接地轉譯與 qualification（Phase 15.1–15.6）
 
 > [!NOTE]
-> 目前版本（v0.3.0）尚未包含可執行的 OCR 功能。掃描 PDF 或純影像仍會以 `SOURCE_TEXT_UNAVAILABLE` 明確失敗。
+> v0.4.0 加入掃描／混合 PDF 與 standalone PNG、JPEG、single-frame TIFF 的 OCR pipeline。Multipage TIFF 仍會被明確拒絕；OCR 品質取決於來源、provider 與 model，AGY 仍是唯一語意權威。
 
 Phase 15.1–15.3 已在 main 建立 provider-neutral OCR、掃描／混合 PDF 與 PNG、JPEG、single-frame TIFF ingestion。Phase 15.4 的管理 UX 在 PR #29 實作，可列出受信任程式碼已註冊的 providers、檢視有效設定、執行不產生 OCR evidence 的 validation，以及原子化設定／取消 project 與 user provider。解析順序維持 explicit > project > user > default Tesseract；fallback 預設關閉且只能顯式啟用。設定不能載入任意 Python、shell、URL 或儲存 secrets。
 
@@ -461,7 +461,7 @@ python3 skills/agy-ppt/scripts/manage_ocr_providers.py unset --scope project
 
 Phase 15.5 在 PR #32 實作 additive OCR→grounding adapter：PDF OCR pages 機械映射到 frozen Phase 12 page locator，standalone image 映射到既有 deterministic generic locator；`raw_text`、原始 source digest 與 OCR/raster/preparation evidence 完整保留。Phase 15.6 在 PR #35 加入 project-owned synthetic real-structure E2E qualification、可選的 live Tesseract qualification 與 platform/security evidence。AGY 始終保有語意判斷權。Linux hard isolation 仍須 deployment environment validation；macOS 僅 development/API qualified，Windows 尚未 production-security qualified。OCR JSON schemas 維持 deferred。
 
-Phase 15 目前為 **COMPLETE / MERGED / BASELINE FROZEN**；release readiness 為 **RELEASE READY WITH DOCUMENTED PLATFORM LIMITATIONS**。此狀態不代表已發布 release。
+Phase 15 為 **COMPLETE / MERGED / BASELINE FROZEN**。Linux x86_64 是主要 production target，但部署仍須驗證 hard isolation；macOS 僅 development/API qualified，Windows 尚未 production-security qualified。OCR JSON schemas 不屬於 v0.4.0 的 stable public contract。
 
 相關架構規範與整合指南請參閱：
 - [Phase 15 OCR Provider Architecture](skills/agy-ppt/docs/phase15-ocr-architecture.md)

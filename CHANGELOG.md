@@ -4,88 +4,48 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-11
+
 ### Added
 
-- Phase 15.6 deterministic OCR pipeline qualification with project-owned
-  PDF/image fixtures, end-to-end grounding traceability, exact runtime and
-  dependency identities, opt-in live Tesseract validation, stable failure
-  evidence, and explicit platform/release-readiness limitations. (#35)
-
-- Phase 15.5 additive OCR-to-grounding translation with frozen Phase 12 locator
-  mapping, exact raw-text and original-source identity preservation,
-  mixed-PDF source ordering, evidence/provenance linkage, and fail-closed
-  validation without OCR or semantic side effects. (#32)
-
-- Phase 15.4 OCR provider management UX with deterministic provider discovery,
-  effective configuration inspection, non-OCR validation, atomic project/user
-  settings, explicit fallback visibility, and a trusted-code-only registration
-  boundary. (#29)
-
-- Phase 15.3 standalone image OCR ingestion for PNG, JPEG, and single-frame
-  TIFF, with restricted Pillow decoding, deterministic EXIF-aware opaque RGB
-  PNG preparation, original-source and prepared-image identity separation,
-  bounded resource enforcement, and frozen provider fallback reuse. (#26)
-
-- Phase 15.2 PDFium renderer and mixed-PDF OCR orchestration: isolated
-  `pypdfium2==5.13.0` rasterization, source-identity-preserving page evidence,
-  deterministic mixed-page execution, and fail-closed transaction behavior.
-  (#22)
-
-- Phase 15.1 provider-neutral OCR foundation: canonical evidence/provenance,
-  deterministic provider resolution, explicit fallback policy, and safe local
-  Tesseract execution with structured evidence. (#17)
-
-- Phase 15 OCR provider architecture, Bring-Your-Own-OCR (BYO-OCR) provider
-  contract, and default-engine evaluation establishing Tesseract 5.x as the
-  default local provider, deterministic provider resolution precedence, strict
-  no-silent-fallback policy, normalized evidence schema, capability tiers, and
-  custom provider integration guides. (#13)
+- End-to-end OCR and source-grounding support with a provider-neutral evidence
+  contract, default local Tesseract execution, deterministic provider selection,
+  explicit single-fallback policy, and model/language/version validation.
+  (#13, #14, #17, #18)
+- Scanned and mixed searchable/scanned PDF processing with source-order
+  preservation, isolated `pypdfium2==5.13.0` / PDFium rendering, exact raster
+  provenance, and fail-closed document transactions. (#20, #21, #22, #23)
+- Standalone PNG, JPEG, and single-frame TIFF OCR ingestion with isolated Pillow
+  decoding, EXIF display orientation, opaque RGB PNG preparation, and distinct
+  original-source and prepared-image identities. Multipage TIFF is rejected
+  deterministically. (#25, #26)
+- OCR provider management commands for deterministic discovery, effective
+  configuration inspection, validation, atomic project/user settings, explicit
+  fallback visibility, secret rejection, and trusted-code-only registration.
+  (#28, #29)
+- Mechanical OCR-evidence translation into frozen Phase 12 source grounding,
+  preserving exact raw text, source identity, mixed-PDF order, and raster/image
+  preparation provenance while AGY remains the sole semantic authority.
+  (#31, #32)
+- Project-owned qualification fixtures and end-to-end validation covering PDF
+  and image OCR, grounding traceability, stable failure behavior, runtime
+  identities, opt-in live Tesseract validation, and documented platform limits.
+  (#34, #35)
 
 ### Changed
 
-- Clarified the future Phase 15.2 PDF rasterization and routing architecture:
-  PyMuPDF 1.24.x target with dependency/security/license review, bounded raster
-  preparation, original-PDF identity, mechanical page classification, fail-closed
-  transactions, orchestration errors, and gated implementation increments.
-  Phase 15.2 remains not started; OCR JSON schemas remain deferred. (#20)
-
-- Corrected Phase 15.0 OCR evaluation baseline, recording current observed
-  engine versions (Tesseract 5.5.3, PaddleOCR 3.7.0 / PP-OCRv6, OCRmyPDF 17.11.0,
-  EasyOCR 1.7.2, RapidOCR 1.4.4) distinctly from supported version ranges,
-  refining Tesseract local execution without runtime model downloads, and
-  updating provider resolution precedence to place explicit CLI overrides first. (#14)
-- GitHub Actions core deterministic CI workflow (`.github/workflows/ci.yml`),
-  automating pull-request and push-to-main validation for all deterministic
-  engineering gates: dependency installation, import verification, Phase 13
-  acquisition and ingestion tests, Phase 12 source grounding and workflow tests,
-  full unit test discovery, Codex PPT dependency resolver tests, and Phase 9
-  recovery scenario suite. (#9)
-- Stable branch-protection aggregator check `deterministic` in CI workflow. (#9)
-- GitHub Actions quality and security workflow (`.github/workflows/quality.yml`),
-  automating checks for bilingual README parity, local repository-relative link
-  integrity, repository hygiene (prohibiting `.env`, `.venv`, `__pycache__`,
-  `*.pyc`, `*.part`, and runtime presentation payloads), private absolute path
-  leakage, and credential hygiene. (#10)
-- Frozen contract guard (`scripts/ci/check_frozen_contracts.py`) enforcing
-  strict protection for Frozen Phase 12 and Phase 13 production surfaces,
-  requiring maintainer approval label `frozen-contract-change-approved` for any
-  modifications. (#10)
-- Stable branch-protection aggregator check `repository` in Quality workflow. (#10)
-- GitHub Actions clean-room release readiness workflow
-  (`.github/workflows/release-readiness.yml`), providing manual dispatch-only
-  audit with cache-free isolated installation from declared requirements, full
-  deterministic test gates, and clean source archive integrity verification. (#11)
-- Bounded live public source acquisition workflow
-  (`.github/workflows/live-validation.yml`), verifying RFC 2119 download and
-  fingerprint on manual dispatch and weekly schedule without blocking PR merges. (#11)
-- Comprehensive CI and quality gate architecture documentation
-  (`skills/agy-ppt/docs/ci-quality-gates.md`) and bilingual README integration,
-  establishing the boundary between automated deterministic verification and AGY
-  semantic authority. (#11)
-- GitHub Repository Ruleset `main-protection` enforcing mandatory pull requests,
-  required status checks (`deterministic` and `repository`), strict status
-  freshness, linear history via squash merge, and blocking force pushes and
-  branch deletions on `main`. (#12)
+- Added deterministic CI, repository hygiene/security checks, bilingual README
+  parity, frozen-contract enforcement, clean-room release readiness, bounded live
+  acquisition validation, and required `deterministic` / `repository` aggregate
+  contexts under the protected-main ruleset. (#9, #10, #11, #12)
+- Hardened OCR parsing and execution with restricted PDF/image workers, bounded
+  IPC and resources, exact PDFium wheel hashes, third-party notices and SBOM,
+  fail-closed admission, and no provider fallback for parser/renderer failures.
+  (#21, #22, #25, #26)
+- Recorded release qualification honestly: Linux x86_64 remains the primary
+  production target but requires deployment-environment hard-isolation
+  validation; macOS is development/API qualified; Windows is not
+  production-security qualified. OCR JSON schemas remain deferred. (#35)
 
 
 ## [0.3.0] - 2026-09-04

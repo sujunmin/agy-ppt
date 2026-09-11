@@ -506,7 +506,7 @@ absolute path. See
 ### OCR Providers, Grounding Translation, and Qualification (Phases 15.1–15.6)
 
 > [!NOTE]
-> The current release (v0.3.0) does not yet include usable OCR functionality. Scanned PDFs or image-only documents fail explicitly with `SOURCE_TEXT_UNAVAILABLE`.
+> v0.4.0 adds the OCR pipeline for scanned/mixed PDFs and standalone PNG, JPEG, and single-frame TIFF sources. Multipage TIFF remains explicitly rejected; OCR quality depends on the source, provider, and model, and AGY remains the sole semantic authority.
 
 Phases 15.1–15.3 on main provide provider-neutral OCR, scanned/mixed-PDF processing, and PNG, JPEG, and single-frame TIFF ingestion. PR #29 implements the Phase 15.4 management UX: list providers registered by trusted application code, inspect effective settings, validate without producing OCR evidence, and atomically set or unset project and user provider settings. Resolution remains explicit > project > user > default Tesseract; fallback is off by default and requires an explicit opt-in. Configuration cannot load arbitrary Python, shell commands, URLs, or stored secrets.
 
@@ -519,7 +519,7 @@ python3 skills/agy-ppt/scripts/manage_ocr_providers.py unset --scope project
 
 PR #32 implements the additive Phase 15.5 OCR-to-grounding adapter: PDF OCR pages map mechanically to frozen Phase 12 page locators, while standalone images map to the existing deterministic generic locator. Exact `raw_text`, the original source digest, and OCR/raster/preparation evidence remain preserved. PR #35 adds Phase 15.6 end-to-end qualification with project-owned synthetic real-world structures, optional live Tesseract qualification, and platform/security evidence. AGY retains semantic authority throughout. Linux hard isolation still requires deployment-environment validation; macOS is development/API qualified, and Windows is not production-security qualified. OCR JSON schemas remain deferred.
 
-Phase 15 is now **COMPLETE / MERGED / BASELINE FROZEN**. Release readiness is **RELEASE READY WITH DOCUMENTED PLATFORM LIMITATIONS**; this status does not mean a release has been published.
+Phase 15 is **COMPLETE / MERGED / BASELINE FROZEN**. Linux x86_64 is the primary production target, but deployments must still validate hard isolation; macOS is development/API qualified, and Windows is not production-security qualified. OCR JSON schemas are not part of the stable v0.4.0 public contract.
 
 For specifications and integration guides, see:
 - [Phase 15 OCR Provider Architecture](skills/agy-ppt/docs/phase15-ocr-architecture.md)
