@@ -118,6 +118,7 @@ def _ensure_dirs(home: Path) -> None:
 
 
 def _bootstrap(args: argparse.Namespace) -> int:
+    """Install runtime dependencies only; verification remains opt-in."""
     home = _runtime_home()
     _ensure_dirs(home)
     python = _venv_python(home)
@@ -136,7 +137,7 @@ def _bootstrap(args: argparse.Namespace) -> int:
         cmd.insert(4, "-U")
     print(f"Installing dependencies from: {requirements}")
     subprocess.run(cmd, check=True)
-    print(f"Runtime ready: {home}")
+    print(f"Runtime ready: {home} (tests and qualification were not run)")
     return 0
 
 
@@ -255,7 +256,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Manage the codex-ppt shared runtime")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    bootstrap = subparsers.add_parser("bootstrap", help="Create shared venv and install deps")
+    bootstrap = subparsers.add_parser(
+        "bootstrap",
+        help="Create shared venv and install runtime deps (no tests or qualification)",
+    )
     bootstrap.add_argument("--upgrade", action="store_true")
     bootstrap.set_defaults(func=_bootstrap)
 

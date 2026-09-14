@@ -79,11 +79,11 @@ class TestReadmeParityGate(unittest.TestCase):
             zh = tmp_root / "README.md"
             en = tmp_root / "README_en.md"
 
-            zh.write_text("# Title\n\n## Architecture\n\nContent\n", encoding="utf-8")
-            en.write_text("# Title\n\nNo architecture section here\n", encoding="utf-8")
+            zh.write_text("# Title\n\n## 安裝\n\nContent\n", encoding="utf-8")
+            en.write_text("# Title\n\nNo installation section here\n", encoding="utf-8")
 
             errors = rmp.check_semantic_parity(zh, en)
-            self.assertTrue(any("Architecture" in err for err in errors))
+            self.assertTrue(any("Installation" in err for err in errors))
 
 
 class TestRepositoryHygieneGate(unittest.TestCase):

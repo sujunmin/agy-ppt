@@ -326,12 +326,12 @@ Kiro 永遠不得自行呼叫 Codex。
 
 1. AGY 讀取來源資料。
 2. AGY 決定 audience、objective、page count、storyline。
-3. AGY 建立並確認 `outline.md`。
-4. AGY 決定視覺風格與 required assets。
-5. AGY 建立 sample slide job。
-6. AGY 派 Codex 生成 1 張樣張。
-7. AGY 做最終 QA，必要時讓使用者確認樣張。
-8. AGY 使用既有 upstream scripts 初始化專案與 jobs。
+3. AGY 建立 `outline.md`，只提交大綱給使用者；使用者核准前不得進入 style、sample 或整套生圖。
+4. 大綱核准後，AGY 提出視覺方向與 required assets；使用者核准風格前不得生樣張或整套簡報。
+5. 大綱與風格均核准後，AGY 選定第一張適合的非封面內容頁（或使用者指定頁），建立單一 sample slide job。
+6. AGY 派 Codex 走正式單頁生成路徑，**只生成 1 張**真實樣張。
+7. AGY QA 後必須讓使用者核准樣張；未核准時只能修改並重生單張樣張。
+8. 只有 `outline`、`style`、`sample` 三個 gate 均為目前 deck revision 的 `approved`，AGY 才使用既有 upstream scripts 初始化其餘 jobs。
 9. AGY 逐頁派 Codex 產圖。
 10. 每個 Codex worker 完成後都回 AGY。
 11. AGY 檢查文字、事實、版式、required assets、風格一致性。
@@ -340,6 +340,19 @@ Kiro 永遠不得自行呼叫 Codex。
 14. AGY 執行既有 `assemble_ppt.py`。
 15. AGY 驗證最終 `.pptx`、頁數與 notes。
 16. AGY 回報產物。
+
+預設互動流程固定為：
+
+```text
+REQUEST -> OUTLINE_PENDING_APPROVAL -> STYLE_PENDING_APPROVAL
+        -> SAMPLE_PENDING_APPROVAL -> FULL GENERATION
+```
+
+大綱異動會撤銷大綱核准並使 style/sample gate 回到 pending；風格異動會撤銷
+style 核准並使 sample gate 回到 pending；樣張異動後 sample 維持 pending，直到使用者
+再次核准。既有明確 non-interactive mode 若有自己的已承諾行為則維持不變；不得新增
+臨時 bypass 來跳過預設 gate。`scripts/presentation_workflow.py` 只讓 AGY 寫入核准狀態，
+generator callback 不會取得 Project State，也無權推進 gate。
 
 ### 6.1 文字密度與 Visual QA 原則
 
