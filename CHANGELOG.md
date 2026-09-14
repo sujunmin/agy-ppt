@@ -4,16 +4,21 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-14
+
 ### Changed
 
 - Restored the default approval-driven presentation workflow: users approve the
   outline, visual style, and one representative real sample slide before full
   deck generation; dependent approvals are invalidated when the outline or
-  style changes. (#38)
+  style changes. The full deck starts only after the current sample is approved.
+  (#38)
 - Kept normal user bootstrap lightweight by installing runtime dependencies
   without running repository tests, OCR qualification, or sample rendering, and
   replaced the long architecture-heavy READMEs with concise bilingual user
-  installation and usage guides. (#38)
+  installation and usage guides. Detailed architecture, OCR, security, CI,
+  recovery, and development guidance remains available through linked project
+  documentation. (#38)
 
 ## [0.4.0] - 2026-09-11
 
