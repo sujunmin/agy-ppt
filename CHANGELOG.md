@@ -4,6 +4,12 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Kept approved presentation outlines unchanged for visual-only feedback, made
+  mixed content/style feedback return to outline review, and replaced internal
+  workflow terminology with concise approval messages for normal users. (#40)
+
 ## [0.4.1] - 2026-09-14
 
 ### Changed
