@@ -6,8 +6,9 @@ Validates:
 2. Both READMEs contain valid repository-relative mutual links.
 3. Every local repository-relative link in both READMEs resolves to an existing file
    (and heading anchor if specified).
-4. Semantic section parity between README.md and README_en.md across key architectural,
-   installation, workflow, testing, security, and limitation topics.
+4. Semantic section parity between the concise user-facing README.md and
+   README_en.md across installation, usage, workflow, inputs, documentation,
+   and project-status topics.
 
 Usage:
     python3 scripts/ci/check_readme_parity.py
@@ -33,27 +34,12 @@ class LinkCheckResult(NamedTuple):
 # Semantic sections that must be present in both READMEs (key concepts / pairs)
 # Format: (label, regex_for_zh, regex_for_en)
 SEMANTIC_TOPIC_PAIRS: list[tuple[str, str, str]] = [
-    ("Standalone Repository", r"^##\s+Standalone Repository", r"^##\s+Standalone Repository"),
-    ("Purpose / Summary", r"^##\s+(?:一句話用途|What It Does)", r"^##\s+What It Does"),
-    ("Architecture", r"^##\s+Architecture", r"^##\s+Architecture"),
-    ("Key Features", r"^##\s+Key Features", r"^##\s+Key Features"),
-    ("OAuth / Subscription Runtime", r"^##\s+OAuth / Subscription Runtime", r"^##\s+OAuth / Subscription Runtime"),
-    ("No Production API-Key Fallback", r"^##\s+No Production API-Key Fallback", r"^##\s+No Production API-Key Fallback"),
-    ("codex-ppt Dependency", r"^##\s+codex-ppt Dependency", r"^##\s+codex-ppt Dependency"),
-    ("Installation", r"^##\s+Installation", r"^##\s+Installation"),
-    ("Requirements", r"^###\s+.*(?:需求|Requirements)", r"^###\s+Requirements"),
-    ("Quick Start", r"^##\s+Quick Start", r"^##\s+Quick Start"),
-    ("External Workspace", r"^##\s+External Project Workspace", r"^##\s+External Project Workspace"),
-    ("State / Resume / Recovery", r"^##\s+State / Resume / Recovery", r"^##\s+State / Resume / Recovery"),
-    ("Source Grounding", r"^##\s+Source Grounding", r"^##\s+Source Grounding"),
-    ("Source Ingestion", r"^##\s+Source Ingestion", r"^##\s+Source Ingestion"),
-    ("Remote Acquisition", r"^##\s+Remote Source Acquisition", r"^##\s+Remote Source Acquisition"),
-    ("Testing", r"^##\s+Testing", r"^##\s+Testing"),
-    ("CI Quality Gates", r"^###\s+.*(?:CI 品質門檻|CI Quality Gates)", r"^###\s+.*(?:CI Quality Gates)"),
-    ("Security and Privacy", r"^##\s+Security and Privacy", r"^##\s+Security and Privacy"),
-    ("Limitations", r"^##\s+Limitations", r"^##\s+Limitations"),
-    ("Upstream & Attribution", r"^##\s+Upstream & Attribution", r"^##\s+Upstream & Attribution"),
-    ("License", r"^##\s+License", r"^##\s+License"),
+    ("Installation", r"^##\s+安裝", r"^##\s+Installation"),
+    ("Basic Usage", r"^##\s+基本使用", r"^##\s+Basic Usage"),
+    ("How It Works", r"^##\s+運作方式", r"^##\s+How It Works"),
+    ("Supported Inputs", r"^##\s+支援的輸入", r"^##\s+Supported Inputs"),
+    ("Documentation", r"^##\s+文件", r"^##\s+Documentation"),
+    ("Project Status and License", r"^##\s+專案狀態與授權", r"^##\s+Project Status and License"),
 ]
 
 
@@ -245,7 +231,7 @@ def main() -> int:
         print("README BILINGUAL GATE: PASS")
         print("- README.md and README_en.md exist and cross-link.")
         print("- All local repository-relative links resolve successfully (0 broken).")
-        print("- Semantic topic parity verified across all 20 required sections.")
+        print(f"- Semantic topic parity verified across all {len(SEMANTIC_TOPIC_PAIRS)} required sections.")
         return 0
     else:
         print(f"README BILINGUAL GATE: FAIL ({len(errors)} errors found)", file=sys.stderr)
