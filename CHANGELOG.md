@@ -22,6 +22,9 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Changed
 
+- Recorded Phase 16.1–16.5 and the integrated Phase 16 baseline as complete,
+  merged, qualified, and frozen while preserving the concise bilingual README
+  positioning. (#48)
 - Defined the documentation-only Phase 16 architecture for grounded presentation
   planning, evidence binding, and human editorial quality, and added concise
   bilingual product positioning; Phase 16 runtime implementation remains not
