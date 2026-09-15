@@ -1,5 +1,9 @@
 # agy-ppt
 
+**Presentations without the AI look.**
+
+Grounded enough to trust. Edited enough to present.
+
 **Language:** [繁體中文](README.md) | English
 
 `agy-ppt` turns articles, reports, and source documents into image-based PowerPoint decks. AGY owns the outline, design direction, content, and quality; specialized workers render individual slides before assembly into a `.pptx` with speaker notes.
@@ -64,6 +68,7 @@ Multi-frame TIFF is rejected explicitly. OCR quality depends on the source, prov
 ## Documentation
 
 - [Presentation approval workflow](skills/agy-ppt/docs/outline-style-and-sample.md)
+- [Phase 16: grounded presentation planning and human editorial quality](skills/agy-ppt/docs/phase16-grounded-presentation-and-editorial-quality.md)
 - [Architecture and roles](skills/agy-ppt/docs/architecture-and-design-rationale.md)
 - [Source acquisition, ingestion, and grounding](skills/agy-ppt/docs/source-ingestion.md)
 - [OCR architecture and providers](skills/agy-ppt/docs/phase15-ocr-architecture.md)
@@ -75,6 +80,6 @@ Full developer test and release-qualification commands remain in the linked CI/t
 
 ## Project Status and License
 
-The Phase 15 OCR and source-grounding pipeline is complete and frozen. Linux x86_64 is the primary production target, with hard-isolation validation still required in the deployment environment. macOS is development/API qualified; Windows is not production-security qualified. OCR JSON schemas remain deferred.
+The Phase 15 OCR and source-grounding pipeline is complete and frozen; the Phase 16 architecture is defined but implementation has not started. Linux x86_64 is the primary production target, with hard-isolation validation still required in the deployment environment. macOS is development/API qualified; Windows is not production-security qualified. OCR JSON schemas remain deferred.
 
 This project uses the [MIT License](LICENSE). It is derived from [`ningzimu/codex-ppt-skill`](https://github.com/ningzimu/codex-ppt-skill) and is not an official upstream release. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for third-party notices.
