@@ -1,5 +1,17 @@
 # 架構與設計思維
 
+## 目前架構狀態
+
+- Phase 12：FROZEN
+- Phase 13：FROZEN
+- Phase 14：ENFORCED
+- Phase 15：COMPLETE / MERGED / BASELINE FROZEN
+- Phase 16：**DEFINED / NOT STARTED**
+
+Phase 16 的產品、證據綁定、Human Editorial Quality、子階段與非目標定義見
+[Phase 16 — Grounded Presentation Planning, Evidence Binding & Human Editorial Quality](phase16-grounded-presentation-and-editorial-quality.md)。
+這個狀態只代表架構已定義；沒有任何 Phase 16 runtime 或 Phase 16.1 實作。
+
 ## 1. 為什麼不是三個 CLI 平級
 
 本系統採用「單一控制者 + 專業 worker」模式，而不是三個平級 Agent。
