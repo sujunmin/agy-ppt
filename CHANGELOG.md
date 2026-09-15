@@ -6,6 +6,9 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Added
 
+- Added Phase 16.5 final evidence/provenance QA, dependency-aware source
+  staleness, internal traceability reporting, and clean PPTX Notes traceability,
+  with deterministic integrated qualification scenarios. (#47)
 - Added Phase 16.4 Human Editorial Quality with presentation-mode guidance,
   warning-only copy and visual-rhythm lint, evidence-safe headline review, and a
   strict one-pass automatic repair bound. (#46)
