@@ -4,6 +4,13 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Defined the documentation-only Phase 16 architecture for grounded presentation
+  planning, evidence binding, and human editorial quality, and added concise
+  bilingual product positioning; Phase 16 runtime implementation remains not
+  started. (#42)
+
 ## [0.4.2] - 2026-09-15
 
 ### Fixed
