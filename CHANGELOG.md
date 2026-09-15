@@ -4,11 +4,23 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-09-15
+
 ### Fixed
 
-- Kept approved presentation outlines unchanged for visual-only feedback, made
-  mixed content/style feedback return to outline review, and replaced internal
-  workflow terminology with concise approval messages for normal users. (#40)
+- Kept approved presentation outlines unchanged for visual-only feedback, while
+  content changes and mixed content/style feedback return safely to outline
+  confirmation. (#40)
+- Preserved approved sample slides when generating the remaining deck. (#40)
+- Hid internal workflow state, gate terminology, and project artifact filenames
+  from normal user conversation. (#40)
+
+### Changed
+
+- Streamlined outline, style, and sample approval messages, with shorter visual
+  direction summaries and accurate, bounded Visual QA wording. (#40)
+- Kept normal user installation lightweight without automatically running the
+  repository test or qualification suites. (#40)
 
 ## [0.4.1] - 2026-09-14
 
