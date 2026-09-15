@@ -6,6 +6,8 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Added
 
+- Added Phase 16.2 grounded outline planning that preserves claim provenance and
+  evidence identity behind the existing clean outline approval experience. (#44)
 - Added internal deterministic Phase 16.1 claim-origin and evidence-binding
   contracts that resolve exactly to frozen Phase 12 grounding without publishing
   a new schema or changing presentation behavior. (#43)
