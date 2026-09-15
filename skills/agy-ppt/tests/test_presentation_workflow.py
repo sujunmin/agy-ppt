@@ -300,8 +300,10 @@ class UserFacingPromptTests(unittest.TestCase):
         "Gate 3",
         "Gate 5",
         "Gate 6",
+        "outline.md",
         "project_state.json",
         "deck_spec.json",
+        "slide_jobs.json",
     )
 
     def assert_user_facing(self, text: str) -> None:
@@ -312,6 +314,50 @@ class UserFacingPromptTests(unittest.TestCase):
         text = outline_confirmation_prompt(OUTLINE).text
         self.assertIn("3 頁大綱", text)
         self.assertIn("Problem", text)
+        self.assert_user_facing(text)
+
+    def test_content_revision_prompt_returns_to_outline_without_artifact_names(self):
+        with tempfile.TemporaryDirectory() as temp:
+            state = ProjectState.initialize(temp, "content-revision-message")
+            workflow = PresentationApprovalWorkflow(state)
+            workflow.submit_outline(OUTLINE)
+            workflow.approve_outline()
+            revised = tuple(
+                {**slide, "title": "Three referral cases"}
+                if slide["number"] == 3
+                else slide
+                for slide in OUTLINE
+            )
+            self.assertEqual(
+                workflow.apply_revision(RevisionIntent.CONTENT, outline=revised),
+                OUTLINE_PENDING_APPROVAL,
+            )
+            text = outline_confirmation_prompt(revised).text
+        self.assertIn("Three referral cases", text)
+        self.assert_user_facing(text)
+
+    def test_mixed_revision_prompt_returns_to_outline_without_artifact_names(self):
+        with tempfile.TemporaryDirectory() as temp:
+            state = ProjectState.initialize(temp, "mixed-revision-message")
+            workflow = PresentationApprovalWorkflow(state)
+            workflow.submit_outline(OUTLINE)
+            workflow.approve_outline()
+            revised = tuple(
+                {**slide, "title": "Three actual cases"}
+                if slide["number"] == 3
+                else slide
+                for slide in OUTLINE
+            )
+            self.assertEqual(
+                workflow.apply_revision(
+                    RevisionIntent.MIXED,
+                    outline=revised,
+                    style=STYLE_REVISION,
+                ),
+                OUTLINE_PENDING_APPROVAL,
+            )
+            text = outline_confirmation_prompt(revised).text
+        self.assertIn("Three actual cases", text)
         self.assert_user_facing(text)
 
     def test_style_prompt_contains_how_without_reprinting_outline(self):
