@@ -80,6 +80,6 @@ Full developer test and release-qualification commands remain in the linked CI/t
 
 ## Project Status and License
 
-The Phase 15 OCR and source-grounding pipeline is complete and frozen; the Phase 16 architecture is defined but implementation has not started. Linux x86_64 is the primary production target, with hard-isolation validation still required in the deployment environment. macOS is development/API qualified; Windows is not production-security qualified. OCR JSON schemas remain deferred.
+The Phase 15 OCR/source-grounding pipeline and Phase 16 grounded-presentation and editorial-quality baseline are complete and frozen. Linux x86_64 is the primary production target, with hard-isolation validation still required in the deployment environment. macOS is development/API qualified; Windows is not production-security qualified. OCR JSON schemas remain deferred.
 
 This project uses the [MIT License](LICENSE). It is derived from [`ningzimu/codex-ppt-skill`](https://github.com/ningzimu/codex-ppt-skill) and is not an official upstream release. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for third-party notices.
