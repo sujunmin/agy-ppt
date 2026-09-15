@@ -4,31 +4,29 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-15
+
 ### Added
 
-- Added Phase 16.5 final evidence/provenance QA, dependency-aware source
-  staleness, internal traceability reporting, and clean PPTX Notes traceability,
-  with deterministic integrated qualification scenarios. (#47)
-- Added Phase 16.4 Human Editorial Quality with presentation-mode guidance,
-  warning-only copy and visual-rhythm lint, evidence-safe headline review, and a
-  strict one-pass automatic repair bound. (#46)
-- Added Phase 16.3 slide-level evidence plans and deterministic factual-drift
-  checks that fix approved facts before renderer dispatch. (#45)
-- Added Phase 16.2 grounded outline planning that preserves claim provenance and
-  evidence identity behind the existing clean outline approval experience. (#44)
-- Added internal deterministic Phase 16.1 claim-origin and evidence-binding
-  contracts that resolve exactly to frozen Phase 12 grounding without publishing
-  a new schema or changing presentation behavior. (#43)
+- Added evidence-aware presentation planning that preserves distinct provenance
+  for grounded facts, user-provided information, and AGY synthesis from frozen
+  Phase 12 grounding through clean outline approval. (#43, #44)
+- Added evidence-safe slide planning that fixes material facts before worker
+  dispatch and detects numeric, date, and unsupported factual drift while
+  preserving distinct multi-source support. (#45)
+- Added Human Editorial Quality checks for copy, headlines, speaker notes,
+  presentation modes, layout repetition, and information rhythm, with a strict
+  one-pass automatic repair bound that preserves factual meaning. (#46)
+- Added dependency-aware source staleness, final evidence/provenance QA, and
+  human-readable PPTX Notes traceability while keeping visible slides clean.
+  (#47)
 
 ### Changed
 
-- Recorded Phase 16.1–16.5 and the integrated Phase 16 baseline as complete,
-  merged, qualified, and frozen while preserving the concise bilingual README
-  positioning. (#48)
-- Defined the documentation-only Phase 16 architecture for grounded presentation
-  planning, evidence binding, and human editorial quality, and added concise
-  bilingual product positioning; Phase 16 runtime implementation remains not
-  started. (#42)
+- Completed and froze the Phase 16 grounded presentation and Human Editorial
+  baseline while preserving the existing Outline → Style → one real sample →
+  Full Deck approval workflow, lightweight installation, frozen Phase 12–15
+  contracts, and existing OCR architecture. (#42, #48)
 
 ## [0.4.2] - 2026-09-15
 
