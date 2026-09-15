@@ -2,15 +2,15 @@
 
 > 中文名稱：**有根據的簡報規劃、證據綁定與人類編輯品質**
 >
-> 狀態：**DEFINED / NOT STARTED**
+> 狀態：**COMPLETE / MERGED / BASELINE FROZEN**
 >
 > 產品定位：**Grounded enough to trust. Edited enough to present.**
 >
 > 中文定位：**內容有根據，呈現像人做的。**
 
-本文件定義 Phase 16 的產品承諾、架構邊界、概念契約、子階段與未來驗收情境。
-它不是實作狀態聲明：Phase 16 與所有 16.x 子階段均尚未開始，本文不建立公開 schema，
-也不改變 Phase 12–15 的既有行為。
+本文件定義 Phase 16 的產品承諾、架構邊界、概念契約、子階段與驗收情境。Phase 16.1–16.5
+均已實作、合併、通過整合 qualification，並以此文件記錄 baseline frozen 狀態。Phase 16
+未建立公開 schema，也未改變 Phase 12–15 的既有行為。
 
 ## 1. North Star
 
@@ -317,25 +317,35 @@ schemas、stale dependency graphs 或 state-machine constants。只有使用者�
 
 ## 14. Frozen Subphase Plan
 
-下列五個子階段是架構分解，不代表已開始或完成。每個子階段都必須另行通過 implementation
-scope、contract review、deterministic tests 與 repository governance。
+下列五個子階段均已分別通過 implementation scope、contract review、deterministic tests、
+exact CI 與 repository governance，並在合併後成為 frozen Phase 16 baseline。
 
 ### Phase 16.1 — Claim & Evidence Contract
 
-先定義 claim、content origin、evidence binding、support status、Phase 12 reference、provenance
-boundary 與 unsupported-claim behavior，再另案實作。本文件不開始 16.1 implementation。
+**COMPLETE / MERGED / BASELINE FROZEN**（PR #43；squash merge
+`b501ab2111a51f2a5980c7136fd4fb14a18320c9`）。定義並實作 claim、content origin、evidence
+binding、support status、Phase 12 reference、provenance boundary 與 unsupported-claim behavior。
 
 ### Phase 16.2 — Grounded Outline Planning
+
+**COMPLETE / MERGED / BASELINE FROZEN**（PR #44；squash merge
+`a179709c2a34bad664539bc976f489c15e1f1085`）。
 
 連接 grounded sources → AGY semantic planning → evidence-aware outline。每個 source-derived
 slide plan 應知道支持它的 grounded units；user-facing outline 維持乾淨。
 
 ### Phase 16.3 — Slide-Level Evidence Binding
 
+**COMPLETE / MERGED / BASELINE FROZEN**（PR #45；squash merge
+`4fa009a02c695c351077ec6334774f5f64621c37`）。
+
 連接 slide → content section/material claim → grounded evidence。Evidence 必須在 generation
 worker 收到指令前固定；worker 永不判斷 support。
 
 ### Phase 16.4 — Human Editorial & Presentation Rhythm
+
+**COMPLETE / MERGED / BASELINE FROZEN**（PR #46；squash merge
+`b0427f6ff037f9e61dea36989c3b19d006b733fc`）。
 
 實作 copy naturalness、headline quality、presentation voice、repetition lint、speaker-note
 naturalness、layout rhythm、information rhythm、editorial warnings 與 bounded repair，且不得
@@ -343,13 +353,16 @@ naturalness、layout rhythm、information rhythm、editorial warnings 與 bounde
 
 ### Phase 16.5 — Final Deck Traceability & QA
 
+**COMPLETE / MERGED / BASELINE FROZEN**（PR #47；squash merge
+`76171a41ebb95118ba93585715c21e419c4218de`）。
+
 把 evidence/provenance 延續到 final slide plan、PPTX、Notes 與 project reporting，驗證
 support coverage、unsupported factual claims、stale evidence、provenance 與 editorial QA，
 完成後才可依治理流程凍結 Phase 16 baseline。
 
-## 15. Future Acceptance E2E
+## 15. Acceptance E2E
 
-Phase 16 未來至少必須覆蓋：
+Phase 16 integrated qualification 已覆蓋：
 
 1. searchable-text PDF；
 2. scanned OCR PDF；
@@ -366,7 +379,7 @@ Phase 16 未來至少必須覆蓋：
 13. speaker notes with mechanical phrasing；
 14. audience-dependent presentation modes。
 
-Canonical E2E proof 最終應證明：
+Canonical E2E proof 已證明：
 
 ```text
 Original PDF
@@ -382,6 +395,11 @@ Original PDF
 ```
 
 驗收必須同時檢查 evidence integrity 與 editorial quality；後者不得以犧牲前者換取。
+
+合併後 qualification 結果：Phase 16 focused/integrated 75/75 PASS、Phase 12 65/65 PASS、
+Phase 13 206/206 PASS、Phase 15 198/198 PASS、presentation workflow 27/27 PASS、installation
+2/2 PASS、recovery 10/10 PASS、full unittest discovery 976/976 PASS。Frozen guard、repository
+hygiene/security 與 README parity/links 均 PASS。
 
 ## 16. Non-goals
 
