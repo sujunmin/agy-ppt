@@ -4,6 +4,12 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Added internal deterministic Phase 16.1 claim-origin and evidence-binding
+  contracts that resolve exactly to frozen Phase 12 grounding without publishing
+  a new schema or changing presentation behavior. (#43)
+
 ### Changed
 
 - Defined the documentation-only Phase 16 architecture for grounded presentation
