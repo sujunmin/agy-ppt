@@ -6,6 +6,9 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Added
 
+- Added Phase 16.4 Human Editorial Quality with presentation-mode guidance,
+  warning-only copy and visual-rhythm lint, evidence-safe headline review, and a
+  strict one-pass automatic repair bound. (#46)
 - Added Phase 16.3 slide-level evidence plans and deterministic factual-drift
   checks that fix approved facts before renderer dispatch. (#45)
 - Added Phase 16.2 grounded outline planning that preserves claim provenance and
