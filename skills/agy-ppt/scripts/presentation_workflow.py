@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
@@ -47,6 +48,14 @@ class PresentationWorkflowError(Exception):
         self.error_code = error_code
 
 
+class RevisionIntent(str, Enum):
+    """AGY-classified revision intent; no natural-language guessing occurs here."""
+
+    STYLE_ONLY = "style_only"
+    CONTENT = "content"
+    MIXED = "mixed"
+
+
 @dataclass(frozen=True)
 class SampleResult:
     """One real sample-render result awaiting user approval."""
@@ -61,6 +70,13 @@ class FullGenerationResult:
     """Opaque result returned by the approved full-deck generation callback."""
 
     value: Any
+
+
+@dataclass(frozen=True)
+class UserFacingPrompt:
+    """Concise presentation UX copy with internal workflow details omitted."""
+
+    text: str
 
 
 def _canonical_copy(value: Any, label: str) -> Any:
@@ -123,22 +139,8 @@ class PresentationApprovalWorkflow:
 
     def submit_outline(self, slides: Sequence[Mapping[str, Any]]) -> str:
         """Record a new outline and invalidate every dependent approval."""
-        copied = _canonical_copy(list(slides), "outline")
-        if not copied:
-            raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "outline must contain slides")
-        numbers = [slide.get("number") for slide in copied if isinstance(slide, dict)]
-        if len(numbers) != len(copied) or any(type(number) is not int or number < 1 for number in numbers):
-            raise PresentationWorkflowError(
-                ERROR_WORKFLOW_INVALID, "every outline slide needs a positive integer number"
-            )
-        if len(set(numbers)) != len(numbers):
-            raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "outline slide numbers must be unique")
-        self._outline = tuple(copied)
-        self._set_gate("outline", "pending", content_digest=_digest(copied, "outline"))
-        self._set_gate("style", "pending")
-        self._set_gate("sample", "pending")
-        if self._state.phase == PHASE_INTAKE:
-            self._state.set_phase(PHASE_OUTLINE, note="outline prepared for user approval")
+        copied = self._validated_outline(slides)
+        self._store_outline_revision(copied)
         return self.status
 
     def approve_outline(self) -> str:
@@ -161,13 +163,55 @@ class PresentationApprovalWorkflow:
         return self.status
 
     def submit_style(self, style: Mapping[str, Any]) -> str:
+        """Record appearance-only direction without changing the outline revision."""
         self._require_outline_approved()
-        copied = _canonical_copy(dict(style), "style")
-        if not copied:
-            raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "style must not be empty")
-        self._style = copied
-        self._set_gate("style", "pending", content_digest=_digest(copied, "style"))
-        self._set_gate("sample", "pending")
+        copied = self._validated_style(style)
+        self._store_style_revision(copied)
+        return self.status
+
+    def apply_revision(
+        self,
+        intent: RevisionIntent,
+        *,
+        outline: Sequence[Mapping[str, Any]] | None = None,
+        style: Mapping[str, Any] | None = None,
+    ) -> str:
+        """Apply AGY's structured WHAT/HOW decision without inferring user intent.
+
+        A style-only revision rejects any outline payload. Content and mixed
+        revisions always return to outline approval; a mixed revision may also
+        stage the requested appearance update for later style approval.
+        """
+        if not isinstance(intent, RevisionIntent):
+            raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "revision intent is invalid")
+
+        if intent is RevisionIntent.STYLE_ONLY:
+            if outline is not None:
+                raise PresentationWorkflowError(
+                    ERROR_WORKFLOW_INVALID,
+                    "a style-only revision must not include outline content",
+                )
+            if style is None:
+                raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "style revision is required")
+            return self.submit_style(style)
+
+        if outline is None:
+            raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "content revision is required")
+        if intent is RevisionIntent.CONTENT and style is not None:
+            raise PresentationWorkflowError(
+                ERROR_WORKFLOW_INVALID,
+                "content revisions with appearance changes must use mixed intent",
+            )
+        if intent is RevisionIntent.MIXED and style is None:
+            raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "mixed revision needs style data")
+
+        # Validate the complete request before changing state so an invalid mixed
+        # style cannot leave a partially applied outline revision.
+        copied_outline = self._validated_outline(outline)
+        copied_style = self._validated_style(style) if style is not None else None
+        self._store_outline_revision(copied_outline)
+        if copied_style is not None:
+            self._store_style_revision(copied_style)
         return self.status
 
     def approve_style(self) -> str:
@@ -268,6 +312,42 @@ class PresentationApprovalWorkflow:
         self._state.data[gate] = {"status": status, **{k: v for k, v in metadata.items() if v is not None}}
 
     @staticmethod
+    def _validated_outline(slides: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+        copied = _canonical_copy(list(slides), "outline")
+        if not copied:
+            raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "outline must contain slides")
+        numbers = [slide.get("number") for slide in copied if isinstance(slide, dict)]
+        if len(numbers) != len(copied) or any(type(number) is not int or number < 1 for number in numbers):
+            raise PresentationWorkflowError(
+                ERROR_WORKFLOW_INVALID, "every outline slide needs a positive integer number"
+            )
+        if len(set(numbers)) != len(numbers):
+            raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "outline slide numbers must be unique")
+        return copied
+
+    @staticmethod
+    def _validated_style(style: Mapping[str, Any] | None) -> dict[str, Any]:
+        if style is None:
+            raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "style revision is required")
+        copied = _canonical_copy(dict(style), "style")
+        if not copied:
+            raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "style must not be empty")
+        return copied
+
+    def _store_outline_revision(self, copied: list[dict[str, Any]]) -> None:
+        self._outline = tuple(copied)
+        self._set_gate("outline", "pending", content_digest=_digest(copied, "outline"))
+        self._set_gate("style", "pending")
+        self._set_gate("sample", "pending")
+        if self._state.phase == PHASE_INTAKE:
+            self._state.set_phase(PHASE_OUTLINE, note="outline prepared for user approval")
+
+    def _store_style_revision(self, copied: dict[str, Any]) -> None:
+        self._style = copied
+        self._set_gate("style", "pending", content_digest=_digest(copied, "style"))
+        self._set_gate("sample", "pending")
+
+    @staticmethod
     def _gate_matches(gate: Mapping[str, Any]) -> bool:
         return bool(
             gate.get("status") == "approved"
@@ -341,6 +421,73 @@ class PresentationApprovalWorkflow:
         return outline[0]
 
 
+def outline_confirmation_prompt(slides: Sequence[Mapping[str, Any]]) -> UserFacingPrompt:
+    """Present the planned content without exposing storage or gate mechanics."""
+    copied = PresentationApprovalWorkflow._validated_outline(slides)
+    lines = [f"這是我規劃的 {len(copied)} 頁大綱，先請你確認內容方向："]
+    for slide in copied:
+        title = str(slide.get("title", "")).strip() or f"第 {slide['number']} 頁"
+        purpose = str(slide.get("purpose", "")).strip()
+        suffix = f" — {purpose}" if purpose else ""
+        lines.append(f"- {slide['number']}. {title}{suffix}")
+    lines.append("需要調整的內容可以直接告訴我。")
+    return UserFacingPrompt(text="\n".join(lines))
+
+
+_STYLE_LABELS = (
+    (("direction", "visual_direction"), "視覺方向"),
+    (("palette",), "色彩"),
+    (("typography",), "字體"),
+    (("imagery", "image_treatment"), "影像"),
+    (("density", "layout"), "密度與版面"),
+)
+
+
+def _display_value(value: Any) -> str:
+    if isinstance(value, list):
+        return "、".join(str(item) for item in value)
+    if isinstance(value, dict):
+        return "、".join(f"{key}: {value[key]}" for key in sorted(value))
+    return str(value)
+
+
+def style_confirmation_prompt(style: Mapping[str, Any]) -> UserFacingPrompt:
+    """Summarize HOW only; outline copy is deliberately outside this prompt."""
+    copied = PresentationApprovalWorkflow._validated_style(style)
+    lines = ["我建議採用以下視覺方向："]
+    for aliases, label in _STYLE_LABELS:
+        key = next((candidate for candidate in aliases if candidate in copied), None)
+        if key is not None:
+            lines.append(f"- {label}：{_display_value(copied[key])}")
+    if len(lines) == 1:
+        lines.append("- 依目前確認的視覺規格製作")
+    lines.append("這個方向可以嗎？")
+    return UserFacingPrompt(text="\n".join(lines))
+
+
+def sample_confirmation_prompt(slide_number: int, *, warning: str | None = None) -> UserFacingPrompt:
+    """Ask for sample approval with an optional concrete, bounded warning."""
+    if type(slide_number) is not int or slide_number < 1:
+        raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "sample slide number is invalid")
+    text = (
+        f"我先依這個方向完成第 {slide_number} 頁樣張。"
+        "請確認版面、色調與文字密度；確認後我再完成其他頁面。"
+    )
+    if warning:
+        text += f"\n注意：{str(warning).strip()}"
+    return UserFacingPrompt(text=text)
+
+
+def completion_prompt(slide_count: int, pptx_ref: str) -> UserFacingPrompt:
+    """Report the useful artifact first, without internal engineering status."""
+    if type(slide_count) is not int or slide_count < 1:
+        raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "slide count is invalid")
+    artifact = str(pptx_ref).strip()
+    if not artifact:
+        raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "PPTX reference is required")
+    return UserFacingPrompt(text=f"已依核准的樣張方向完成 {slide_count} 頁簡報：{artifact}")
+
+
 __all__ = [
     "ERROR_APPROVAL_REQUIRED",
     "ERROR_WORKFLOW_INVALID",
@@ -348,8 +495,14 @@ __all__ = [
     "STYLE_PENDING_APPROVAL",
     "SAMPLE_PENDING_APPROVAL",
     "READY_FOR_FULL_GENERATION",
+    "RevisionIntent",
     "FullGenerationResult",
     "PresentationApprovalWorkflow",
     "PresentationWorkflowError",
     "SampleResult",
+    "UserFacingPrompt",
+    "completion_prompt",
+    "outline_confirmation_prompt",
+    "sample_confirmation_prompt",
+    "style_confirmation_prompt",
 ]
