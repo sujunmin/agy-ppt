@@ -430,23 +430,33 @@ heuristic 自動做高影響變更。剩餘 findings 可保留為 `WARNING` 或 
 
 ### Phase 17.1 — Presentation Brief & Audience Contract
 
+**NOT STARTED**
+
 Audience、Purpose、Desired outcome、Context、Duration、Knowledge level、Mode、Constraints。
 
 ### Phase 17.2 — Narrative Architecture & Slide Intent
+
+**NOT STARTED**
 
 Deck thesis、Narrative arc、Narrative roles、Slide intent、Slide takeaway、Slide job-to-be-done、
 Opening、Closing、Transitions。
 
 ### Phase 17.3 — Visual Communication Intelligence
 
+**NOT STARTED**
+
 Information form、Visual hierarchy、Image purpose/relevance、Data storytelling、
 Chart/message alignment。
 
 ### Phase 17.4 — Delivery & Rehearsal Intelligence
 
+**NOT STARTED**
+
 Time budget、Speaker pacing、Delivery Notes、Transitions、Rehearsal cues、Duration validation。
 
 ### Phase 17.5 — Final Presentation Effectiveness QA
+
+**NOT STARTED**
 
 Audience fit、Narrative effectiveness、Redundancy、Timing、Visual communication、
 Delivery readiness、Phase 16 integrity。
