@@ -7,10 +7,16 @@
 - Phase 14：ENFORCED
 - Phase 15：COMPLETE / MERGED / BASELINE FROZEN
 - Phase 16：**COMPLETE / MERGED / BASELINE FROZEN**
+- Phase 17：**DEFINED / NOT STARTED**
 
 Phase 16 的產品、證據綁定、Human Editorial Quality、子階段與非目標定義見
 [Phase 16 — Grounded Presentation Planning, Evidence Binding & Human Editorial Quality](phase16-grounded-presentation-and-editorial-quality.md)。
 Phase 16.1–16.5 均已合併並完成 deterministic integrated qualification；此 baseline 已凍結。
+
+Phase 17 的 presentation strategy、narrative、visual communication、delivery 與 effectiveness
+QA 架構見 [Phase 17 — Presentation Intelligence & Delivery Quality](phase17-presentation-intelligence-and-delivery-quality.md)。
+Phase 17.1–17.5 均為 **NOT STARTED**；此定義不修改 Phase 12–16 frozen runtime，也不增加
+預設使用者核准階段。
 
 ## 1. 為什麼不是三個 CLI 平級
 
