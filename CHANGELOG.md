@@ -40,7 +40,7 @@ All notable changes to `agy-ppt` will be documented in this file.
 - Completed and froze the Phase 18 delivery-fidelity, portability, and
   intelligent-editability baseline while preserving the Outline -> Style ->
   one real Sample -> Full Deck workflow and evidence integrity. (#57, #58, #59,
-  #60, #61, #62, #63)
+  #60, #61, #62, #63, #64)
 
 - Completed and froze the Phase 17 presentation-intelligence and delivery-
   quality baseline. The public workflow remains Outline → Style → one real
