@@ -6,6 +6,20 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Added
 
+- Defined delivery fidelity, portability, and intelligent editability architecture
+  preserving evidence integrity and approved sample visual appearance. (#57)
+- Added Phase 18 delivery and editability contracts covering editability classes,
+  production strategies, font portability, and layout envelopes. (#58)
+- Added element-level production planning mapping approved content and semantic
+  roles to deterministic delivery plans. (#59)
+- Added conservative hybrid PowerPoint production supporting native text,
+  simple shapes, native charts, replaceable images, and raster fallbacks. (#60)
+- Added deterministic portability and visual-fidelity QA covering content,
+  layout, fidelity, and editability without aggregate quality scores. (#61)
+- Added round-trip editability and compatibility qualification with honest
+  ACTUAL_CLIENT vs STRUCTURAL_PROXY environment reporting. (#62)
+- Added integrated Phase 18 E2E qualification covering all 18 architecture-defined
+  scenarios. (#63)
 - Added deterministic presentation briefs with audience, purpose, desired
   outcomes, optional duration, safe context inference, and reuse of existing
   presentation modes without adding a user approval gate. (#51)
@@ -22,6 +36,11 @@ All notable changes to `agy-ppt` will be documented in this file.
   existing approval semantics. (#55)
 
 ### Changed
+
+- Completed and froze the Phase 18 delivery-fidelity, portability, and
+  intelligent-editability baseline while preserving the Outline -> Style ->
+  one real Sample -> Full Deck workflow and evidence integrity. (#57, #58, #59,
+  #60, #61, #62, #63)
 
 - Completed and froze the Phase 17 presentation-intelligence and delivery-
   quality baseline. The public workflow remains Outline → Style → one real

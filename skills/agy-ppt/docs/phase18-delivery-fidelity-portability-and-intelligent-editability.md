@@ -395,31 +395,31 @@ appearance，必須沿用既有 style/sample reapproval；若會改變 WHAT、ev
 
 ## 17. Frozen Subphase Definitions
 
-下列 subphases 均為 **NOT STARTED**：
+下列 subphases 均已實作、測試、合併並凍結基準線：
 
 ### Phase 18.1 — Delivery & Editability Contract
 
-**NOT STARTED** — editability class、production strategy、font risk、envelope、profile、portability risk、
-replacement semantics。
+**COMPLETE / MERGED / BASELINE FROZEN** — editability class、production strategy、font risk、envelope、profile、portability risk、replacement semantics。
 
 ### Phase 18.2 — Element Production Planning
 
-**NOT STARTED** — approved content 到 element-level production plan 的 deterministic mapping。
+**COMPLETE / MERGED / BASELINE FROZEN** — approved content 到 element-level production plan 的 deterministic mapping。
 
 ### Phase 18.3 — Hybrid PowerPoint Production
 
-**NOT STARTED** — selective native、replaceable、vector、raster 與 locked production。
+**COMPLETE / MERGED / BASELINE FROZEN** — selective native、replaceable、vector fallback、raster 與 locked production。
 
 ### Phase 18.4 — Portability & Visual Fidelity QA
 
-**NOT STARTED** — client-environment issue taxonomy、content/layout/fidelity/editability review。
+**COMPLETE / MERGED / BASELINE FROZEN** — client-environment issue taxonomy、content/layout/fidelity/editability review 與無聚合評分之確定性驗證。
 
 ### Phase 18.5 — Round-trip Editability & Compatibility QA
 
-**NOT STARTED** — generate/open/edit/save/reopen/render qualification。
+**COMPLETE / MERGED / BASELINE FROZEN** — generate/open/edit/save/reopen/render qualification，落實 ACTUAL_CLIENT 與 STRUCTURAL_PROXY 誠實報告。
 
-本文件合併後只表示 Phase 18 architecture **DEFINED / NOT STARTED**；不得把任何 18.x 標為
-implemented、complete、merged 或 frozen implementation baseline。
+Phase 18 總體狀態：**COMPLETE / MERGED / BASELINE FROZEN**。
+
+Phase 19：**NOT STARTED**。
 
 ## 18. Future Acceptance E2E
 
