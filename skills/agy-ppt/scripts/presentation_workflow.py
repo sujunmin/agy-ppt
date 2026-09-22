@@ -63,6 +63,7 @@ class SampleResult:
     slide_number: int
     artifact_ref: str
     status: str = SAMPLE_PENDING_APPROVAL
+    is_hybrid_preview: bool = True
 
 
 @dataclass(frozen=True)

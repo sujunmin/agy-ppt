@@ -12,7 +12,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from phase18_contract import ProductionStrategy
+from phase18_contract import (
+    ElementBox,
+    PlateProvenanceMode,
+    PlateRequirement,
+    ProductionStrategy,
+    ReservedEditableZone,
+)
 from phase18_production_plan import ElementProductionPlan
 
 
@@ -23,21 +29,6 @@ class HybridPptxError(Exception):
     def __init__(self, error_code: str, message: str) -> None:
         super().__init__(message)
         self.error_code = error_code
-
-
-@dataclass(frozen=True)
-class ElementBox:
-    left: float
-    top: float
-    width: float
-    height: float
-
-    def __post_init__(self) -> None:
-        values = (self.left, self.top, self.width, self.height)
-        if any(not isinstance(value, (int, float)) or isinstance(value, bool) for value in values):
-            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "element box must use numeric inches")
-        if self.left < 0 or self.top < 0 or self.width <= 0 or self.height <= 0:
-            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "element box is outside the slide")
 
 
 @dataclass(frozen=True)
@@ -133,6 +124,8 @@ class HybridSlide:
     elements: tuple[HybridElement, ...]
     speaker_notes: str = ""
     background_color: str = "FFFFFF"
+    plate_mode: PlateProvenanceMode = PlateProvenanceMode.CLEAN_PLATE
+    reserved_zones: tuple[ReservedEditableZone, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.slide_id, str) or not self.slide_id.strip():
@@ -147,7 +140,44 @@ class HybridSlide:
             raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "full-raster fallback cannot hide other planned objects")
         if len(self.background_color) != 6:
             raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "background color is invalid")
+        if not isinstance(self.plate_mode, PlateProvenanceMode):
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "plate mode is invalid")
+        zones = tuple(self.reserved_zones)
+        if any(not isinstance(z, ReservedEditableZone) for z in zones):
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "reserved zones are invalid")
+
+        # Composite conflict enforcement:
+        # 1. FULL_COMPOSITE prohibits native editable overlays
+        if self.plate_mode is PlateProvenanceMode.FULL_COMPOSITE:
+            for item in elements:
+                if item.plan.contract.strategy in {
+                    ProductionStrategy.NATIVE_TEXT,
+                    ProductionStrategy.NATIVE_IMAGE,
+                    ProductionStrategy.NATIVE_CHART,
+                }:
+                    raise HybridPptxError(
+                        ERROR_HYBRID_PPTX_INVALID,
+                        f"composite conflict: cannot overlay native element '{item.plan.element_id}' on FULL_COMPOSITE plate",
+                    )
+        # 2. PARTIAL_COMPOSITE requires a CONTENT_FREE reserved zone for each native overlay
+        elif self.plate_mode is PlateProvenanceMode.PARTIAL_COMPOSITE:
+            content_free_ids = {
+                z.element_id for z in zones if z.plate_requirement is PlateRequirement.CONTENT_FREE
+            }
+            for item in elements:
+                if item.plan.contract.strategy in {
+                    ProductionStrategy.NATIVE_TEXT,
+                    ProductionStrategy.NATIVE_IMAGE,
+                    ProductionStrategy.NATIVE_CHART,
+                }:
+                    if item.plan.element_id not in content_free_ids:
+                        raise HybridPptxError(
+                            ERROR_HYBRID_PPTX_INVALID,
+                            f"composite conflict: native element '{item.plan.element_id}' lacks CONTENT_FREE reserved zone on PARTIAL_COMPOSITE plate",
+                        )
+
         object.__setattr__(self, "elements", elements)
+        object.__setattr__(self, "reserved_zones", zones)
 
 
 def _shape_type(kind: str):
@@ -273,8 +303,21 @@ def create_hybrid_presentation(
         raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "hybrid PowerPoint production failed") from exc
 
 
+def render_hybrid_sample_preview(
+    slide: HybridSlide,
+    output_path: str | Path,
+    *,
+    aspect_ratio: str = "16:9",
+) -> str:
+    """Render a deterministic hybrid sample preview artifact from a HybridSlide specification."""
+    dest = Path(output_path)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    create_hybrid_presentation((slide,), str(dest), aspect_ratio=aspect_ratio)
+    return str(dest)
+
+
 __all__ = [
     "ERROR_HYBRID_PPTX_INVALID", "ChartSeries", "ChartSpec", "ElementBox",
     "HybridElement", "HybridPptxError", "HybridSlide", "ShapeStyle", "TextStyle",
-    "create_hybrid_presentation",
+    "create_hybrid_presentation", "render_hybrid_sample_preview",
 ]

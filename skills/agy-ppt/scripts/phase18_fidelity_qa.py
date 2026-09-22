@@ -10,8 +10,15 @@ from enum import Enum
 from pathlib import Path
 from typing import Iterable
 
-from phase18_contract import DeliveryEditabilityContract, EditabilityClass, ProductionStrategy
-from phase18_hybrid_pptx import ElementBox
+from phase18_contract import (
+    DeliveryEditabilityContract,
+    EditabilityClass,
+    PlateProvenanceMode,
+    PlateRequirement,
+    ProductionStrategy,
+    ReservedEditableZone,
+)
+from phase18_hybrid_pptx import ElementBox, HybridElement
 from phase18_production_plan import ElementProductionPlan
 
 
@@ -45,6 +52,7 @@ class FidelityIssue(str, Enum):
     COLOR_DRIFT = "COLOR_DRIFT"
     HIERARCHY_DEGRADATION = "HIERARCHY_DEGRADATION"
     EDITABILITY_LOST = "EDITABILITY_LOST"
+    COMPOSITE_CONFLICT = "COMPOSITE_CONFLICT"
 
 
 class QaSeverity(str, Enum):
@@ -92,6 +100,8 @@ class ElementSnapshot:
     prominence: int = 1
     editable: bool = False
     evidence_bound: bool = False
+    plate_mode: PlateProvenanceMode = PlateProvenanceMode.CLEAN_PLATE
+    plate_contains_content: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.element_id, str) or not self.element_id.strip() or not isinstance(self.content, str):
@@ -104,9 +114,11 @@ class ElementSnapshot:
             raise FidelityQaError(ERROR_FIDELITY_QA_INVALID, "z-order is invalid")
         if not isinstance(self.prominence, int) or isinstance(self.prominence, bool) or self.prominence < 0:
             raise FidelityQaError(ERROR_FIDELITY_QA_INVALID, "prominence is invalid")
-        for flag in (self.glyphs_present, self.overflow, self.editable, self.evidence_bound):
+        for flag in (self.glyphs_present, self.overflow, self.editable, self.evidence_bound, self.plate_contains_content):
             if not isinstance(flag, bool):
                 raise FidelityQaError(ERROR_FIDELITY_QA_INVALID, "snapshot flags must be boolean")
+        if not isinstance(self.plate_mode, PlateProvenanceMode):
+            raise FidelityQaError(ERROR_FIDELITY_QA_INVALID, "snapshot plate mode is invalid")
         object.__setattr__(self, "element_id", self.element_id.strip())
         object.__setattr__(self, "crop", _crop(self.crop))
         object.__setattr__(self, "color", _color(self.color))
@@ -211,9 +223,57 @@ def compare_fidelity(
             add(FidelityIssue.HIERARCHY_DEGRADATION, QaDimension.VISUAL_FIDELITY, QaSeverity.BLOCKING, expected.element_id, "approved visual hierarchy was materially weakened")
         if expected.editable and not actual.editable:
             add(FidelityIssue.EDITABILITY_LOST, QaDimension.EDITABILITY, QaSeverity.REVIEW_REQUIRED, expected.element_id, "planned editability was lost")
+
+        # Composite conflict detection
+        if (actual.plate_contains_content and actual.editable) or (actual.plate_mode is PlateProvenanceMode.FULL_COMPOSITE and actual.editable):
+            add(
+                FidelityIssue.COMPOSITE_CONFLICT,
+                QaDimension.VISUAL_FIDELITY,
+                QaSeverity.BLOCKING,
+                expected.element_id,
+                "composite conflict: editable native overlay placed over plate that already contains the content",
+            )
+
     findings.sort(key=lambda item: (item.element_id, item.issue.value, item.detail))
     status = max((item.severity for item in findings), key=lambda item: _SEVERITY_ORDER[item], default=QaSeverity.ACCEPTABLE)
     return FidelityQaReport(status, tuple(findings), approved_sample)
+
+
+def check_composite_conflicts(
+    slide_id: str,
+    plate_mode: PlateProvenanceMode,
+    elements: Iterable[HybridElement],
+    reserved_zones: Iterable[ReservedEditableZone] = (),
+) -> tuple[FidelityFinding, ...]:
+    """Deterministic QA gate checking for composite conflicts before hybrid presentation assembly."""
+    findings: list[FidelityFinding] = []
+    zones_by_id = {z.element_id: z for z in reserved_zones}
+    for elem in elements:
+        strategy = elem.plan.contract.strategy
+        if strategy in {ProductionStrategy.NATIVE_TEXT, ProductionStrategy.NATIVE_IMAGE, ProductionStrategy.NATIVE_CHART}:
+            if plate_mode is PlateProvenanceMode.FULL_COMPOSITE:
+                findings.append(
+                    FidelityFinding(
+                        FidelityIssue.COMPOSITE_CONFLICT,
+                        QaDimension.VISUAL_FIDELITY,
+                        QaSeverity.BLOCKING,
+                        elem.plan.element_id,
+                        f"composite conflict: editable element '{elem.plan.element_id}' placed on FULL_COMPOSITE plate",
+                    )
+                )
+            elif plate_mode is PlateProvenanceMode.PARTIAL_COMPOSITE:
+                zone = zones_by_id.get(elem.plan.element_id)
+                if zone is None or zone.plate_requirement is not PlateRequirement.CONTENT_FREE:
+                    findings.append(
+                        FidelityFinding(
+                            FidelityIssue.COMPOSITE_CONFLICT,
+                            QaDimension.VISUAL_FIDELITY,
+                            QaSeverity.BLOCKING,
+                            elem.plan.element_id,
+                            f"composite conflict: editable element '{elem.plan.element_id}' lacks CONTENT_FREE reserved zone on PARTIAL_COMPOSITE plate",
+                        )
+                    )
+    return tuple(findings)
 
 
 @dataclass(frozen=True)
@@ -235,7 +295,10 @@ def safe_representation_fallback(
     if repair_passes >= 1:
         return FidelityRepairResult(plan, repair_passes, False)
     relevant = [item for item in report.findings if item.element_id == plan.element_id]
-    if not relevant or any(item.dimension is QaDimension.CONTENT_INTEGRITY for item in relevant):
+    if not relevant:
+        return FidelityRepairResult(plan, repair_passes, False)
+    has_conflict = any(item.issue is FidelityIssue.COMPOSITE_CONFLICT for item in relevant)
+    if any(item.dimension is QaDimension.CONTENT_INTEGRITY for item in relevant) and not has_conflict:
         return FidelityRepairResult(plan, repair_passes, False)
     if not any(item.severity in {QaSeverity.REVIEW_REQUIRED, QaSeverity.BLOCKING} for item in relevant):
         return FidelityRepairResult(plan, repair_passes, False)
@@ -287,5 +350,6 @@ def verify_pptx_package(
 __all__ = [
     "ERROR_FIDELITY_QA_INVALID", "ElementSnapshot", "FidelityFinding", "FidelityIssue",
     "FidelityQaError", "FidelityQaReport", "FidelityRepairResult", "QaDimension",
-    "QaSeverity", "compare_fidelity", "safe_representation_fallback", "verify_pptx_package",
+    "QaSeverity", "check_composite_conflicts", "compare_fidelity",
+    "safe_representation_fallback", "verify_pptx_package",
 ]

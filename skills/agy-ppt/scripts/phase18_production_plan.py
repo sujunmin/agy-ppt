@@ -15,11 +15,15 @@ from phase18_contract import (
     DeliveryProfile,
     EditabilityClass,
     EditabilityEnvelope,
+    ElementBox,
     FontPortability,
     OverflowBehavior,
+    PlateProvenanceMode,
+    PlateRequirement,
     ProductionStrategy,
     ReplacementMode,
     ReplacementSemantics,
+    ReservedEditableZone,
     ShrinkPolicy,
 )
 
@@ -269,7 +273,154 @@ def plan_elements(
     return tuple(plan_element(item, profile) for item in clean)
 
 
+def derive_reserved_zone(
+    plan: ElementProductionPlan,
+    slide_id: str,
+    box: ElementBox,
+    background_treatment: str = "transparent",
+) -> ReservedEditableZone:
+    """Derive a deterministic reserved editable zone from an approved element plan."""
+    if not isinstance(plan, ElementProductionPlan) or not isinstance(box, ElementBox):
+        raise ProductionPlanError(ERROR_PRODUCTION_PLAN_INVALID, "plan and box are required")
+    if not isinstance(slide_id, str) or not slide_id.strip():
+        raise ProductionPlanError(ERROR_PRODUCTION_PLAN_INVALID, "slide_id is required")
+
+    strategy = plan.contract.strategy
+    if strategy is ProductionStrategy.NATIVE_TEXT:
+        content_type = "text"
+        plate_req = PlateRequirement.CONTENT_FREE
+    elif strategy in {ProductionStrategy.NATIVE_IMAGE, ProductionStrategy.VECTOR_GRAPHIC}:
+        content_type = "image"
+        plate_req = PlateRequirement.CONTENT_FREE
+    elif strategy is ProductionStrategy.NATIVE_CHART:
+        content_type = "chart"
+        plate_req = PlateRequirement.CONTENT_FREE
+    elif strategy is ProductionStrategy.NATIVE_SHAPE:
+        content_type = "shape"
+        plate_req = (
+            PlateRequirement.CONTENT_FREE
+            if plan.contract.editability != EditabilityClass.LOCKED_REQUIRED
+            else PlateRequirement.LOCKED_IN_PLATE
+        )
+    else:
+        content_type = "visual"
+        plate_req = PlateRequirement.LOCKED_IN_PLATE
+
+    return ReservedEditableZone(
+        zone_id=f"zone:{slide_id}:{plan.element_id}",
+        slide_id=slide_id,
+        element_id=plan.element_id,
+        role=plan.role.value,
+        box=box,
+        editability=plan.contract.editability,
+        strategy=strategy,
+        expected_content_type=content_type,
+        plate_requirement=plate_req,
+        replacement=plan.contract.replacement,
+        envelope=plan.contract.envelope,
+        background_treatment=background_treatment,
+    )
+
+
+@dataclass(frozen=True)
+class VisualPlateJobSpec:
+    slide_id: str
+    plate_mode: PlateProvenanceMode
+    reserved_zones: tuple[ReservedEditableZone, ...]
+    locked_content_to_render: tuple[str, ...]
+    editable_content_to_omit: tuple[str, ...]
+    replaceable_assets_to_omit: tuple[str, ...]
+    background_instructions: str = ""
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.slide_id, str) or not self.slide_id.strip():
+            raise ProductionPlanError(ERROR_PRODUCTION_PLAN_INVALID, "slide_id is required")
+        if not isinstance(self.plate_mode, PlateProvenanceMode):
+            raise ProductionPlanError(ERROR_PRODUCTION_PLAN_INVALID, "plate_mode is invalid")
+        zones = tuple(self.reserved_zones)
+        if any(not isinstance(z, ReservedEditableZone) for z in zones):
+            raise ProductionPlanError(ERROR_PRODUCTION_PLAN_INVALID, "reserved_zones contains invalid zone")
+        object.__setattr__(self, "reserved_zones", zones)
+        object.__setattr__(self, "locked_content_to_render", tuple(self.locked_content_to_render))
+        object.__setattr__(self, "editable_content_to_omit", tuple(self.editable_content_to_omit))
+        object.__setattr__(self, "replaceable_assets_to_omit", tuple(self.replaceable_assets_to_omit))
+
+    def internal_dict(self) -> dict[str, object]:
+        return {
+            "slide_id": self.slide_id,
+            "plate_mode": self.plate_mode.value,
+            "reserved_zones": [z.internal_dict() for z in self.reserved_zones],
+            "locked_content_to_render": list(self.locked_content_to_render),
+            "editable_content_to_omit": list(self.editable_content_to_omit),
+            "replaceable_assets_to_omit": list(self.replaceable_assets_to_omit),
+            "background_instructions": self.background_instructions,
+        }
+
+    def canonical_json(self) -> str:
+        return json.dumps(self.internal_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def create_visual_plate_job(
+    slide_id: str,
+    plans_with_boxes: Iterable[tuple[ElementProductionPlan, ElementBox]],
+    plate_mode: PlateProvenanceMode = PlateProvenanceMode.CLEAN_PLATE,
+    background_instructions: str = "",
+) -> VisualPlateJobSpec:
+    """Create a deterministic visual plate job specification with clean-plate requirements."""
+    pairs = tuple(plans_with_boxes)
+    if not pairs or any(not isinstance(item, tuple) or len(item) != 2 for item in pairs):
+        raise ProductionPlanError(ERROR_PRODUCTION_PLAN_INVALID, "plans_with_boxes must be pairs of plan and box")
+    if not isinstance(plate_mode, PlateProvenanceMode):
+        raise ProductionPlanError(ERROR_PRODUCTION_PLAN_INVALID, "plate_mode is invalid")
+
+    locked_render: list[str] = []
+    editable_omit: list[str] = []
+    replaceable_omit: list[str] = []
+    reserved_zones: list[ReservedEditableZone] = []
+
+    for plan, box in pairs:
+        if not isinstance(plan, ElementProductionPlan) or not isinstance(box, ElementBox):
+            raise ProductionPlanError(ERROR_PRODUCTION_PLAN_INVALID, "invalid plan or box")
+
+        if plate_mode is PlateProvenanceMode.FULL_COMPOSITE:
+            locked_render.append(plan.approved_content)
+        elif plate_mode is PlateProvenanceMode.CLEAN_PLATE:
+            strategy = plan.contract.strategy
+            if strategy in {ProductionStrategy.NATIVE_IMAGE, ProductionStrategy.VECTOR_GRAPHIC}:
+                replaceable_omit.append(plan.approved_content)
+                reserved_zones.append(derive_reserved_zone(plan, slide_id, box))
+            elif strategy in {ProductionStrategy.NATIVE_TEXT, ProductionStrategy.NATIVE_CHART, ProductionStrategy.NATIVE_SHAPE}:
+                editable_omit.append(plan.approved_content)
+                reserved_zones.append(derive_reserved_zone(plan, slide_id, box))
+            else:
+                locked_render.append(plan.approved_content)
+        elif plate_mode is PlateProvenanceMode.PARTIAL_COMPOSITE:
+            if (
+                plan.contract.editability in {EditabilityClass.LOCKED_REQUIRED, EditabilityClass.LOCKED_PREFERRED}
+                or plan.contract.strategy in {ProductionStrategy.LOCKED_VISUAL, ProductionStrategy.RASTER_REGION, ProductionStrategy.FULL_RASTER_SLIDE}
+            ):
+                locked_render.append(plan.approved_content)
+            else:
+                strategy = plan.contract.strategy
+                if strategy in {ProductionStrategy.NATIVE_IMAGE, ProductionStrategy.VECTOR_GRAPHIC}:
+                    replaceable_omit.append(plan.approved_content)
+                else:
+                    editable_omit.append(plan.approved_content)
+                reserved_zones.append(derive_reserved_zone(plan, slide_id, box))
+
+    return VisualPlateJobSpec(
+        slide_id=slide_id,
+        plate_mode=plate_mode,
+        reserved_zones=tuple(reserved_zones),
+        locked_content_to_render=tuple(locked_render),
+        editable_content_to_omit=tuple(editable_omit),
+        replaceable_assets_to_omit=tuple(replaceable_omit),
+        background_instructions=background_instructions,
+    )
+
+
 __all__ = [
     "ERROR_PRODUCTION_PLAN_INVALID", "ElementPlanningInput", "ElementProductionPlan",
-    "ElementRole", "PortabilityRisk", "ProductionPlanError", "plan_element", "plan_elements",
+    "ElementRole", "PortabilityRisk", "ProductionPlanError", "VisualPlateJobSpec",
+    "create_visual_plate_job", "derive_reserved_zone", "plan_element", "plan_elements",
 ]
