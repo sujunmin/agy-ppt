@@ -47,6 +47,13 @@ All notable changes to `agy-ppt` will be documented in this file.
   Sample → Full Deck, with no additional default approval stages. (#51, #52,
   #53, #54, #55)
 
+### Fixed
+
+- Added clean-plate visual background production and reserved editable zones to
+  eliminate visual-fidelity composite defects including duplicate text ghosting,
+  chart overlap, and photo duplication during ACTUAL_CLIENT PowerPoint delivery.
+  (#66)
+
 ## [0.5.0] - 2026-09-15
 
 ### Added
