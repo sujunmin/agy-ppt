@@ -2,10 +2,10 @@
 
 中文意義：**簡報策略智能與實際呈現品質**
 
-> 狀態：**DEFINED / NOT STARTED**
+> 狀態：**COMPLETE / MERGED / BASELINE FROZEN**
 >
-> 本文件只定義架構、內部概念契約與未來驗收標準。它不代表 Phase 17 runtime 已實作，
-> 不發布 public schema，也不啟動 Phase 17.1。
+> 本文件記錄已合併的 Phase 17 runtime、內部概念契約與驗收 baseline。Phase 17 未發布
+> public schema，未改動 Phase 12–16 frozen contract；Phase 18 尚未開始。
 
 ## 1. Product Layering
 
@@ -44,7 +44,7 @@ Phase 16 保持下列 frozen ownership：
 - editorial naturalness、headline/editorial quality；
 - layout rhythm 與 information rhythm。
 
-Phase 17 定義但尚未實作：
+Phase 17 已實作並凍結：
 
 - audience、purpose 與 desired outcome；
 - narrative sequence、slide intent 與 slide takeaway；
@@ -403,7 +403,7 @@ integrity failure 應保持可區分，避免 fuzzy fallback 或 silent correcti
 
 ## 10. Safe Repair and Escalation Policy
 
-未來 runtime 必須先分類 proposed repair：
+Runtime 必須先分類 proposed repair：
 
 ```text
 non-semantic delivery cleanup
@@ -426,48 +426,47 @@ heuristic 自動做高影響變更。剩餘 findings 可保留為 `WARNING` 或 
 
 ## 11. Frozen Subphase Definitions
 
-所有子階段目前皆為 **NOT STARTED**：
+所有子階段皆為 **COMPLETE / MERGED / BASELINE FROZEN**：
 
 ### Phase 17.1 — Presentation Brief & Audience Contract
 
-**NOT STARTED**
+**COMPLETE / MERGED / BASELINE FROZEN**（#51）
 
 Audience、Purpose、Desired outcome、Context、Duration、Knowledge level、Mode、Constraints。
 
 ### Phase 17.2 — Narrative Architecture & Slide Intent
 
-**NOT STARTED**
+**COMPLETE / MERGED / BASELINE FROZEN**（#52）
 
 Deck thesis、Narrative arc、Narrative roles、Slide intent、Slide takeaway、Slide job-to-be-done、
 Opening、Closing、Transitions。
 
 ### Phase 17.3 — Visual Communication Intelligence
 
-**NOT STARTED**
+**COMPLETE / MERGED / BASELINE FROZEN**（#53）
 
 Information form、Visual hierarchy、Image purpose/relevance、Data storytelling、
 Chart/message alignment。
 
 ### Phase 17.4 — Delivery & Rehearsal Intelligence
 
-**NOT STARTED**
+**COMPLETE / MERGED / BASELINE FROZEN**（#54）
 
 Time budget、Speaker pacing、Delivery Notes、Transitions、Rehearsal cues、Duration validation。
 
 ### Phase 17.5 — Final Presentation Effectiveness QA
 
-**NOT STARTED**
+**COMPLETE / MERGED / BASELINE FROZEN**（#55）
 
 Audience fit、Narrative effectiveness、Redundancy、Timing、Visual communication、
 Delivery readiness、Phase 16 integrity。
 
-本文件合併後只表示 Phase 17 architecture **DEFINED / NOT STARTED**；不得把任何 17.x 標為
-implemented、complete、merged 或 frozen implementation baseline。
+Phase 17.1–17.5 已依序通過 focused tests、full regression、exact CI、squash merge 與
+post-merge validation，形成 frozen implementation baseline。
 
-## 12. Future Acceptance E2E
+## 12. Acceptance E2E
 
-未來 runtime implementation 至少必須通過以下 scenarios；本 architecture PR 不執行或宣稱
-這些 runtime E2E 已通過：
+Phase 17 deterministic integrated qualification 已通過以下 14 個 scenarios（14/14 PASS）：
 
 1. **5-minute BNI networking deck**：referral-oriented outcome、少量 memorable points、
    conversational delivery、actionable close、realistic timing。
@@ -515,8 +514,8 @@ Potential combined positioning：
 
 > 內容有根據。呈現像人做的。而且真的講得動。
 
-此第三行目前不得加入 README；只有 Phase 17 runtime 完成並經 release governance 核准後，
-才能評估 public positioning 更新。
+Phase 17 runtime 與 qualification 完成後，README 已採用同等精簡的 bilingual positioning，
+未將 README 擴張為架構規格。
 
 ## 15. Non-goals
 
@@ -540,9 +539,8 @@ Phase 17 明確不包含：
 
 - Phase 12–16 runtime contracts 維持 frozen；本文件不得被解讀為修改權。
 - OCR schemas 維持 **DEFERRED**。
-- Phase 17 implementation 必須由後續明確授權的 subphase PR 分別定義 contracts、tests、
-  exact CI 與 migration/compatibility boundary。
-- 本 architecture PR 不加入 dependency、provider、API credential、runtime state 或 public schema。
+- Phase 17.1–17.5 的 contracts、tests 與 exact CI 分別由 #51–#55 完成並合併。
+- Phase 17 未加入 provider、API credential 或 public schema，也未啟動 Phase 18。
 
 Related documents：
 

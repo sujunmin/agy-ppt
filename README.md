@@ -2,7 +2,7 @@
 
 **沒有 AI 味的報告。**
 
-內容有根據，呈現像人做的。
+內容有根據，呈現像人做的，而且真的講得動。
 
 **語言：** 繁體中文 | [English](README_en.md)
 
@@ -69,6 +69,7 @@ AGY 始終是唯一的 orchestrator 與語意判斷者；OCR 與圖片 worker �
 
 - [簡報核准流程](skills/agy-ppt/docs/outline-style-and-sample.md)
 - [Phase 16：有根據的簡報規劃與人類編輯品質](skills/agy-ppt/docs/phase16-grounded-presentation-and-editorial-quality.md)
+- [Phase 17：簡報策略智能與實際呈現品質](skills/agy-ppt/docs/phase17-presentation-intelligence-and-delivery-quality.md)
 - [架構與角色分工](skills/agy-ppt/docs/architecture-and-design-rationale.md)
 - [來源取得、擷取與接地](skills/agy-ppt/docs/source-ingestion.md)
 - [OCR 架構與 providers](skills/agy-ppt/docs/phase15-ocr-architecture.md)
@@ -80,6 +81,6 @@ AGY 始終是唯一的 orchestrator 與語意判斷者；OCR 與圖片 worker �
 
 ## 專案狀態與授權
 
-Phase 15 OCR 與來源接地管線、Phase 16 有根據的簡報與編輯品質 baseline 均已完成並凍結。Linux x86_64 是主要 production target，但正式部署仍需驗證 hard isolation；macOS 僅供開發/API 驗證，Windows 尚未通過 production-security qualification。OCR JSON schemas 仍為 deferred。
+Phase 15 OCR 與來源接地管線、Phase 16 有根據的簡報與編輯品質，以及 Phase 17 簡報策略與實際呈現品質 baseline 均已完成並凍結。Linux x86_64 是主要 production target，但正式部署仍需驗證 hard isolation；macOS 僅供開發/API 驗證，Windows 尚未通過 production-security qualification。OCR JSON schemas 仍為 deferred。
 
 本專案採 [MIT License](LICENSE)，衍生自 [`ningzimu/codex-ppt-skill`](https://github.com/ningzimu/codex-ppt-skill)，並非 upstream 官方版本。第三方授權資料見 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。

@@ -591,6 +591,47 @@ python3 scripts/acquire_source.py \
 
 詳見 `docs/source-acquisition.md`。
 
+## 9.5 Presentation Intelligence & Delivery Quality
+
+每次簡報規劃都應在既有核准流程內套用 Phase 17，而不是新增使用者 gate：
+
+1. 從使用者明確提供的 audience、purpose、desired outcome、context、duration 與 constraints
+   建立內部 Presentation Brief；只可做非敏感、顯而易見的 context inference，不得建立
+   psychographic profile 或推定敏感特徵。未提供 duration 時不得虛構精確時長。
+2. 在向使用者顯示大綱前，先套用 Phase 16 claim-origin 與 evidence boundary。沒有來源或
+   使用者明確提供的事實時，不得把情境稱為「真實案例」，也不得虛構比例、金額、日期、
+   成效、法規／合約必要性、服務時限、公司承諾或引用；教學用情境必須誠實標為示意／假設，
+   AGY synthesis 不得冒充 grounded fact。No-source 簡報只能把使用者明確提供的 material fact
+   當成 USER_PROVIDED；其餘內容必須是明確的建議、框架、問題或示意，不得以肯定句包裝成
+   已驗證事實。送出大綱前必須掃描所有數字、日期、百分比、比較級、法規字眼與營運承諾：
+   沒有可用 provenance 就刪除、改成不帶事實主張的表達，或向使用者詢問；不得以「常識」補值。
+3. 在大綱核准前，以 `phase17_narrative.py` 的概念安排 deck thesis、narrative role、slide
+   intent、takeaway、job-to-be-done、opening、closing 與 transitions。Narrative role 與 Phase 16
+   visual role 必須分離。
+4. 用 `phase17_visual_communication.py` 選擇最簡單且能服務 takeaway 的 information form，並記錄
+   hierarchy 與 image purpose；不得改寫 Phase 16 evidence 或要求 renderer 判斷 evidence support。
+5. 用 `phase17_delivery.py` 依 narrative weight 規劃 Notes、transitions、rehearsal cues 與時間。
+   Timing 是保守估計，不是保證；內容明顯超時時不得宣稱符合時限。
+6. 完成前以 `phase17_effectiveness.py` 整合 narrative、visual、delivery findings 與 Phase 16
+   evidence/editorial report。不得產生總分、engagement probability、persuasion score 或
+   AI-generated score。
+
+在每次把 outline、style、sample 說明或 final summary 顯示給使用者前，先做一次 bounded Human
+Editorial review：減少 slogan、抽象商業術語與過度銷售式修辭（例如連續使用「打造、賦能、
+共贏、金礦、護城河、高價值」），改為可口述、具體、克制的簡報語言。這些詞不是 blacklist；
+重點是避免重複、空泛與機械感，且 editorial rewrite 絕不可改變 claim meaning。
+
+一般使用者仍只看到「大綱 → 風格 → 一張真實樣張 → 完整簡報」。不得預設顯示 enum、ID、
+QA constant、timing model、internal report、中間產物 filename 或 absolute path。樣張核准時應直接
+顯示／附上圖片並自然稱為「第 N 頁樣張」，不得把 `slide_02.png` 等內部名稱當作一般交付物；
+最終交付時才可有意義地命名實際 PPTX。Notes wording、transition 與 timing annotation 等
+non-semantic cleanup 可安全調整；新增／移除／重排頁面、改 takeaway／recommendation／fact／thesis
+必須走既有 content revision 並重新核准大綱；substantive HOW change 依既有規則重開 style/sample。
+
+Phase 17 的 typed findings 是給 AGY 的 review input；AGY 仍是唯一 semantic authority。任何
+外部 semantic classifier 都只能提供 narrow、confidence-gated finding，不得自動改動 evidence、
+approval state 或最終 readiness policy，也不得出現在 deterministic CI 的必跑路徑。
+
 ## 10. 必讀檔案
 
 - `docs/architecture-and-design-rationale.md`
@@ -606,3 +647,5 @@ python3 scripts/acquire_source.py \
 - `docs/source-ingestion.md`（optional，僅適用於需要擷取本機 PDF/Markdown/純文字/DOCX/HTML 來源的專案）
 - `docs/source-acquisition.md`（optional，僅適用於需要取得明確指定的公開 URL 來源的專案）
 - `docs/production-baseline-phase13.md`（Phase 13 production capability 摘要）
+- `docs/phase16-grounded-presentation-and-editorial-quality.md`（Phase 16 frozen evidence/editorial baseline）
+- `docs/phase17-presentation-intelligence-and-delivery-quality.md`（Phase 17 frozen strategy/delivery baseline）
