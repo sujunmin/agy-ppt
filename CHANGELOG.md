@@ -4,6 +4,30 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Added deterministic presentation briefs with audience, purpose, desired
+  outcomes, optional duration, safe context inference, and reuse of existing
+  presentation modes without adding a user approval gate. (#51)
+- Added narrative architecture with deck thesis, slide intent, audience
+  takeaway, opening/closing strategy, transitions, and approval-safe narrative
+  findings. (#52)
+- Added communication-form planning, visual hierarchy, image-purpose review,
+  and evidence-safe data-story metadata without redesigning the renderer. (#53)
+- Added narrative-weighted delivery timing, natural speaker-note planning,
+  transitions, and lightweight rehearsal cues with honest duration warnings.
+  (#54)
+- Added final presentation-effectiveness QA and a 14-scenario integrated Phase
+  17 qualification while preserving Phase 16 evidence/editorial integrity and
+  existing approval semantics. (#55)
+
+### Changed
+
+- Completed and froze the Phase 17 presentation-intelligence and delivery-
+  quality baseline. The public workflow remains Outline → Style → one real
+  Sample → Full Deck, with no additional default approval stages. (#51, #52,
+  #53, #54, #55)
+
 ## [0.5.0] - 2026-09-15
 
 ### Added
