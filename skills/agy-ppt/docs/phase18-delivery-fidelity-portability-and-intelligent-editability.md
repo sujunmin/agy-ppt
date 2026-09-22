@@ -485,4 +485,3 @@ Phase 18 明確不包含：
 
 Phase 12–17 semantics 維持 frozen；AGY 仍是 sole orchestrator 與 semantic authority。Phase 18 只在
 既有 approved artifact boundary 內規劃 delivery representation、portability、editability 與 QA。
-
