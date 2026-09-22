@@ -139,11 +139,25 @@ class RoundTripReport:
         return sum(item.outcome is outcome for item in self.findings)
 
 
-def _find_shape_by_name(slide, name: str):
-    for shape in slide.shapes:
-        if shape.name == name:
-            return shape
+def _find_shape_by_name(slide_or_deck, name: str):
+    if hasattr(slide_or_deck, "shapes"):
+        for shape in slide_or_deck.shapes:
+            if shape.name == name:
+                return shape
+    elif hasattr(slide_or_deck, "slides"):
+        for slide in slide_or_deck.slides:
+            for shape in slide.shapes:
+                if shape.name == name:
+                    return shape
     return None
+
+
+def _find_slide_and_shape_by_name(deck, name: str):
+    for slide in deck.slides:
+        for shape in slide.shapes:
+            if shape.name == name:
+                return slide, shape
+    return None, None
 
 
 def simulate_kpi_edit(
@@ -159,7 +173,7 @@ def simulate_kpi_edit(
     target_name = f"agy:{element_id}"
 
     deck = Presentation(str(src))
-    shape = _find_shape_by_name(deck.slides[0], target_name)
+    slide, shape = _find_slide_and_shape_by_name(deck, target_name)
     if shape is None or not shape.has_text_frame:
         return RoundTripFinding("KPI_EDIT", RoundTripOutcome.BLOCKING, QualificationType.STRUCTURAL_PROXY, f"shape {target_name} not found or has no text frame")
 
@@ -173,7 +187,7 @@ def simulate_kpi_edit(
 
     # Reopen and inspect
     reopened = Presentation(str(dst))
-    reopened_shape = _find_shape_by_name(reopened.slides[0], target_name)
+    reopened_slide, reopened_shape = _find_slide_and_shape_by_name(reopened, target_name)
     if reopened_shape is None:
         return RoundTripFinding("KPI_EDIT", RoundTripOutcome.BLOCKING, QualificationType.STRUCTURAL_PROXY, "shape identity lost after save/reopen")
 
@@ -201,7 +215,7 @@ def simulate_title_edit(
     target_name = f"agy:{element_id}"
 
     deck = Presentation(str(src))
-    shape = _find_shape_by_name(deck.slides[0], target_name)
+    slide, shape = _find_slide_and_shape_by_name(deck, target_name)
     if shape is None or not shape.has_text_frame:
         return RoundTripFinding("TITLE_EDIT", RoundTripOutcome.BLOCKING, QualificationType.STRUCTURAL_PROXY, f"shape {target_name} not found")
 
@@ -209,7 +223,7 @@ def simulate_title_edit(
     deck.save(str(dst))
 
     reopened = Presentation(str(dst))
-    reopened_shape = _find_shape_by_name(reopened.slides[0], target_name)
+    reopened_slide, reopened_shape = _find_slide_and_shape_by_name(reopened, target_name)
     if reopened_shape is None or reopened_shape.text != new_text:
         return RoundTripFinding("TITLE_EDIT", RoundTripOutcome.BLOCKING, QualificationType.STRUCTURAL_PROXY, "title edit failed to persist")
 
@@ -245,17 +259,17 @@ def simulate_logo_replacement(
 
     target_name = f"agy:{element_id}"
     deck = Presentation(str(src))
-    shape = _find_shape_by_name(deck.slides[0], target_name)
+    slide, shape = _find_slide_and_shape_by_name(deck, target_name)
     if shape is None:
         return RoundTripFinding("LOGO_REPLACEMENT", RoundTripOutcome.BLOCKING, QualificationType.STRUCTURAL_PROXY, f"shape {target_name} not found")
 
     orig_left, orig_top, orig_width, orig_height = shape.left, shape.top, shape.width, shape.height
     new_blob = new_img.read_bytes()
-    deck.slides[0].part.related_part(shape._element.blip_rId)._blob = new_blob
+    slide.part.related_part(shape._element.blip_rId)._blob = new_blob
     deck.save(str(dst))
 
     reopened = Presentation(str(dst))
-    reopened_shape = _find_shape_by_name(reopened.slides[0], target_name)
+    reopened_slide, reopened_shape = _find_slide_and_shape_by_name(reopened, target_name)
     if reopened_shape is None:
         return RoundTripFinding("LOGO_REPLACEMENT", RoundTripOutcome.BLOCKING, QualificationType.STRUCTURAL_PROXY, "shape lost after replacement")
 
@@ -284,17 +298,17 @@ def simulate_photo_replacement(
 
     target_name = f"agy:{element_id}"
     deck = Presentation(str(src))
-    shape = _find_shape_by_name(deck.slides[0], target_name)
+    slide, shape = _find_slide_and_shape_by_name(deck, target_name)
     if shape is None:
         return RoundTripFinding("PHOTO_REPLACEMENT", RoundTripOutcome.BLOCKING, QualificationType.STRUCTURAL_PROXY, f"shape {target_name} not found")
 
     orig_geom = (shape.left, shape.top, shape.width, shape.height)
     new_blob = new_img.read_bytes()
-    deck.slides[0].part.related_part(shape._element.blip_rId)._blob = new_blob
+    slide.part.related_part(shape._element.blip_rId)._blob = new_blob
     deck.save(str(dst))
 
     reopened = Presentation(str(dst))
-    reopened_shape = _find_shape_by_name(reopened.slides[0], target_name)
+    reopened_slide, reopened_shape = _find_slide_and_shape_by_name(reopened, target_name)
     if reopened_shape is None:
         return RoundTripFinding("PHOTO_REPLACEMENT", RoundTripOutcome.BLOCKING, QualificationType.STRUCTURAL_PROXY, "photo shape missing after save")
 
@@ -332,7 +346,7 @@ def simulate_chart_data_edit(
     target_name = f"agy:{element_id}"
 
     deck = Presentation(str(src))
-    shape = _find_shape_by_name(deck.slides[0], target_name)
+    slide, shape = _find_slide_and_shape_by_name(deck, target_name)
     if shape is None or not shape.has_chart:
         return RoundTripFinding("CHART_DATA_EDIT", RoundTripOutcome.BLOCKING, QualificationType.STRUCTURAL_PROXY, f"shape {target_name} not found or has no chart")
 
@@ -345,7 +359,7 @@ def simulate_chart_data_edit(
     deck.save(str(dst))
 
     reopened = Presentation(str(dst))
-    reopened_shape = _find_shape_by_name(reopened.slides[0], target_name)
+    reopened_slide, reopened_shape = _find_slide_and_shape_by_name(reopened, target_name)
     if reopened_shape is None or not reopened_shape.has_chart:
         return RoundTripFinding("CHART_DATA_EDIT", RoundTripOutcome.BLOCKING, QualificationType.STRUCTURAL_PROXY, "chart structure corrupted after data edit")
 

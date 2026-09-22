@@ -208,6 +208,113 @@ class DeliveryEditabilityContract:
         return json.dumps(self.internal_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
+class PlateProvenanceMode(str, Enum):
+    CLEAN_PLATE = "CLEAN_PLATE"
+    PARTIAL_COMPOSITE = "PARTIAL_COMPOSITE"
+    FULL_COMPOSITE = "FULL_COMPOSITE"
+
+
+class PlateRequirement(str, Enum):
+    CONTENT_FREE = "CONTENT_FREE"
+    LOCKED_IN_PLATE = "LOCKED_IN_PLATE"
+
+
+@dataclass(frozen=True)
+class ElementBox:
+    left: float
+    top: float
+    width: float
+    height: float
+
+    def __post_init__(self) -> None:
+        values = (self.left, self.top, self.width, self.height)
+        if any(not isinstance(value, (int, float)) or isinstance(value, bool) for value in values):
+            raise EditabilityContractError(ERROR_EDITABILITY_CONTRACT_INVALID, "element box must use numeric inches")
+        if self.left < 0 or self.top < 0 or self.width <= 0 or self.height <= 0:
+            raise EditabilityContractError(ERROR_EDITABILITY_CONTRACT_INVALID, "element box is outside the slide")
+
+    def internal_dict(self) -> dict[str, float]:
+        return {
+            "left": float(self.left),
+            "top": float(self.top),
+            "width": float(self.width),
+            "height": float(self.height),
+        }
+
+
+@dataclass(frozen=True)
+class ReservedEditableZone:
+    zone_id: str
+    slide_id: str
+    element_id: str
+    role: str
+    box: ElementBox
+    editability: EditabilityClass
+    strategy: ProductionStrategy
+    expected_content_type: str
+    plate_requirement: PlateRequirement = PlateRequirement.CONTENT_FREE
+    replacement: ReplacementSemantics = ReplacementSemantics()
+    envelope: EditabilityEnvelope | None = None
+    background_treatment: str = "transparent"
+
+    def __post_init__(self) -> None:
+        for name in ("zone_id", "slide_id", "element_id", "role", "background_treatment"):
+            val = getattr(self, name)
+            if not isinstance(val, str) or not val.strip():
+                raise EditabilityContractError(ERROR_EDITABILITY_CONTRACT_INVALID, f"{name} must be a non-empty string")
+        if not isinstance(self.box, ElementBox):
+            raise EditabilityContractError(ERROR_EDITABILITY_CONTRACT_INVALID, "box must be an ElementBox")
+        if not isinstance(self.editability, EditabilityClass):
+            raise EditabilityContractError(ERROR_EDITABILITY_CONTRACT_INVALID, "editability must be an EditabilityClass")
+        if not isinstance(self.strategy, ProductionStrategy):
+            raise EditabilityContractError(ERROR_EDITABILITY_CONTRACT_INVALID, "strategy must be a ProductionStrategy")
+        if self.expected_content_type not in {"text", "image", "chart", "shape", "visual"}:
+            raise EditabilityContractError(ERROR_EDITABILITY_CONTRACT_INVALID, "expected_content_type is invalid")
+        if not isinstance(self.plate_requirement, PlateRequirement):
+            raise EditabilityContractError(ERROR_EDITABILITY_CONTRACT_INVALID, "plate_requirement must be a PlateRequirement")
+        if not isinstance(self.replacement, ReplacementSemantics):
+            raise EditabilityContractError(ERROR_EDITABILITY_CONTRACT_INVALID, "replacement must be a ReplacementSemantics")
+        if self.envelope is not None and not isinstance(self.envelope, EditabilityEnvelope):
+            raise EditabilityContractError(ERROR_EDITABILITY_CONTRACT_INVALID, "envelope must be an EditabilityEnvelope")
+
+        # CONTENT-FREE INVARIANT:
+        # Every NATIVE_TEXT, NATIVE_IMAGE, NATIVE_CHART that visually replaces semantic content
+        # must require CONTENT_FREE plate provenance for its zone.
+        if self.strategy in {
+            ProductionStrategy.NATIVE_TEXT,
+            ProductionStrategy.NATIVE_IMAGE,
+            ProductionStrategy.NATIVE_CHART,
+        } and self.editability in {
+            EditabilityClass.EDITABLE_REQUIRED,
+            EditabilityClass.EDITABLE_PREFERRED,
+            EditabilityClass.REPLACEABLE,
+        }:
+            if self.plate_requirement is not PlateRequirement.CONTENT_FREE:
+                raise EditabilityContractError(
+                    ERROR_EDITABILITY_CONTRACT_INVALID,
+                    "native editable objects require CONTENT_FREE plate requirement",
+                )
+
+    def internal_dict(self) -> dict[str, object]:
+        return {
+            "zone_id": self.zone_id,
+            "slide_id": self.slide_id,
+            "element_id": self.element_id,
+            "role": self.role,
+            "box": self.box.internal_dict(),
+            "editability": self.editability.value,
+            "strategy": self.strategy.value,
+            "expected_content_type": self.expected_content_type,
+            "plate_requirement": self.plate_requirement.value,
+            "replacement": self.replacement.internal_dict(),
+            "envelope": self.envelope.internal_dict() if self.envelope else None,
+            "background_treatment": self.background_treatment,
+        }
+
+    def canonical_json(self) -> str:
+        return json.dumps(self.internal_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
 def user_facing_delivery_message() -> str:
     return "我會在維持核准視覺品質的前提下，讓重要內容保有安全、實用的可修改性。"
 
@@ -215,7 +322,8 @@ def user_facing_delivery_message() -> str:
 __all__ = [
     "DEFAULT_DELIVERY_PROFILE", "ERROR_EDITABILITY_CONTRACT_INVALID", "CropBehavior",
     "DeliveryEditabilityContract", "DeliveryProfile", "EditabilityClass",
-    "EditabilityContractError", "EditabilityEnvelope", "FontPortability",
-    "OverflowBehavior", "ProductionStrategy", "ReplacementMode", "ReplacementSemantics",
+    "EditabilityContractError", "EditabilityEnvelope", "ElementBox", "FontPortability",
+    "OverflowBehavior", "PlateProvenanceMode", "PlateRequirement", "ProductionStrategy",
+    "ReplacementMode", "ReplacementSemantics", "ReservedEditableZone",
     "ShrinkPolicy", "user_facing_delivery_message",
 ]
