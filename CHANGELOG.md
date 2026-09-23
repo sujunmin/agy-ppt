@@ -49,6 +49,10 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Fixed
 
+- Hardened Hybrid PowerPoint layout and typography with canonical slide bounds,
+  role-aware CJK/Latin styling, bounded title and KPI envelopes, intentional
+  image crops, and non-default chart presentation; added an exact-artifact
+  human presentation-quality release gate. (#68)
 - Wired Clean Plate and Reserved Editable Zone contracts into the live Codex
   worker path, added explicit Hybrid Sample provenance, and retained concrete
   dispatch/artifact evidence so proxy qualification cannot be reported as live.
