@@ -23,6 +23,12 @@ from phase18_contract import (
 )
 from phase18_production_plan import ElementProductionPlan
 from presentation_workflow import SampleArtifact
+from presentation_layout_grammar import (
+    DEFAULT_LAYOUT_GRAMMAR,
+    SLIDE_HEIGHT_16_9,
+    SLIDE_WIDTH_16_9,
+    suggested_font_size,
+)
 
 
 ERROR_HYBRID_PPTX_INVALID = "PHASE18_HYBRID_PPTX_INVALID"
@@ -36,19 +42,65 @@ class HybridPptxError(Exception):
 
 @dataclass(frozen=True)
 class TextStyle:
-    font_name: str = "Arial"
-    font_size: float = 20.0
+    font_name: str = "Aptos"
+    east_asian_font_name: str = "Microsoft JhengHei"
+    font_size: float = 17.0
     bold: bool = False
     color: str = "000000"
     alignment: str = "left"
+    vertical_alignment: str = "top"
+    line_spacing: float = 1.10
+    space_after: float = 4.0
+    margin_left: float = 0.04
+    margin_right: float = 0.04
+    margin_top: float = 0.02
+    margin_bottom: float = 0.02
 
     def __post_init__(self) -> None:
-        if not isinstance(self.font_name, str) or not self.font_name.strip() or self.font_size <= 0:
+        if (
+            not isinstance(self.font_name, str) or not self.font_name.strip()
+            or not isinstance(self.east_asian_font_name, str) or not self.east_asian_font_name.strip()
+            or self.font_size <= 0
+        ):
             raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "text style is invalid")
         if len(self.color) != 6 or any(char not in "0123456789ABCDEFabcdef" for char in self.color):
             raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "text color must be six hex digits")
         if self.alignment not in {"left", "center", "right"}:
             raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "text alignment is invalid")
+        if self.vertical_alignment not in {"top", "middle", "bottom"}:
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "text vertical alignment is invalid")
+        if self.line_spacing <= 0 or self.space_after < 0:
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "text spacing is invalid")
+        margins = (self.margin_left, self.margin_right, self.margin_top, self.margin_bottom)
+        if any(not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0 for value in margins):
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "text margins are invalid")
+
+
+def text_style_for_role(role, *, language: str = "zh-TW", color: str = "172033") -> TextStyle:
+    """Return a restrained native typography default based on semantic role."""
+    from phase18_production_plan import ElementRole
+
+    if not isinstance(role, ElementRole):
+        raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "element role is required for typography")
+    size = suggested_font_size(role)
+    bold = role in {ElementRole.TITLE, ElementRole.KPI, ElementRole.PRICE, ElementRole.CTA, ElementRole.NAME}
+    alignment = "center" if role in {ElementRole.KPI, ElementRole.PRICE} else "left"
+    vertical = "middle" if role in {ElementRole.KPI, ElementRole.PRICE, ElementRole.CTA} else "top"
+    return TextStyle(
+        font_name="Aptos Display" if role is ElementRole.TITLE else "Aptos",
+        east_asian_font_name="Microsoft JhengHei",
+        font_size=size,
+        bold=bold,
+        color=color,
+        alignment=alignment,
+        vertical_alignment=vertical,
+        line_spacing=1.02 if role in {ElementRole.TITLE, ElementRole.KPI, ElementRole.PRICE} else 1.12,
+        space_after=0 if role in {ElementRole.TITLE, ElementRole.KPI, ElementRole.PRICE} else 4,
+        margin_left=0,
+        margin_right=0,
+        margin_top=0,
+        margin_bottom=0,
+    )
 
 
 @dataclass(frozen=True)
@@ -56,6 +108,7 @@ class ShapeStyle:
     kind: str = "rectangle"
     fill_color: str = "FFFFFF"
     line_color: str = "FFFFFF"
+    line_width: float = 0.75
 
     def __post_init__(self) -> None:
         if self.kind not in {"rectangle", "rounded_rectangle", "divider", "right_arrow"}:
@@ -63,6 +116,53 @@ class ShapeStyle:
         for color in (self.fill_color, self.line_color):
             if len(color) != 6 or any(char not in "0123456789ABCDEFabcdef" for char in color):
                 raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "shape color is invalid")
+        if self.line_width < 0:
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "shape line width is invalid")
+
+
+@dataclass(frozen=True)
+class ImageStyle:
+    crop_mode: str = "cover"
+    focal_x: float = 0.5
+    focal_y: float = 0.5
+    frame_color: str | None = None
+    frame_width: float = 0.0
+
+    def __post_init__(self) -> None:
+        if self.crop_mode not in {"cover", "contain", "stretch"}:
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "image crop mode is invalid")
+        if not 0 <= self.focal_x <= 1 or not 0 <= self.focal_y <= 1:
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "image focal point is invalid")
+        if self.frame_color is not None and (
+            len(self.frame_color) != 6
+            or any(char not in "0123456789ABCDEFabcdef" for char in self.frame_color)
+        ):
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "image frame color is invalid")
+        if self.frame_width < 0:
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "image frame width is invalid")
+
+
+@dataclass(frozen=True)
+class ChartStyle:
+    series_colors: tuple[str, ...] = ("246BFD", "10A37F", "F59E0B", "7C3AED")
+    text_color: str = "334155"
+    show_legend: bool | None = None
+    show_gridlines: bool = False
+    show_data_labels: bool = True
+    number_format: str = "0.#"
+    gap_width: int = 65
+
+    def __post_init__(self) -> None:
+        colors = (*self.series_colors, self.text_color)
+        if not self.series_colors or any(
+            len(color) != 6 or any(char not in "0123456789ABCDEFabcdef" for char in color)
+            for color in colors
+        ):
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "chart colors are invalid")
+        if not isinstance(self.show_gridlines, bool) or not isinstance(self.show_data_labels, bool):
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "chart visibility settings are invalid")
+        if type(self.gap_width) is not int or not 0 <= self.gap_width <= 500:
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "chart gap width must be between 0 and 500")
 
 
 @dataclass(frozen=True)
@@ -103,13 +203,15 @@ class HybridElement:
     image_path: str | None = None
     vector_fallback_path: str | None = None
     chart: ChartSpec | None = None
+    image_style: ImageStyle = ImageStyle()
+    chart_style: ChartStyle = ChartStyle()
 
     def __post_init__(self) -> None:
         if not isinstance(self.plan, ElementProductionPlan) or not isinstance(self.box, ElementBox):
             raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "approved element plan and box are required")
         strategy = self.plan.contract.strategy
-        if strategy is ProductionStrategy.NATIVE_TEXT and not isinstance(self.text_style, TextStyle):
-            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "native text requires text style")
+        if strategy is ProductionStrategy.NATIVE_TEXT and self.text_style is None:
+            object.__setattr__(self, "text_style", text_style_for_role(self.plan.role))
         if strategy is ProductionStrategy.NATIVE_SHAPE and not isinstance(self.shape_style, ShapeStyle):
             raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "native shape requires shape style")
         if strategy in {ProductionStrategy.NATIVE_IMAGE, ProductionStrategy.RASTER_REGION, ProductionStrategy.LOCKED_VISUAL, ProductionStrategy.FULL_RASTER_SLIDE}:
@@ -119,6 +221,8 @@ class HybridElement:
             raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "vector strategy requires a vector source")
         if strategy is ProductionStrategy.NATIVE_CHART and not isinstance(self.chart, ChartSpec):
             raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "native chart requires structured data")
+        if not isinstance(self.image_style, ImageStyle) or not isinstance(self.chart_style, ChartStyle):
+            raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "visual styling contract is invalid")
 
 
 @dataclass(frozen=True)
@@ -145,6 +249,12 @@ class HybridSlide:
             raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "background color is invalid")
         if not isinstance(self.plate_mode, PlateProvenanceMode):
             raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "plate mode is invalid")
+        for item in elements:
+            if not DEFAULT_LAYOUT_GRAMMAR.inside_slide(item.box):
+                raise HybridPptxError(
+                    ERROR_HYBRID_PPTX_INVALID,
+                    f"element '{item.plan.element_id}' extends outside the canonical 10 x 5.625 inch slide",
+                )
         zones = tuple(self.reserved_zones)
         if any(not isinstance(z, ReservedEditableZone) for z in zones):
             raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "reserved zones are invalid")
@@ -197,11 +307,48 @@ def _set_object_name(shape, element: HybridElement, suffix: str = "") -> None:
     shape.name = f"agy:{element.plan.element_id}{suffix}"
 
 
+def _set_east_asian_font(run, typeface: str) -> None:
+    from pptx.oxml.ns import qn
+    from pptx.oxml.xmlchemy import OxmlElement
+
+    properties = run._r.get_or_add_rPr()
+    existing = properties.find(qn("a:ea"))
+    if existing is None:
+        existing = OxmlElement("a:ea")
+        properties.append(existing)
+    existing.set("typeface", typeface)
+
+
+def _add_picture_with_treatment(slide, element: HybridElement, source: str, geometry):
+    from PIL import Image
+    from pptx.dml.color import RGBColor
+    from pptx.util import Pt
+
+    style = element.image_style
+    shape = slide.shapes.add_picture(source, *geometry)
+    if style.crop_mode == "cover":
+        with Image.open(source) as image:
+            source_ratio = image.width / image.height
+        target_ratio = element.box.width / element.box.height
+        if source_ratio > target_ratio:
+            crop = 1 - target_ratio / source_ratio
+            shape.crop_left = crop * style.focal_x
+            shape.crop_right = crop * (1 - style.focal_x)
+        elif source_ratio < target_ratio:
+            crop = 1 - source_ratio / target_ratio
+            shape.crop_top = crop * style.focal_y
+            shape.crop_bottom = crop * (1 - style.focal_y)
+    if style.frame_color and style.frame_width > 0:
+        shape.line.color.rgb = RGBColor.from_string(style.frame_color)
+        shape.line.width = Pt(style.frame_width)
+    return shape
+
+
 def _add_element(slide, element: HybridElement) -> None:
     from pptx.chart.data import ChartData
     from pptx.dml.color import RGBColor
     from pptx.enum.chart import XL_CHART_TYPE
-    from pptx.enum.text import PP_ALIGN
+    from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
     from pptx.util import Inches, Pt
 
     box = element.box
@@ -211,6 +358,16 @@ def _add_element(slide, element: HybridElement) -> None:
         shape = slide.shapes.add_textbox(*geometry)
         frame = shape.text_frame
         frame.clear()
+        frame.word_wrap = True
+        frame.margin_left = Inches(element.text_style.margin_left)
+        frame.margin_right = Inches(element.text_style.margin_right)
+        frame.margin_top = Inches(element.text_style.margin_top)
+        frame.margin_bottom = Inches(element.text_style.margin_bottom)
+        frame.vertical_anchor = {
+            "top": MSO_ANCHOR.TOP,
+            "middle": MSO_ANCHOR.MIDDLE,
+            "bottom": MSO_ANCHOR.BOTTOM,
+        }[element.text_style.vertical_alignment]
         lines = element.plan.approved_content.splitlines() or [element.plan.approved_content]
         frame.paragraphs[0].text = lines[0]
         for line in lines[1:]:
@@ -218,8 +375,11 @@ def _add_element(slide, element: HybridElement) -> None:
         alignments = {"left": PP_ALIGN.LEFT, "center": PP_ALIGN.CENTER, "right": PP_ALIGN.RIGHT}
         for paragraph in frame.paragraphs:
             paragraph.alignment = alignments[element.text_style.alignment]
+            paragraph.line_spacing = element.text_style.line_spacing
+            paragraph.space_after = Pt(element.text_style.space_after)
             for run in paragraph.runs:
                 run.font.name = element.text_style.font_name
+                _set_east_asian_font(run, element.text_style.east_asian_font_name)
                 run.font.size = Pt(element.text_style.font_size)
                 run.font.bold = element.text_style.bold
                 run.font.color.rgb = RGBColor.from_string(element.text_style.color)
@@ -229,6 +389,7 @@ def _add_element(slide, element: HybridElement) -> None:
         shape.fill.solid()
         shape.fill.fore_color.rgb = RGBColor.from_string(element.shape_style.fill_color)
         shape.line.color.rgb = RGBColor.from_string(element.shape_style.line_color)
+        shape.line.width = Pt(element.shape_style.line_width)
         _set_object_name(shape, element)
     elif strategy is ProductionStrategy.NATIVE_CHART:
         data = ChartData()
@@ -241,7 +402,37 @@ def _add_element(slide, element: HybridElement) -> None:
             "line": XL_CHART_TYPE.LINE,
         }
         graphic_frame = slide.shapes.add_chart(chart_types[element.chart.kind], *geometry, data)
-        graphic_frame.chart.has_legend = len(element.chart.series) > 1
+        chart = graphic_frame.chart
+        style = element.chart_style
+        chart.has_title = False
+        chart.has_legend = style.show_legend if style.show_legend is not None else len(element.chart.series) > 1
+        if chart.has_legend:
+            chart.legend.font.size = Pt(11)
+            chart.legend.font.color.rgb = RGBColor.from_string(style.text_color)
+        if chart.value_axis is not None:
+            chart.value_axis.has_major_gridlines = style.show_gridlines
+            chart.value_axis.tick_labels.font.size = Pt(10)
+            chart.value_axis.tick_labels.font.color.rgb = RGBColor.from_string(style.text_color)
+            chart.value_axis.tick_labels.number_format = style.number_format
+        if chart.category_axis is not None:
+            chart.category_axis.tick_labels.font.size = Pt(10)
+            chart.category_axis.tick_labels.font.color.rgb = RGBColor.from_string(style.text_color)
+        if style.show_data_labels:
+            plot = chart.plots[0]
+            if hasattr(plot, "gap_width"):
+                plot.gap_width = style.gap_width
+            plot.has_data_labels = True
+            plot.data_labels.font.size = Pt(10)
+            plot.data_labels.font.bold = True
+            plot.data_labels.font.color.rgb = RGBColor.from_string(style.text_color)
+            plot.data_labels.number_format = style.number_format
+        elif hasattr(chart.plots[0], "gap_width"):
+            chart.plots[0].gap_width = style.gap_width
+        for index, series in enumerate(chart.series):
+            color = style.series_colors[index % len(style.series_colors)]
+            series.format.fill.solid()
+            series.format.fill.fore_color.rgb = RGBColor.from_string(color)
+            series.format.line.color.rgb = RGBColor.from_string(color)
         _set_object_name(graphic_frame, element)
     else:
         source = element.image_path
@@ -257,7 +448,12 @@ def _add_element(slide, element: HybridElement) -> None:
                     raise HybridPptxError(ERROR_HYBRID_PPTX_INVALID, "vector source needs a compatible raster fallback") from exc
                 source = fallback
                 suffix = ":vector-fallback"
-        shape = slide.shapes.add_picture(source, *geometry)
+        if element.image_style.crop_mode == "contain":
+            shape = slide.shapes.add_picture(source, geometry[0], geometry[1], width=geometry[2])
+        elif element.image_style.crop_mode == "stretch":
+            shape = slide.shapes.add_picture(source, *geometry)
+        else:
+            shape = _add_picture_with_treatment(slide, element, source, geometry)
         _set_object_name(shape, element, suffix)
 
 
@@ -280,7 +476,7 @@ def create_hybrid_presentation(
 
         prs = Presentation()
         if aspect_ratio == "16:9":
-            prs.slide_width, prs.slide_height = Inches(10), Inches(5.625)
+            prs.slide_width, prs.slide_height = Inches(SLIDE_WIDTH_16_9), Inches(SLIDE_HEIGHT_16_9)
         elif aspect_ratio == "4:3":
             prs.slide_width, prs.slide_height = Inches(10), Inches(7.5)
         else:
@@ -329,6 +525,8 @@ def render_hybrid_sample_preview(
                 "text_style": asdict(element.text_style) if element.text_style else None,
                 "shape_style": asdict(element.shape_style) if element.shape_style else None,
                 "chart": asdict(element.chart) if element.chart else None,
+                "image_style": asdict(element.image_style),
+                "chart_style": asdict(element.chart_style),
                 "image_sha256": (
                     hashlib.sha256(Path(element.image_path).read_bytes()).hexdigest()
                     if element.image_path and Path(element.image_path).is_file()
@@ -355,6 +553,7 @@ def render_hybrid_sample_preview(
 
 __all__ = [
     "ERROR_HYBRID_PPTX_INVALID", "ChartSeries", "ChartSpec", "ElementBox",
-    "HybridElement", "HybridPptxError", "HybridSlide", "ShapeStyle", "TextStyle",
+    "ChartStyle", "HybridElement", "HybridPptxError", "HybridSlide", "ImageStyle",
+    "ShapeStyle", "TextStyle", "text_style_for_role",
     "create_hybrid_presentation", "render_hybrid_sample_preview",
 ]

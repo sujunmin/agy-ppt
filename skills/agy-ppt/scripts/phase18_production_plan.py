@@ -139,14 +139,26 @@ def _text_contract(item: ElementPlanningInput, profile: DeliveryProfile) -> tupl
             editability, ProductionStrategy.LOCKED_VISUAL, item.font_portability,
             delivery_profile=profile,
         ), PortabilityRisk.HIGH
-    max_chars = 36 if item.role in {ElementRole.TITLE, ElementRole.NAME, ElementRole.JOB_TITLE} else 180
+    envelope_policy = {
+        ElementRole.KPI: (16, 1, 24, 48),
+        ElementRole.PRICE: (20, 1, 22, 44),
+        ElementRole.DATE: (32, 2, 12, 24),
+        ElementRole.CTA: (40, 2, 14, 28),
+        ElementRole.NAME: (36, 2, 14, 40),
+        ElementRole.JOB_TITLE: (48, 2, 12, 28),
+        ElementRole.CONTACT: (96, 4, 10, 22),
+        ElementRole.TITLE: (48, 2, 18, 40),
+        ElementRole.TABLE: (240, 12, 9, 18),
+        ElementRole.BODY: (180, 8, 10, 24),
+    }
+    max_chars, max_lines, minimum_font_size, maximum_font_size = envelope_policy[item.role]
     envelope = EditabilityEnvelope(
         expected_min_characters=1,
         expected_max_characters=max_chars,
         expected_min_lines=1,
-        expected_max_lines=2 if max_chars == 36 else 8,
-        minimum_font_size=14 if max_chars == 36 else 10,
-        maximum_font_size=40 if max_chars == 36 else 24,
+        expected_max_lines=max_lines,
+        minimum_font_size=minimum_font_size,
+        maximum_font_size=maximum_font_size,
         shrink_policy=ShrinkPolicy.TO_MINIMUM,
         overflow_behavior=OverflowBehavior.FLAG_FOR_REVIEW,
         layout_tolerance_points=2.0,

@@ -56,6 +56,7 @@ from phase18_roundtrip_compatibility import (  # noqa: E402
     simulate_save_reopen, simulate_title_edit, verify_evidence_integrity_guard, verify_fallback_font,
     verify_table_boundary, verify_typography,
 )
+from presentation_layout_grammar import DEFAULT_LAYOUT_GRAMMAR  # noqa: E402
 
 
 class Phase18IntegratedE2ETests(unittest.TestCase):
@@ -101,8 +102,8 @@ class Phase18IntegratedE2ETests(unittest.TestCase):
     def test_scenario_02_photo_plus_headline(self):
         plan_hl = self._make_plan("headline", ProductionStrategy.NATIVE_TEXT, "Next-Gen AI Platform", ElementRole.TITLE)
         plan_photo = self._make_plan("hero_photo", ProductionStrategy.NATIVE_IMAGE, "photo", ElementRole.PHOTO, editability=EditabilityClass.REPLACEABLE)
-        elem_hl = HybridElement(plan_hl, ElementBox(1, 0.8, 10, 1.2), text_style=TextStyle(font_size=32.0, bold=True))
-        elem_photo = HybridElement(plan_photo, ElementBox(1, 2.2, 6, 4.5), image_path=str(self.img1))
+        elem_hl = HybridElement(plan_hl, DEFAULT_LAYOUT_GRAMMAR.title_box(), text_style=TextStyle(font_size=30.0, bold=True))
+        elem_photo = HybridElement(plan_photo, ElementBox(0.6, 1.45, 5.6, 3.65), image_path=str(self.img1))
         deck_path = self._create_deck([elem_hl, elem_photo])
 
         deck = Presentation(str(deck_path))
@@ -112,11 +113,12 @@ class Phase18IntegratedE2ETests(unittest.TestCase):
     # Scenario 3: Three-card business slide
     def test_scenario_03_three_card_business_slide(self):
         elements = []
-        for i in range(3):
+        for i, card in enumerate(DEFAULT_LAYOUT_GRAMMAR.columns(3)):
             shape_plan = self._make_plan(f"card_shape_{i+1}", ProductionStrategy.NATIVE_SHAPE, f"card_{i+1}", ElementRole.SIMPLE_SHAPE)
             text_plan = self._make_plan(f"card_text_{i+1}", ProductionStrategy.NATIVE_TEXT, f"Feature Pillar {i+1}", ElementRole.BODY)
-            elements.append(HybridElement(shape_plan, ElementBox(1.0 + i * 3.8, 2.0, 3.4, 4.0), shape_style=ShapeStyle("rounded_rectangle", "E8EEF5", "335577")))
-            elements.append(HybridElement(text_plan, ElementBox(1.2 + i * 3.8, 2.2, 3.0, 1.0), text_style=TextStyle(font_size=18.0, bold=True)))
+            elements.append(HybridElement(shape_plan, card, shape_style=ShapeStyle("rounded_rectangle", "E8EEF5", "D6DFEA")))
+            content_box = DEFAULT_LAYOUT_GRAMMAR.card_content_box(card)
+            elements.append(HybridElement(text_plan, ElementBox(content_box.left, content_box.top, content_box.width, 0.7), text_style=TextStyle(font_size=18.0, bold=True)))
 
         deck_path = self._create_deck(elements)
         deck = Presentation(str(deck_path))
@@ -129,7 +131,7 @@ class Phase18IntegratedE2ETests(unittest.TestCase):
     def test_scenario_04_structured_chart(self):
         chart_plan = self._make_plan("kpi_chart", ProductionStrategy.NATIVE_CHART, "chart", ElementRole.CHART)
         chart_spec = ChartSpec(("2023", "2024", "2025"), (ChartSeries("Growth", (10.0, 14.0, 18.0)),))
-        elem_chart = HybridElement(chart_plan, ElementBox(1.0, 1.5, 8.0, 5.0), chart=chart_spec)
+        elem_chart = HybridElement(chart_plan, DEFAULT_LAYOUT_GRAMMAR.content_box(), chart=chart_spec)
         deck_path = self._create_deck([elem_chart])
 
         deck = Presentation(str(deck_path))
@@ -139,7 +141,7 @@ class Phase18IntegratedE2ETests(unittest.TestCase):
     # Scenario 5: Complex artistic slide
     def test_scenario_05_complex_artistic_slide(self):
         art_plan = self._make_plan("hero_art", ProductionStrategy.LOCKED_VISUAL, "hero art", ElementRole.HERO_ARTWORK, editability=EditabilityClass.LOCKED_REQUIRED)
-        elem_art = HybridElement(art_plan, ElementBox(0, 0, 13.333, 7.5), image_path=str(self.img1))
+        elem_art = HybridElement(art_plan, ElementBox(0, 0, 10, 5.625), image_path=str(self.img1))
         deck_path = self._create_deck([elem_art])
 
         deck = Presentation(str(deck_path))
@@ -152,7 +154,7 @@ class Phase18IntegratedE2ETests(unittest.TestCase):
         finding = verify_typography(text, language="zh-TW", font_name="Microsoft JhengHei")
         self.assertEqual(finding.outcome, RoundTripOutcome.PASS)
         plan_zh = self._make_plan("kpi_zh", ProductionStrategy.NATIVE_TEXT, text, ElementRole.KPI)
-        elem_zh = HybridElement(plan_zh, ElementBox(1, 1, 10, 2), text_style=TextStyle(font_name="Microsoft JhengHei", font_size=20.0))
+        elem_zh = HybridElement(plan_zh, ElementBox(0.6, 1, 8.8, 2), text_style=TextStyle(font_name="Aptos", east_asian_font_name="Microsoft JhengHei", font_size=20.0))
         deck_path = self._create_deck([elem_zh])
         deck = Presentation(str(deck_path))
         self.assertIn("18.5%", deck.slides[0].shapes[0].text)
@@ -163,7 +165,7 @@ class Phase18IntegratedE2ETests(unittest.TestCase):
         finding = verify_typography(text, language="en", font_name="Arial")
         self.assertEqual(finding.outcome, RoundTripOutcome.PASS)
         plan_en = self._make_plan("headline_en", ProductionStrategy.NATIVE_TEXT, text, ElementRole.TITLE)
-        elem_en = HybridElement(plan_en, ElementBox(1, 1, 10, 1.5), text_style=TextStyle(font_name="Arial", font_size=24.0))
+        elem_en = HybridElement(plan_en, ElementBox(0.6, 1, 8.8, 1.5), text_style=TextStyle(font_name="Aptos", font_size=24.0))
         deck_path = self._create_deck([elem_en])
         deck = Presentation(str(deck_path))
         self.assertEqual(deck.slides[0].shapes[0].text, text)
@@ -192,7 +194,7 @@ class Phase18IntegratedE2ETests(unittest.TestCase):
     # Scenario 10: Logo replacement
     def test_scenario_10_logo_replacement(self):
         plan_l = self._make_plan("logo", ProductionStrategy.NATIVE_IMAGE, "logo", ElementRole.LOGO, editability=EditabilityClass.REPLACEABLE)
-        elem_l = HybridElement(plan_l, ElementBox(10.5, 0.5, 2.0, 1.0), image_path=str(self.img1))
+        elem_l = HybridElement(plan_l, ElementBox(8.2, 0.45, 1.2, 0.65), image_path=str(self.img1))
         deck_path = self._create_deck([elem_l])
 
         finding = simulate_logo_replacement(deck_path, "logo", self.img2)

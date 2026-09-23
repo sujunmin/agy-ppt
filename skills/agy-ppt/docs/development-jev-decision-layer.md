@@ -78,3 +78,32 @@ human acceptance 通過；human rejection 一律覆蓋任何 automated classific
 
 Repository runtime 與 CI 對 Jev 的 dependency 為 **NONE**。TypeSafe credential 只存在於開發環境，
 不得 commit。
+
+## 6. Q2 — Layout & Typography Grammar 實驗紀錄
+
+2026-09-23 以 5 頁 synthetic Hybrid PPTX 在實際 macOS Microsoft PowerPoint 輸出 PDF，Codex 先將
+可觀察的 render evidence 整理為 structured state，再交由 TypeSafe `jev-latest` 執行 11 個
+bounded Choice judgments。TypeSafe HTTP API 的 state 為 JSON/text；Jev 未直接收取 pixel image，
+因此最終視覺根因仍由 Codex 根據 PowerPoint render 確認。Raw service response 不進 repository。
+
+| Decision ID | Schema / fixture | Jev result | Confidence | Codex disposition | Repository capture |
+|---|---|---:|---:|---|---|
+| Q2-JEV-001 | visual defect — cover v1 | REFLOW | 0.99 | 採用；孤字換行是 dominant defect | mixed-CJK line estimator + tests |
+| Q2-JEV-002 | `ACCEPT/WARNING/REPAIR/BLOCK` — cover v1 | REPAIR | 0.67 | REVIEW_REQUIRED；Codex 檢視實際 render 後確認 REPAIR | envelope line findings + fixture regression |
+| Q2-JEV-003 | 同上 — repaired cover | ACCEPT | 0.85 | 採用；仍不等於 human acceptance | PowerPoint render evidence + tests |
+| Q2-JEV-004 | visual defect — chart v1 | CHART | 1.00 | 採用；百分比格式與預設標題為根因 | explicit chart style + tests |
+| Q2-JEV-005 | severity — chart v1 | BLOCK | 1.00 | 採用；12% 顯示為 1200% 屬 content-integrity block | exact chart data/format fixture |
+| Q2-JEV-006 | severity — repaired chart | ACCEPT | 0.86 | 採用；12/14/18% 輸出已確認 | no title/grid/legend + labels/gap tests |
+| Q2-JEV-007 | CJK outcome — three-card slide | GOOD | 1.00 | 採用為 representative positive fixture | grid/padding/hierarchy tests |
+| Q2-JEV-008 | native decision — ordinary title | NATIVE_WITH_ENVELOPE | 0.98 | 採用；限定 2 lines / 48 chars / font range | production-plan envelope tests |
+| Q2-JEV-009 | native decision — KPI | NATIVE_WITH_ENVELOPE | 0.99 | 採用；限定 1 line / 16 chars / prominent font | production-plan envelope tests |
+| Q2-JEV-010 | native decision — artistic headline | LOCKED_REQUIRED | 0.99 | 採用；不用 native coverage 降級藝術字 | existing locked policy + regression |
+| Q2-JEV-011 | native decision — mixed CJK display | LOCKED_PREFERRED | 0.81 | REVIEW_REQUIRED；Codex 依未知 client font risk 確認 | FONT_CRITICAL locked policy + regression |
+
+統計：11 fixtures；9 high-confidence；2 review-required；0 low-confidence/escalated；0 unresolved。
+兩個 review-required 案例均由 Codex 檢視實際 PowerPoint render 與 Phase 18 priority order 後完成處置。
+
+Q2 的 deterministic capture 包含：10 × 5.625 inch canonical canvas、outer margins/columns/card gaps、
+CJK/Latin native typography pairing、role-based hierarchy、mixed-script line estimation、editability-envelope findings、
+cover crop、非預設 PowerPoint chart styling、以及只能由 exact-artifact human review 通過的
+`HUMAN_PRESENTATION_QUALITY` contract。Jev runtime dependency 與 CI dependency 仍均為 **NONE**。
