@@ -344,7 +344,11 @@ Internal labels、risk enums、envelopes 與 QA constants 不預設顯示。
 
 ## 15. Development-time Jev Policy
 
-Jev 可以是 Codex 的 optional **development-time engineering decision tool**，但不是 agy-ppt runtime。
+Jev 是 Codex 底下的 first-class **development-time bounded engineering decision layer**，但不是
+agy-ppt runtime。固定規則先由 deterministic code 判斷；bounded、repeated、typed 且 semantically
+non-trivial 的 engineering classification 預設交給 Jev；低信心、衝突、novel 或 open-ended 問題再由
+Codex 完整推理。完整 confidence、decision-record、fallback 與 authority policy 見
+[Jev 開發決策層](development-jev-decision-layer.md)。
 適用條件：
 
 - output space bounded and known；

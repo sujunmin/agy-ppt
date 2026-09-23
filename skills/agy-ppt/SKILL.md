@@ -121,7 +121,8 @@ Skill 不管理、不複製、不讀取、不轉傳 OAuth access token / refresh
 
 ```text
 AGY
-  -> codex_image_adapter.py
+  -> phase18_codex_worker.py（Hybrid/Clean Plate job；驗證並傳遞 Reserved Editable Zones）
+  -> codex_image_adapter.py（frozen image transport）
   -> Codex CLI          codex exec --json --skip-git-repo-check   (prompt 走 stdin)
   -> $imagegen
   -> built-in image_gen
@@ -146,6 +147,13 @@ IMAGE_BACKEND_UNAVAILABLE
 `CODEX_AUTH_UNAVAILABLE`、`IMAGE_GENERATION_FAILED`、`IMAGE_ARTIFACT_NOT_FOUND`、
 `IMAGE_OUTPUT_INVALID`、`IMAGE_OUTPUT_PATH_CONFLICT`、`CODEX_TIMEOUT`）同樣交回 AGY，
 不自動 fallback 付費 API。細節見 `docs/codex-image-runtime.md`。
+
+Phase 18 Hybrid output 的 image job 必須經過 `scripts/phase18_codex_worker.py`。此 additive
+wrapper 不改寫 frozen adapter；它會在 dispatch 前 fail-closed 驗證 Clean Plate manifest，把
+Reserved Editable Zone 的 identity、座標、`CONTENT_FREE` exclusion、manifest SHA-256 與
+`COMPOSITE_CONFLICT` 行為放入 Codex worker prompt，並在結果中保留 dispatch/job/thread/artifact
+evidence。缺少或矛盾的 manifest 不得派工。普通非 Hybrid image job 仍可直接使用 frozen adapter。
+Jev 不在此 runtime path。
 
 ## 5. Kiro 呼叫原則
 
@@ -427,6 +435,7 @@ AGY 可以執行已存在的：
 
 - `scripts/assemble_ppt.py`
 - `scripts/prepare_slide_prompts.py`
+- `scripts/phase18_codex_worker.py`（Phase 18 Hybrid/Clean Plate image job）
 - `scripts/kiro_acp_bridge.py`
 - state / dispatch / result scripts
 - runtime bootstrap / validation helpers

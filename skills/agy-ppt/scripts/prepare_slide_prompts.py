@@ -21,6 +21,11 @@ from slide_run_state import (
     save_jobs,
     set_run_status,
 )
+from phase18_worker_contract import (
+    WorkerContractCompleteness,
+    audit_worker_contract,
+    render_reserved_zone_contract,
+)
 
 
 def _die(message: str) -> None:
@@ -256,10 +261,24 @@ def _build_prompt(
             "important labels, arrows, data, and relationships recognizable.\n"
         )
 
+    visual_plate_job = slide.get("visual_plate_job")
+    if visual_plate_job is not None:
+        audit = audit_worker_contract(visual_plate_job)
+        if audit.status is not WorkerContractCompleteness.COMPLETE:
+            _die(
+                f"Slide {number}: visual_plate_job is not dispatch-safe: "
+                + ", ".join(audit.findings)
+            )
+        prompt_parts.append(render_reserved_zone_contract(visual_plate_job) + "\n")
+
     prompt_parts.append(
         "## Universal Constraints\n"
-        "- The final image itself must contain the title and key points.\n"
-        "- Render Chinese text exactly and legibly; avoid garbled characters.\n"
+        + (
+            "- Render only locked plate content; reserved editable content is added later by the Hybrid PPTX assembler.\n"
+            if visual_plate_job is not None
+            else "- The final image itself must contain the title and key points.\n"
+        )
+        + "- Render Chinese text exactly and legibly; avoid garbled characters.\n"
         "- Keep the confirmed deck style consistent while varying layout by slide role.\n"
         "- No watermark, unrelated logo, or extra slide number.\n"
     )
@@ -433,6 +452,7 @@ def main() -> int:
             base_dir=spec_dir,
         )
         images = _job_images(slide, number=number, global_style_reference=slide_style_reference, base_dir=spec_dir)
+        visual_plate_job = slide.get("visual_plate_job")
         job = {
             "slide": number,
             "title": slide.get("title", f"Slide {number}"),
@@ -445,6 +465,8 @@ def main() -> int:
             "generation_contract": {
                 "must_use_selected_image_backend": True,
                 "must_match_sample_generation_method": bool(sample_generation_method),
+                "must_propagate_visual_plate_job": visual_plate_job is not None,
+                "must_preserve_reserved_editable_zones": visual_plate_job is not None,
                 "forbidden_final_image_methods": [
                     "local drawing/rendering scripts",
                     "Pillow-generated slides",
@@ -455,6 +477,13 @@ def main() -> int:
                 "must_return": ["backend_used", "selected_source", "qa_note"],
             },
         }
+        if visual_plate_job is not None:
+            audit = audit_worker_contract(visual_plate_job)
+            job["visual_plate_job"] = visual_plate_job
+            job["worker_contract"] = {
+                "completeness": audit.status.value,
+                "manifest_sha256": audit.manifest_hash,
+            }
         prompt_path = prompts_dir / f"slide_{number:02d}.json"
         if prompt_path.exists() and not args.force:
             _die(f"Slide job file already exists: {prompt_path} (use --force)")
