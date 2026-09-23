@@ -8,7 +8,9 @@ fall back to the explicitly supplied locked visual.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
+import json
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
@@ -20,6 +22,7 @@ from phase18_contract import (
     ReservedEditableZone,
 )
 from phase18_production_plan import ElementProductionPlan
+from presentation_workflow import SampleArtifact
 
 
 ERROR_HYBRID_PPTX_INVALID = "PHASE18_HYBRID_PPTX_INVALID"
@@ -308,12 +311,46 @@ def render_hybrid_sample_preview(
     output_path: str | Path,
     *,
     aspect_ratio: str = "16:9",
-) -> str:
+) -> SampleArtifact:
     """Render a deterministic hybrid sample preview artifact from a HybridSlide specification."""
     dest = Path(output_path)
     dest.parent.mkdir(parents=True, exist_ok=True)
     create_hybrid_presentation((slide,), str(dest), aspect_ratio=aspect_ratio)
-    return str(dest)
+    manifest = {
+        "slide_id": slide.slide_id,
+        "speaker_notes": slide.speaker_notes,
+        "background_color": slide.background_color,
+        "plate_mode": slide.plate_mode.value,
+        "reserved_zones": [zone.internal_dict() for zone in slide.reserved_zones],
+        "elements": [
+            {
+                "plan": element.plan.internal_dict(),
+                "box": element.box.internal_dict(),
+                "text_style": asdict(element.text_style) if element.text_style else None,
+                "shape_style": asdict(element.shape_style) if element.shape_style else None,
+                "chart": asdict(element.chart) if element.chart else None,
+                "image_sha256": (
+                    hashlib.sha256(Path(element.image_path).read_bytes()).hexdigest()
+                    if element.image_path and Path(element.image_path).is_file()
+                    else None
+                ),
+            }
+            for element in slide.elements
+        ],
+    }
+    manifest_hash = hashlib.sha256(
+        json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    preview_hash = hashlib.sha256(dest.read_bytes()).hexdigest()
+    return SampleArtifact(
+        artifact_ref=str(dest),
+        provenance={
+            "artifact_kind": "HYBRID_PREVIEW",
+            "artifact_ref": str(dest),
+            "hybrid_manifest_sha256": manifest_hash,
+            "rendered_preview_sha256": preview_hash,
+        },
+    )
 
 
 __all__ = [

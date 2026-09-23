@@ -49,6 +49,10 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Fixed
 
+- Wired Clean Plate and Reserved Editable Zone contracts into the live Codex
+  worker path, added explicit Hybrid Sample provenance, and retained concrete
+  dispatch/artifact evidence so proxy qualification cannot be reported as live.
+  (#67)
 - Added clean-plate visual background production and reserved editable zones to
   eliminate visual-fidelity composite defects including duplicate text ghosting,
   chart overlap, and photo duplication during ACTUAL_CLIENT PowerPoint delivery.
