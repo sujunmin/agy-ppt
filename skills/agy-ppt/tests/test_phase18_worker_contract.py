@@ -123,6 +123,17 @@ class WorkerContractTests(unittest.TestCase):
             ReservedZonePromptCompliance.CLEARLY_PROPAGATED,
         )
 
+    def test_prepared_prompt_forbids_semantic_headline_upgrades(self):
+        prompt = _build_prompt(
+            deck={"language": "Chinese", "style": {}},
+            slide={"number": 2, "title": "核心績效指標", "key_points": ["續約率"]},
+            number=2,
+            global_style_reference=None,
+            base_dir=Path("."),
+        )
+        self.assertIn("Preserve the approved title and key-point meaning exactly", prompt)
+        self.assertIn("Do not turn a topic label into a new factual assertion", prompt)
+
     def test_phase18_wrapper_appends_contract_when_caller_prompt_lacks_it(self):
         request = Phase18WorkerRequest.from_dict({
             "operation": "generate",

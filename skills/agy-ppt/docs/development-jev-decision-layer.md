@@ -107,3 +107,33 @@ Q2 的 deterministic capture 包含：10 × 5.625 inch canonical canvas、outer 
 CJK/Latin native typography pairing、role-based hierarchy、mixed-script line estimation、editability-envelope findings、
 cover crop、非預設 PowerPoint chart styling、以及只能由 exact-artifact human review 通過的
 `HUMAN_PRESENTATION_QUALITY` contract。Jev runtime dependency 與 CI dependency 仍均為 **NONE**。
+
+## 7. Q3 — Editorial / Content Quality Hardening 實驗紀錄
+
+2026-09-24 使用 17 個 repository-owned synthetic copy／narrative fixtures，透過 TypeSafe
+`jev-latest` 執行 bounded Choice judgments。Jev 只分類 expression、specificity、slide-quality 與
+narrative alignment；不判定來源真實性、不生成 evidence，也不改寫文案。Raw service response 不進
+repository。
+
+| Decision ID | Schema / fixture | Jev result | Confidence | Codex disposition | Repository capture |
+|---|---|---:|---:|---|---|
+| Q3-JEV-001 | headline — `核心績效指標` | LABEL_ONLY | 1.00 | 採用為 topic-label fixture | headline shape tests |
+| Q3-JEV-002 | supported renewal headline | ASSERTION_SUPPORTED | 0.94 | 採用；support 仍由 Phase 16 驗證 | evidence-preservation test |
+| Q3-JEV-003 | same assertion without evidence | ASSERTION_UNSUPPORTED | 0.99 | 採用為 fail-closed fixture | evidence-integrity block test |
+| Q3-JEV-004 | interrogative headline | QUESTION | 0.98 | 採用 | headline shape tests |
+| Q3-JEV-005 | decision headline | DECISION_FRAME | 0.96 | 採用 | headline shape tests |
+| Q3-JEV-006 | concrete next action | DECISION_FRAME | 0.59 | ESCALATE；Codex 依 imperative function 定為 ACTION_FRAME | action-role alignment test |
+| Q3-JEV-007–011 | generic/slogan/specific/actionable/evidence-poor copy | expected bounded labels | 0.97–1.00 | 採用；不轉成關鍵字 blacklist | contextual generic-copy tests |
+| Q3-JEV-012 | schema-fill slide | REPAIR | 0.95 | 採用 | deterministic preflight finding |
+| Q3-JEV-013 | specific evidence slide | PASS | 0.96 | 採用 | positive evidence fixture |
+| Q3-JEV-014 | unsupported numeric slide | BLOCK | 0.99 | 採用；由 Phase 16 validator 執行 | factual-drift regression |
+| Q3-JEV-015–016 | aligned / misaligned role-copy pairs | ALIGNED / MISALIGNED | 0.98 / 1.00 | 採用 | narrative-copy alignment tests |
+| Q3-JEV-017 | case body with label-only title | PARTIALLY_ALIGNED | 0.27 | ESCALATE；Codex 確認 body 合理但 headline 需 review | review-not-block regression |
+
+統計：17 fixtures；15 high-confidence；0 review-required；2 low-confidence/escalated；0 unresolved。
+兩個低信心結果都由 Codex 依完整 narrative context 處置，並固化成 deterministic regression。
+
+Q3 的 repository capture 是 additive `presentation_content_quality.py` preflight、Phase 16 evidence
+validation reuse、mode-aware density、role-copy alignment、worker semantic-preservation prompt，以及既有
+content-revision approval boundary。它不自動改寫 approved meaning，也不建立 runtime Jev dependency。
+Jev runtime dependency 與 CI dependency 仍均為 **NONE**。
