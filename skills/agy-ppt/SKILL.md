@@ -155,6 +155,14 @@ Reserved Editable Zone 的 identity、座標、`CONTENT_FREE` exclusion、manife
 evidence。缺少或矛盾的 manifest 不得派工。普通非 Hybrid image job 仍可直接使用 frozen adapter。
 Jev 不在此 runtime path。
 
+Hybrid Sample 與 final deck 的視覺資格必須以 `presentation_visual_qualification.py` 綁定 exact
+artifact：至少記錄 Raw Plate、實際 Hybrid Preview、以及實際 PowerPoint client render 的 SHA-256
+與 environment，並比較 Plate → Hybrid 與 Hybrid → client，定位品質損失發生在哪一層。Raw Plate
+不得冒充使用者核准的 Sample；使用者看到並核准的必須是 Hybrid Preview。Semantic/content difference
+永遠不能以 pixel drift 合理化，approved Sample hierarchy／composition 的 material degradation 也必須
+阻擋。Automated checks 與 Jev 最多只能產生 `REVIEW_REQUIRED`／`BLOCK`；只有使用者檢視同一個 final
+PPTX artifact 後，才能把 `HUMAN_PRESENTATION_QUALITY` 設為 `PASS`。
+
 ## 5. Kiro 呼叫原則
 
 Kiro custom agent 名稱：

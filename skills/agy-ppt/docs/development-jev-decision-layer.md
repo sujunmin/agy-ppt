@@ -137,3 +137,37 @@ Q3 的 repository capture 是 additive `presentation_content_quality.py` preflig
 validation reuse、mode-aware density、role-copy alignment、worker semantic-preservation prompt，以及既有
 content-revision approval boundary。它不自動改寫 approved meaning，也不建立 runtime Jev dependency。
 Jev runtime dependency 與 CI dependency 仍均為 **NONE**。
+
+## 8. Q4 — Visual Qualification 實驗紀錄
+
+2026-09-24 使用 12 個 synthetic exact-render observation fixtures，透過 TypeSafe `jev-latest`
+執行 18 個 bounded Choice judgments。Jev 分類 issue、severity、Plate → Hybrid degradation、
+Hybrid → client drift 與 native-vs-locked action；不直接通過 human quality，也不決定 release。
+
+| Fixture / schema | Jev result | Confidence | Codex disposition | Repository capture |
+|---|---:|---:|---|---|
+| harmless one-line wrap — severity / issue | ACCEPT / REFLOW | 0.92 / 0.99 | 採用 | bounded-drift tests |
+| evidence number changed — severity | BLOCK | 1.00 | 採用；semantic integrity 優先 | content-change block rule |
+| clipped core title — issue / severity | OVERFLOW / BLOCK | 1.00 / 0.32 | ESCALATE；Codex 依 core content obscured 判定 BLOCK | core-obscured rule |
+| 0.03-inch harmless shift | ACCEPT | 0.98 | 採用 | bounded-drift test |
+| crop removes subject — issue / severity | CROP / REPAIR | 1.00 / 0.44 | ESCALATE；非 evidence image 可修復，判定 REPAIR | crop repair test |
+| chart obscures headline — issue / severity | Z_ORDER / BLOCK | 1.00 / 0.99 | 採用 | core-overlap block test |
+| default chart degradation — issue / severity | CHART / REPAIR | 1.00 / 0.97 | 採用 | chart repair test |
+| slight brand-family color drift | ACCEPT | 0.77 | REVIEW_REQUIRED；Codex 確認 contrast/hierarchy 未變 | bounded-color test |
+| decorative icon displaces KPI hierarchy | HIERARCHY / BLOCK | 1.00 / 0.57 | ESCALATE；approved quality floor 優先 | hierarchy-floor block rule |
+| Plate → weak native reconstruction | MATERIAL_DEGRADATION | 0.98 | 採用 | stage-loss localization test |
+| Hybrid → harmless client wrap | MINOR_DRIFT | 0.70 | REVIEW_REQUIRED；Codex 確認無 overflow／meaning change | actual-client localization test |
+| font-critical artistic headline | LOCK | 1.00 | 採用；fidelity 優先於 native coverage | production fallback policy |
+
+統計：18 judgments；13 high-confidence；2 review-required；3 low-confidence/escalated；0 unresolved。
+所有 review／escalation 均由 Codex 依 Phase 18 priority、exact observation 與 approved Sample floor
+完成處置。採用結果已固化為 `presentation_visual_qualification.py`、exact hash/provenance chain、
+stage-loss localization、deterministic disposition rules 與 offline tests。Automated result 永遠不會把
+`HUMAN_PRESENTATION_QUALITY` 設成 PASS。Jev runtime dependency 與 CI dependency 仍均為 **NONE**。
+
+同日另以 5 頁 synthetic Hybrid deck 執行 macOS Microsoft PowerPoint `ACTUAL_CLIENT` export。
+一張 Hybrid Sample 與 final deck 對應頁的 144-DPI PowerPoint render 完全相同（相同 PNG SHA-256），
+因此沒有 Sample → final representation degradation。PowerPoint 在 export 時另加上 tenant/client policy
+標示「限閱」；原始 PPTX OOXML 不含該字串，故記為 external-client policy marking，不能冒充 renderer
+輸出，也不能由 repository 靜默移除。這項 actual-client observation 仍交由 exact-artifact human review
+決定是否可接受。

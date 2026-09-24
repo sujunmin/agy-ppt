@@ -49,6 +49,9 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Fixed
 
+- Added exact-artifact visual qualification across Raw Plate, Hybrid Preview,
+  and actual-client PowerPoint render stages, with quality-loss localization
+  and mandatory human acceptance of the final presentation artifact. (#70)
 - Added a deterministic presentation-content preflight for label-only headlines,
   generic schema-fill copy, density, repetition, narrative alignment, and
   evidence-bound factual drift; slide workers cannot silently upgrade approved
