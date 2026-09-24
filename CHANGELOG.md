@@ -49,6 +49,10 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Fixed
 
+- Added a deterministic presentation-content preflight for label-only headlines,
+  generic schema-fill copy, density, repetition, narrative alignment, and
+  evidence-bound factual drift; slide workers cannot silently upgrade approved
+  topic labels into unsupported factual assertions. (#69)
 - Hardened Hybrid PowerPoint layout and typography with canonical slide bounds,
   role-aware CJK/Latin styling, bounded title and KPI envelopes, intentional
   image crops, and non-default chart presentation; added an exact-artifact

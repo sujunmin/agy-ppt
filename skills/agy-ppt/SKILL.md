@@ -616,7 +616,12 @@ python3 scripts/acquire_source.py \
    沒有可用 provenance 就刪除、改成不帶事實主張的表達，或向使用者詢問；不得以「常識」補值。
 3. 在大綱核准前，以 `phase17_narrative.py` 的概念安排 deck thesis、narrative role、slide
    intent、takeaway、job-to-be-done、opening、closing 與 transitions。Narrative role 與 Phase 16
-   visual role 必須分離。
+   visual role 必須分離。接著必須以 `presentation_content_quality.py` 對準備呈現給使用者的實際
+   title/key points 做 content-quality preflight：辨認只有主題標籤而沒有觀點的 headline、重複且
+   空泛的 schema-fill copy、mode-aware density、重複標題，以及 narrative role 與實際文案錯位。
+   Label-only finding 不是全域禁令；cover、legal、technical、report 等情境由 AGY 依 audience 與
+   purpose 判斷。任何 assertion 仍必須先通過 Phase 16 evidence/provenance boundary；preflight 不得
+   自己認定 support，也不得自動改寫內容。
 4. 用 `phase17_visual_communication.py` 選擇最簡單且能服務 takeaway 的 information form，並記錄
    hierarchy 與 image purpose；不得改寫 Phase 16 evidence 或要求 renderer 判斷 evidence support。
 5. 用 `phase17_delivery.py` 依 narrative weight 規劃 Notes、transitions、rehearsal cues 與時間。
@@ -640,6 +645,13 @@ non-semantic cleanup 可安全調整；新增／移除／重排頁面、改 take
 Phase 17 的 typed findings 是給 AGY 的 review input；AGY 仍是唯一 semantic authority。任何
 外部 semantic classifier 都只能提供 narrow、confidence-gated finding，不得自動改動 evidence、
 approval state 或最終 readiness policy，也不得出現在 deterministic CI 的必跑路徑。
+
+在 outline 顯示前若 content-quality preflight 回報 `REVIEW_REQUIRED` 或 `BLOCK`，AGY 應先依原始
+request、audience、narrative intent 與 evidence 修整內容，再重新執行 deterministic preflight。
+Outline 核准後才發現需要改 headline、takeaway、claim 或 key point 時，屬 substantive WHAT change，
+必須走既有 content revision／outline reapproval；不得由 slide worker 靜默升級標題、補事實或重寫
+claim。`prepare_slide_prompts.py` 會再次明示 worker 只能保留已核准內容的語意，不能把 topic label
+自行變成 factual assertion。
 
 ## 10. 必讀檔案
 

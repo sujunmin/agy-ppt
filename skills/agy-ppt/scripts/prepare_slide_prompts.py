@@ -279,8 +279,9 @@ def _build_prompt(
             else "- The final image itself must contain the title and key points.\n"
         )
         + "- Render Chinese text exactly and legibly; avoid garbled characters.\n"
-        "- Keep the confirmed deck style consistent while varying layout by slide role.\n"
-        "- No watermark, unrelated logo, or extra slide number.\n"
+        + "- Preserve the approved title and key-point meaning exactly. Do not turn a topic label into a new factual assertion, invent supporting facts, or strengthen an approved claim.\n"
+        + "- Keep the confirmed deck style consistent while varying layout by slide role.\n"
+        + "- No watermark, unrelated logo, or extra slide number.\n"
     )
     return "\n".join(part for part in prompt_parts if part)
 
