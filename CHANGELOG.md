@@ -4,6 +4,8 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-22
+
 ### Added
 
 - Defined delivery fidelity, portability, and intelligent editability architecture
