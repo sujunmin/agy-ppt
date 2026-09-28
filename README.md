@@ -8,6 +8,8 @@
 
 `agy-ppt` 把文章、報告與來源文件轉成混合式 PowerPoint：以圖片保留視覺細節，並在適合時保留可編輯文字、原生圖表與可替換圖片。AGY 負責大綱、設計方向、內容與品質；專用 worker 產生視覺素材，最後組裝成含講稿的 `.pptx`。
 
+🌐 [官方網站](https://sujunmin.github.io/agy-ppt/) · 🎨 [範例](examples/README.md) · 🤝 [參與貢獻](CONTRIBUTING.md)
+
 ## Showcase
 
 | Dense Executive | Balanced Executive |
