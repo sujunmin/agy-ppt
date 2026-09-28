@@ -6,7 +6,16 @@
 
 **語言：** 繁體中文 | [English](README_en.md)
 
-`agy-ppt` 把文章、報告與來源文件轉成圖片式 PowerPoint。AGY 負責大綱、設計方向、內容與品質；專用 worker 產生單頁圖片，最後組裝成含講稿的 `.pptx`。
+`agy-ppt` 把文章、報告與來源文件轉成混合式 PowerPoint：以圖片保留視覺細節，並在適合時保留可編輯文字、原生圖表與可替換圖片。AGY 負責大綱、設計方向、內容與品質；專用 worker 產生視覺素材，最後組裝成含講稿的 `.pptx`。
+
+## Showcase
+
+| Dense Executive | Balanced Executive |
+| --- | --- |
+| ![Dense Executive：高資訊密度、圖表與不同角色卡片](examples/dense-executive/previews/slide-1.png) | ![Balanced Executive：平衡版面與海岸復育情境](examples/balanced-executive/previews/slide-1.png) |
+| 高密度敘事、結構化資訊卡、原生圖表與不同用途的可替換影像。 | 清楚層級、中度視覺密度與可編輯 PowerPoint 元件。 |
+
+兩種風格都保留可編輯文字、適用時的原生圖表，以及可替換圖片；並非只有單一版型。瀏覽[可重現範例](examples/README.md)以查看四張投影片預覽、prompt、大綱、風格設定與素材來源。
 
 ## 安裝
 

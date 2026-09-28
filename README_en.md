@@ -6,7 +6,16 @@ Grounded enough to trust. Edited enough to present. Built to deliver.
 
 **Language:** [繁體中文](README.md) | English
 
-`agy-ppt` turns articles, reports, and source documents into image-based PowerPoint decks. AGY owns the outline, design direction, content, and quality; specialized workers render individual slides before assembly into a `.pptx` with speaker notes.
+`agy-ppt` turns articles, reports, and source documents into hybrid PowerPoint decks: images preserve visual detail, while suitable text, native charts, and replaceable images remain editable. AGY owns the outline, design direction, content, and quality; specialized workers create visual assets before assembly into a `.pptx` with speaker notes.
+
+## Showcase
+
+| Dense Executive | Balanced Executive |
+| --- | --- |
+| ![Dense Executive: information-rich cards, chart, and purposeful imagery](examples/dense-executive/previews/slide-1.png) | ![Balanced Executive: measured layout and shoreline restoration context](examples/balanced-executive/previews/slide-1.png) |
+| High-density storytelling with structured modules, native charts, and replaceable images for distinct purposes. | Clear hierarchy, moderate visual density, and editable PowerPoint elements. |
+
+Both styles retain editable text, native charts where appropriate, and replaceable images; the product is not limited to one layout style. Explore the [reproducible examples](examples/README.md) for four-slide previews, prompts, outlines, style profiles, and asset provenance.
 
 ## Installation
 

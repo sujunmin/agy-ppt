@@ -1,0 +1,11 @@
+{
+  "name": "Balanced Executive",
+  "layout_density": "BALANCED",
+  "card_density": "MEDIUM",
+  "image_usage": "MEDIUM",
+  "semantic_density": "BALANCED",
+  "visual_direction": "Sea green, warm sand, and slate; clear headline hierarchy, one primary chart or image, and a few supporting modules.",
+  "editable_elements": ["headlines", "labels", "cards", "simple shapes", "native chart data", "recommendation text"],
+  "replaceable_elements": ["generated mark", "shoreline hero photo", "fieldwork photo"],
+  "default_profile": "Demonstrates the balanced behavior used when no denser style preference is requested."
+}
