@@ -82,6 +82,10 @@ AGY 始終是唯一的 orchestrator 與語意判斷者；OCR 與圖片 worker �
 
 開發者的完整測試與 release qualification 指令位於上述 CI／測試文件，不屬於一般使用者安裝流程。
 
+## 參與貢獻
+
+歡迎錯誤修正、文件、測試、簡報品質與版面改善、PowerPoint 相容性修正及新功能。小而聚焦的 PR 可直接提出；若會改變產品流程、AGY 語意權限、凍結契約或主要架構，請先開 issue／discussion。視覺變更必須檢查實際 render，單元測試通過本身不代表簡報品質已合格。詳見 [貢獻指南](CONTRIBUTING.md)。
+
 ## 專案狀態與授權
 
 Phase 15 OCR 與來源接地管線、Phase 16 有根據的簡報與編輯品質、Phase 17 簡報策略與實際呈現品質，以及 Phase 18 交付真實度、可攜性與智慧編輯能力 baseline 均已完成並凍結。採用原生文字、形狀、圖表與圖片物件的混合式 PowerPoint 輸出，在確保佐證事實不可竄改與已核准視覺品質的前提下，提供業務關鍵欄位可編輯性與圖片替換能力；不宣稱 100% 全原生編輯、跨客戶端無縫相容或字型普遍可攜。Linux x86_64 是主要 production target，但正式部署仍需驗證 hard isolation；macOS 僅供開發/API 驗證，Windows 尚未通過 production-security qualification。OCR JSON schemas 仍為 deferred。
