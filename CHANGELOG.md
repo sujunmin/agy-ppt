@@ -6,6 +6,9 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Added
 
+- Added a bilingual GitHub Pages product website with public presentation
+  showcases, accessible Dense and Balanced slide carousels, workflow,
+  editability, quick-start, and open-source contribution guidance. (#74)
 - Added a public presentation showcase with reproducible Dense Executive and
   Balanced Executive examples, including PowerPoint-rendered previews, prompts,
   outlines, style profiles, and asset provenance. (#73)
