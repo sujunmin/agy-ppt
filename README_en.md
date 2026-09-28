@@ -82,6 +82,10 @@ Multi-frame TIFF is rejected explicitly. OCR quality depends on the source, prov
 
 Full developer test and release-qualification commands remain in the linked CI/testing documentation and are outside the normal user installation path.
 
+## Contributing
+
+Bug fixes, documentation, tests, presentation-quality and layout improvements, PowerPoint compatibility fixes, and new capabilities are welcome. Small focused PRs may be submitted directly; please open an issue or discussion first for changes to the product workflow, AGY semantic authority, frozen contracts, or major architecture. Visual changes must be reviewed through rendered output—passing unit tests alone does not establish presentation quality. See the [contribution guide](CONTRIBUTING.md).
+
 ## Project Status and License
 
 The Phase 15 OCR/source-grounding pipeline, Phase 16 grounded-presentation and editorial-quality baseline, Phase 17 presentation-intelligence and delivery-quality baseline, and Phase 18 delivery-fidelity, portability, and intelligent-editability baseline are complete and frozen. Phase 18 produces hybrid PowerPoint presentations combining native text, shapes, charts, and replaceable images while strictly protecting evidence integrity and approved visual quality, providing practical editability for business-critical fields without claiming 100% native coverage, universal Office compatibility, perfect pixel equality, or universal font portability. Linux x86_64 is the primary production target, with hard-isolation validation still required in the deployment environment. macOS is development/API qualified; Windows is not production-security qualified. OCR JSON schemas remain deferred.
