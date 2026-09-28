@@ -8,6 +8,8 @@ Grounded enough to trust. Edited enough to present. Built to deliver.
 
 `agy-ppt` turns articles, reports, and source documents into hybrid PowerPoint decks: images preserve visual detail, while suitable text, native charts, and replaceable images remain editable. AGY owns the outline, design direction, content, and quality; specialized workers create visual assets before assembly into a `.pptx` with speaker notes.
 
+🌐 [Website](https://sujunmin.github.io/agy-ppt/) · 🎨 [Examples](examples/README.md) · 🤝 [Contributing](CONTRIBUTING.md)
+
 ## Showcase
 
 | Dense Executive | Balanced Executive |

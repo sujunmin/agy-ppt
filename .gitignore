@@ -81,6 +81,9 @@ ENV/
 !examples/**/*.jpg
 !examples/**/*.jpeg
 
+# Generated GitHub Pages artifact
+/website/_site/
+
 # Test outputs
 /tests/
 test_output/
