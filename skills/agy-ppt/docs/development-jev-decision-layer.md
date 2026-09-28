@@ -171,3 +171,75 @@ stage-loss localization、deterministic disposition rules 與 offline tests。Au
 標示「限閱」；原始 PPTX OOXML 不含該字串，故記為 external-client policy marking，不能冒充 renderer
 輸出，也不能由 repository 靜默移除。這項 actual-client observation 仍交由 exact-artifact human review
 決定是否可接受。
+
+## 9. Q4 — Presentation Density Repair 實驗紀錄
+
+2026-09-27 對人類已審查的四頁 exact live-Codex regression artifact 執行 8 個 bounded
+Choice judgments。輸入只包含 exact render SHA、可重現的結構觀察與 deterministic supporting
+signals；Jev 未取得 credential、商業資料或 product-runtime access。
+
+| Fixture | Composition density | Visual anchor | Confidence / routing | Codex disposition |
+|---|---|---|---|---|
+| regression slide 1 — cover | `UNDERFILLED` | `WEAK` | 0.99 high / 0.50 escalate | 採用 density；anchor 由人類 BLOCK 與 exact render 裁決 |
+| regression slide 2 — KPI/chart | `BALANCED` | `STRONG` | 0.99 high / 0.75 review | 採用為 balanced-density reference |
+| regression slide 3 — image/right column | `UNDERFILLED` | `STRONG` | 0.99 high / 0.83 review | 主圖 anchor 強，但右欄缺少 structured takeaways，仍 underfilled |
+| regression slide 4 — CTA | `UNDERFILLED` | `WEAK` | 0.98 high / 0.65 review | 採用；單一句子不能取代三段 action flow |
+
+這組結果證明 hero image、occupied envelope 或 empty-area ratio 都不能單獨決定 composition
+density。Repository capture 為 `CompositionDensity`、`VisualAnchor`、typed supporting signals、
+role-aware review triggers，以及四頁 regression tests。這些 deterministic signals 只提示 review，
+不計算 aesthetic score，也不會把 `HUMAN_PRESENTATION_QUALITY` 設成 PASS。
+
+Jev runtime dependency 與 CI dependency 仍均為 **NONE**。
+
+同一輪修復後，另對四頁 exact PowerPoint renders 重跑相同 schema。Slide 1–4 的 density
+均為 `BALANCED`（0.62 / 1.00 / 0.98 / 0.84），anchor 均為 `STRONG`
+（0.92 / 0.86 / 0.99 / 0.92）。Slide 1 density 依 low-confidence policy 升級至 Codex
+exact-render review；Slide 4 density 依 medium-confidence policy 經 Codex review。兩者都只取得
+「可交付人類重新審查」的 engineering disposition，沒有取代人類 presentation-quality gate。
+
+## 10. Q4 — Dense Visual Style Profile 實驗紀錄
+
+2026-09-27 因人類將目標明確修正為 `DENSE / CARD_HIGH / IMAGE_RICH`，對新的四頁 exact
+PowerPoint renders 執行 20 個 bounded Choice judgments。每個 fixture 都包含 exact render SHA、
+slide role、清理過的可觀察版面描述與 deterministic supporting signals；Jev 未直接接觸 product
+runtime、credential 或 private source。
+
+| Fixture | Style match | Density | Card structure | Image usage | Hierarchy |
+|---|---|---|---|---|---|
+| slide 1 — cover hero | `MATCH` (0.83, review) | `ON_TARGET` (0.98) | `ON_TARGET` (0.98) | `ON_TARGET` (0.99) | `STRONG` (0.97) |
+| slide 2 — KPI/chart evidence | `PARTIAL_MATCH` (0.58, escalate) | `ON_TARGET` (0.94) | `ON_TARGET` (0.88) | `ON_TARGET` (0.92) | `STRONG` (0.91) |
+| slide 3 — image cluster/insights | `MATCH` (0.99) | `ON_TARGET` (0.99) | `ON_TARGET` (1.00) | `ON_TARGET` (1.00) | `STRONG` (1.00) |
+| slide 4 — contextual action flow | `MATCH` (0.92) | `ON_TARGET` (0.92) | `ON_TARGET` (0.97) | `ON_TARGET` (0.98) | `STRONG` (0.91) |
+
+Slide 1 的 medium-confidence style result 經 Codex exact-render review 後採用。Slide 2 的低信心
+style result 升級至 Codex：該頁沒有照片，但原生 chart 是符合 analytic role 的 primary informative
+visual；同一判斷中 density、cards、image/chart usage 與 hierarchy 均為 high-confidence positive，且
+approved grammar 明定不是每頁都必須含照片，因此最終 engineering disposition 為 deck-level match，
+不增加裝飾性 stock image。
+
+Stable capture 是 opt-in `PresentationStyleProfile`、`LayoutDensity`、`CardDensity`、`ImageDensity`、
+typed card roles、role-aware layout-selection policy 與 regression tests。Default profile 保持
+`BALANCED / MEDIUM / MEDIUM`，不會把所有 agy-ppt 使用者強制改成 dense。這些結果只支持送交人類
+重新審查，不會把 `HUMAN_PRESENTATION_QUALITY` 設成 PASS。Jev runtime dependency 與 CI
+dependency 仍均為 **NONE**。
+
+## 11. Q4 — Effective Density Repair 實驗紀錄
+
+2026-09-28 因人類確認 dense direction 正確、但要求 semantic density 追上 visual density，對四頁
+exact PowerPoint renders 執行 12 個 bounded Choice judgments。新 schema 為
+`CARD_INFORMATION_DEPTH`、`IMAGE_VARIETY` 與 `SEMANTIC_DENSITY`；輸入只包含 exact render SHA、
+slide role、sanitized observation 與 deterministic supporting signals。
+
+| Fixture | Card information depth | Image variety | Semantic density | Codex disposition |
+|---|---|---|---|---|
+| slide 1 — approved cover | `LABEL_ONLY` (0.97) | `DISTINCT_INFORMATIONAL` (0.97) | `BALANCED` (0.29, escalate) | 人類已明確 PASS；category tags 是 cover labels，不套用 content-card depth 要求 |
+| slide 2 — KPI/chart evidence | `SUPPORTING` (0.85) | `DISTINCT_INFORMATIONAL` (0.99) | `HIGH` (0.88) | 採用；三張既有 cards 各有 operational supporting layer |
+| slide 3 — distinct image roles | `SUPPORTING` (0.99) | `DISTINCT_INFORMATIONAL` (0.98) | `HIGH` (0.82, review) | exact-render review 後採用；三張圖片不是同圖裁切，且分別承擔情境、排序、聚焦 |
+| slide 4 — action flow | `SUPPORTING` (1.00) | `DISTINCT_INFORMATIONAL` (1.00) | `HIGH` (0.66, review) | exact-render review 後採用；卡片數不變，每一步均有 concise operational detail |
+
+Stable repository capture 是 typed effective-density enums、card-depth counts、image-role counts、
+role-aware review prompts 與 regression tests。規則不以 card/image 數量推導 semantic quality，也不把
+cover 的 category tags 當成內容卡缺陷。重複裁切、decorative-only image 與 content slide 缺少
+supporting layer 都會觸發 deterministic review finding；最終美學與 presentation-quality gate 仍只由
+exact-artifact human review 決定。Jev runtime dependency 與 CI dependency 仍均為 **NONE**。

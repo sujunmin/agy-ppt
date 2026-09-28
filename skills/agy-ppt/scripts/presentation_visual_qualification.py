@@ -58,6 +58,307 @@ class MaterialDegradation(str, Enum):
     UNACCEPTABLE = "UNACCEPTABLE"
 
 
+class CompositionDensity(str, Enum):
+    """Bounded development-time classification, never a release score."""
+
+    INTENTIONAL_MINIMAL = "INTENTIONAL_MINIMAL"
+    BALANCED = "BALANCED"
+    UNDERFILLED = "UNDERFILLED"
+    OVERCROWDED = "OVERCROWDED"
+
+
+class VisualAnchor(str, Enum):
+    """Strength of the composition's primary visual point of entry."""
+
+    STRONG = "STRONG"
+    ADEQUATE = "ADEQUATE"
+    WEAK = "WEAK"
+    ABSENT = "ABSENT"
+
+
+class CardInformationDepth(str, Enum):
+    """Meaning carried inside a card, independent of the number of cards."""
+
+    LABEL_ONLY = "LABEL_ONLY"
+    SUPPORTING = "SUPPORTING"
+    SUBSTANTIVE = "SUBSTANTIVE"
+
+
+class ImageVariety(str, Enum):
+    """Informational relationship among images used in a composition."""
+
+    DISTINCT_INFORMATIONAL = "DISTINCT_INFORMATIONAL"
+    RELATED_DETAIL = "RELATED_DETAIL"
+    DUPLICATIVE = "DUPLICATIVE"
+    DECORATIVE = "DECORATIVE"
+
+
+class SemanticDensity(str, Enum):
+    """Bounded semantic-depth classification; never inferred from object count."""
+
+    LOW = "LOW"
+    BALANCED = "BALANCED"
+    HIGH = "HIGH"
+
+
+class TextDensitySignal(str, Enum):
+    LOW = "LOW"
+    MODERATE = "MODERATE"
+    HIGH = "HIGH"
+
+
+class VisualRoleExpectation(str, Enum):
+    COVER_HERO = "COVER_HERO"
+    BALANCED_EVIDENCE = "BALANCED_EVIDENCE"
+    IMAGE_WITH_TAKEAWAYS = "IMAGE_WITH_TAKEAWAYS"
+    ACTION_FLOW = "ACTION_FLOW"
+    OTHER = "OTHER"
+
+
+class CompositionSignalFinding(str, Enum):
+    """Deterministic prompts for review, not an aesthetic verdict."""
+
+    LOW_FOREGROUND_OBJECT_COUNT = "LOW_FOREGROUND_OBJECT_COUNT"
+    SHALLOW_HIERARCHY = "SHALLOW_HIERARCHY"
+    NARROW_OCCUPIED_ENVELOPE = "NARROW_OCCUPIED_ENVELOPE"
+    MISSING_HERO_VISUAL = "MISSING_HERO_VISUAL"
+    MISSING_PRIMARY_ANCHOR = "MISSING_PRIMARY_ANCHOR"
+    LOW_TEXT_DENSITY_FOR_ROLE = "LOW_TEXT_DENSITY_FOR_ROLE"
+    ROLE_STRUCTURE_MISSING = "ROLE_STRUCTURE_MISSING"
+
+
+class EffectiveDensitySignalFinding(str, Enum):
+    """Deterministic review prompts for effective, rather than raw, density."""
+
+    LABEL_ONLY_CARD_PRESENT = "LABEL_ONLY_CARD_PRESENT"
+    CARD_SUPPORTING_LAYER_MISSING = "CARD_SUPPORTING_LAYER_MISSING"
+    DUPLICATIVE_IMAGE_PRESENT = "DUPLICATIVE_IMAGE_PRESENT"
+    DECORATIVE_IMAGE_PRESENT = "DECORATIVE_IMAGE_PRESENT"
+    IMAGE_VARIETY_MISSING = "IMAGE_VARIETY_MISSING"
+    ROLE_SUPPORTING_LAYER_MISSING = "ROLE_SUPPORTING_LAYER_MISSING"
+
+
+@dataclass(frozen=True)
+class OccupiedContentEnvelope:
+    """Normalized bounds of intentional foreground content."""
+
+    left: float
+    top: float
+    right: float
+    bottom: float
+
+    def __post_init__(self) -> None:
+        values = (self.left, self.top, self.right, self.bottom)
+        if any(
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not 0 <= float(value) <= 1
+            for value in values
+        ):
+            raise ValueError(ERROR_VISUAL_QUALIFICATION_INVALID)
+        if self.left >= self.right or self.top >= self.bottom:
+            raise ValueError(ERROR_VISUAL_QUALIFICATION_INVALID)
+
+    @property
+    def width(self) -> float:
+        return float(self.right - self.left)
+
+    @property
+    def height(self) -> float:
+        return float(self.bottom - self.top)
+
+
+@dataclass(frozen=True)
+class CompositionSignals:
+    """Deterministic context supplied to Jev/Codex composition review."""
+
+    foreground_object_count: int
+    occupied_content_envelope: OccupiedContentEnvelope
+    hierarchy_levels: int
+    has_hero_visual: bool
+    has_primary_numeric_or_graphic_anchor: bool
+    text_density: TextDensitySignal
+    visual_role_expectation: VisualRoleExpectation
+    structured_visual_groups: int = 0
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.foreground_object_count, int)
+            or isinstance(self.foreground_object_count, bool)
+            or self.foreground_object_count < 0
+            or not isinstance(self.hierarchy_levels, int)
+            or isinstance(self.hierarchy_levels, bool)
+            or self.hierarchy_levels < 0
+            or not isinstance(self.structured_visual_groups, int)
+            or isinstance(self.structured_visual_groups, bool)
+            or self.structured_visual_groups < 0
+            or not isinstance(self.occupied_content_envelope, OccupiedContentEnvelope)
+            or not isinstance(self.has_hero_visual, bool)
+            or not isinstance(self.has_primary_numeric_or_graphic_anchor, bool)
+            or not isinstance(self.text_density, TextDensitySignal)
+            or not isinstance(self.visual_role_expectation, VisualRoleExpectation)
+        ):
+            raise ValueError(ERROR_VISUAL_QUALIFICATION_INVALID)
+
+
+@dataclass(frozen=True)
+class CompositionAssessment:
+    """Reviewed bounded decision attached to exact rendered evidence."""
+
+    slide_id: str
+    artifact_sha256: str
+    density: CompositionDensity
+    visual_anchor: VisualAnchor
+    signals: CompositionSignals
+    rationale: str
+
+    def __post_init__(self) -> None:
+        if not re.fullmatch(r"slide_\d+", self.slide_id or ""):
+            raise ValueError(ERROR_VISUAL_QUALIFICATION_INVALID)
+        object.__setattr__(self, "artifact_sha256", _sha(self.artifact_sha256))
+        if (
+            not isinstance(self.density, CompositionDensity)
+            or not isinstance(self.visual_anchor, VisualAnchor)
+            or not isinstance(self.signals, CompositionSignals)
+            or not isinstance(self.rationale, str)
+            or not self.rationale.strip()
+        ):
+            raise ValueError(ERROR_VISUAL_QUALIFICATION_INVALID)
+
+
+def composition_signal_findings(signals: CompositionSignals) -> tuple[CompositionSignalFinding, ...]:
+    """Return deterministic review prompts without deriving an aesthetic score."""
+    if not isinstance(signals, CompositionSignals):
+        raise ValueError(ERROR_VISUAL_QUALIFICATION_INVALID)
+    findings: list[CompositionSignalFinding] = []
+    if signals.foreground_object_count < 3:
+        findings.append(CompositionSignalFinding.LOW_FOREGROUND_OBJECT_COUNT)
+    if signals.hierarchy_levels < 2:
+        findings.append(CompositionSignalFinding.SHALLOW_HIERARCHY)
+    if signals.occupied_content_envelope.height < 0.35:
+        findings.append(CompositionSignalFinding.NARROW_OCCUPIED_ENVELOPE)
+    if signals.visual_role_expectation is VisualRoleExpectation.COVER_HERO and not signals.has_hero_visual:
+        findings.append(CompositionSignalFinding.MISSING_HERO_VISUAL)
+    if not (signals.has_hero_visual or signals.has_primary_numeric_or_graphic_anchor):
+        findings.append(CompositionSignalFinding.MISSING_PRIMARY_ANCHOR)
+    if (
+        signals.text_density is TextDensitySignal.LOW
+        and signals.visual_role_expectation in {
+            VisualRoleExpectation.BALANCED_EVIDENCE,
+            VisualRoleExpectation.IMAGE_WITH_TAKEAWAYS,
+            VisualRoleExpectation.ACTION_FLOW,
+        }
+    ):
+        findings.append(CompositionSignalFinding.LOW_TEXT_DENSITY_FOR_ROLE)
+    required_groups = {
+        VisualRoleExpectation.IMAGE_WITH_TAKEAWAYS: 2,
+        VisualRoleExpectation.ACTION_FLOW: 3,
+    }.get(signals.visual_role_expectation, 0)
+    if signals.structured_visual_groups < required_groups:
+        findings.append(CompositionSignalFinding.ROLE_STRUCTURE_MISSING)
+    return tuple(findings)
+
+
+@dataclass(frozen=True)
+class EffectiveDensitySignals:
+    """Countable structure supplied to semantic-depth review, not an aesthetic score."""
+
+    card_count: int
+    label_only_card_count: int
+    supporting_card_count: int
+    substantive_card_count: int
+    distinct_informational_images: int
+    related_detail_images: int
+    duplicative_images: int
+    decorative_images: int
+    semantic_unit_count: int
+    hierarchy_levels: int
+    visual_role_expectation: VisualRoleExpectation
+    has_role_supporting_layer: bool
+
+    def __post_init__(self) -> None:
+        counts = (
+            self.card_count,
+            self.label_only_card_count,
+            self.supporting_card_count,
+            self.substantive_card_count,
+            self.distinct_informational_images,
+            self.related_detail_images,
+            self.duplicative_images,
+            self.decorative_images,
+            self.semantic_unit_count,
+            self.hierarchy_levels,
+        )
+        if any(not isinstance(value, int) or isinstance(value, bool) or value < 0 for value in counts):
+            raise ValueError(ERROR_VISUAL_QUALIFICATION_INVALID)
+        if self.label_only_card_count + self.supporting_card_count + self.substantive_card_count != self.card_count:
+            raise ValueError(ERROR_VISUAL_QUALIFICATION_INVALID)
+        if not isinstance(self.visual_role_expectation, VisualRoleExpectation):
+            raise ValueError(ERROR_VISUAL_QUALIFICATION_INVALID)
+        if not isinstance(self.has_role_supporting_layer, bool):
+            raise ValueError(ERROR_VISUAL_QUALIFICATION_INVALID)
+
+
+@dataclass(frozen=True)
+class EffectiveDensityAssessment:
+    """Reviewed bounded classifications attached to one exact rendered artifact."""
+
+    slide_id: str
+    artifact_sha256: str
+    card_information_depth: CardInformationDepth
+    image_variety: ImageVariety
+    semantic_density: SemanticDensity
+    signals: EffectiveDensitySignals
+    rationale: str
+
+    def __post_init__(self) -> None:
+        if not re.fullmatch(r"slide_\d+", self.slide_id or ""):
+            raise ValueError(ERROR_VISUAL_QUALIFICATION_INVALID)
+        object.__setattr__(self, "artifact_sha256", _sha(self.artifact_sha256))
+        if (
+            not isinstance(self.card_information_depth, CardInformationDepth)
+            or not isinstance(self.image_variety, ImageVariety)
+            or not isinstance(self.semantic_density, SemanticDensity)
+            or not isinstance(self.signals, EffectiveDensitySignals)
+            or not isinstance(self.rationale, str)
+            or not self.rationale.strip()
+        ):
+            raise ValueError(ERROR_VISUAL_QUALIFICATION_INVALID)
+
+
+def effective_density_signal_findings(
+    signals: EffectiveDensitySignals,
+) -> tuple[EffectiveDensitySignalFinding, ...]:
+    """Return structural prompts without deriving semantic quality from raw density."""
+    if not isinstance(signals, EffectiveDensitySignals):
+        raise ValueError(ERROR_VISUAL_QUALIFICATION_INVALID)
+    findings: list[EffectiveDensitySignalFinding] = []
+    is_content_slide = signals.visual_role_expectation is not VisualRoleExpectation.COVER_HERO
+    if is_content_slide and signals.label_only_card_count:
+        findings.append(EffectiveDensitySignalFinding.LABEL_ONLY_CARD_PRESENT)
+    if is_content_slide and signals.card_count and not (
+        signals.supporting_card_count or signals.substantive_card_count
+    ):
+        findings.append(EffectiveDensitySignalFinding.CARD_SUPPORTING_LAYER_MISSING)
+    if signals.duplicative_images:
+        findings.append(EffectiveDensitySignalFinding.DUPLICATIVE_IMAGE_PRESENT)
+    if signals.decorative_images:
+        findings.append(EffectiveDensitySignalFinding.DECORATIVE_IMAGE_PRESENT)
+    image_count = (
+        signals.distinct_informational_images
+        + signals.related_detail_images
+        + signals.duplicative_images
+        + signals.decorative_images
+    )
+    if image_count > 1 and not (
+        signals.distinct_informational_images or signals.related_detail_images
+    ):
+        findings.append(EffectiveDensitySignalFinding.IMAGE_VARIETY_MISSING)
+    if is_content_slide and not signals.has_role_supporting_layer:
+        findings.append(EffectiveDensitySignalFinding.ROLE_SUPPORTING_LAYER_MISSING)
+    return tuple(findings)
+
+
 @dataclass(frozen=True)
 class VisualObservation:
     """Deterministic facts extracted from an inspected comparison."""
@@ -270,15 +571,31 @@ def qualify_visual_pipeline(
 
 
 __all__ = [
+    "CardInformationDepth",
+    "CompositionAssessment",
+    "CompositionDensity",
+    "CompositionSignalFinding",
+    "CompositionSignals",
+    "EffectiveDensityAssessment",
+    "EffectiveDensitySignalFinding",
+    "EffectiveDensitySignals",
     "ERROR_VISUAL_QUALIFICATION_INVALID",
     "MaterialDegradation",
+    "ImageVariety",
+    "OccupiedContentEnvelope",
     "RenderArtifactEvidence",
+    "SemanticDensity",
     "StageComparison",
+    "TextDensitySignal",
     "VisualDisposition",
+    "VisualAnchor",
     "VisualIssue",
     "VisualObservation",
     "VisualQualificationReport",
+    "VisualRoleExpectation",
     "VisualStage",
+    "composition_signal_findings",
     "disposition_from_observation",
+    "effective_density_signal_findings",
     "qualify_visual_pipeline",
 ]

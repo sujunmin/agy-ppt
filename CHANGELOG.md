@@ -49,6 +49,9 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Fixed
 
+- Added opt-in dense, card-rich, and image-rich layout selection plus
+  effective-density qualification for card information depth, image variety,
+  and semantic density, while retaining balanced global defaults. (#71)
 - Added exact-artifact visual qualification across Raw Plate, Hybrid Preview,
   and actual-client PowerPoint render stages, with quality-loss localization
   and mandatory human acceptance of the final presentation artifact. (#70)
