@@ -14,14 +14,30 @@ if str(SCRIPTS) not in sys.path:
 
 from human_presentation_quality import HumanPresentationQualityState, ReviewAuthority  # noqa: E402
 from presentation_visual_qualification import (  # noqa: E402
+    CardInformationDepth,
+    CompositionAssessment,
+    CompositionDensity,
+    CompositionSignalFinding,
+    CompositionSignals,
+    EffectiveDensityAssessment,
+    EffectiveDensitySignalFinding,
+    EffectiveDensitySignals,
+    ImageVariety,
     MaterialDegradation,
+    OccupiedContentEnvelope,
     RenderArtifactEvidence,
+    SemanticDensity,
     StageComparison,
     VisualDisposition,
+    VisualAnchor,
     VisualIssue,
     VisualObservation,
     VisualStage,
+    TextDensitySignal,
+    VisualRoleExpectation,
+    composition_signal_findings,
     disposition_from_observation,
+    effective_density_signal_findings,
     qualify_visual_pipeline,
 )
 from presentation_workflow import SampleArtifact  # noqa: E402
@@ -166,6 +182,190 @@ class PresentationVisualQualificationTests(unittest.TestCase):
     def test_both_stage_comparisons_are_required(self):
         with self.assertRaises(ValueError):
             qualify_visual_pipeline(artifacts(), (good_comparisons()[0],), approved_sample=sample())
+
+
+class PresentationCompositionQualificationTests(unittest.TestCase):
+    def signals(
+        self,
+        *,
+        objects=4,
+        envelope=(0.08, 0.12, 0.92, 0.88),
+        levels=2,
+        hero=False,
+        anchor=False,
+        text=TextDensitySignal.MODERATE,
+        role=VisualRoleExpectation.OTHER,
+        groups=0,
+    ):
+        return CompositionSignals(
+            objects,
+            OccupiedContentEnvelope(*envelope),
+            levels,
+            hero,
+            anchor,
+            text,
+            role,
+            groups,
+        )
+
+    def test_regression_cover_is_underfilled_with_weak_anchor(self):
+        signals = self.signals(
+            objects=3,
+            envelope=(0.08, 0.20, 0.92, 0.70),
+            hero=False,
+            anchor=False,
+            text=TextDensitySignal.LOW,
+            role=VisualRoleExpectation.COVER_HERO,
+        )
+        assessment = CompositionAssessment(
+            "slide_01", "a" * 64, CompositionDensity.UNDERFILLED,
+            VisualAnchor.WEAK, signals,
+            "Human-reviewed cover lacks an intentional hero structure.",
+        )
+        findings = composition_signal_findings(assessment.signals)
+        self.assertIn(CompositionSignalFinding.MISSING_HERO_VISUAL, findings)
+        self.assertIn(CompositionSignalFinding.MISSING_PRIMARY_ANCHOR, findings)
+
+    def test_regression_slide_two_is_balanced_reference(self):
+        signals = self.signals(
+            objects=7,
+            levels=3,
+            anchor=True,
+            role=VisualRoleExpectation.BALANCED_EVIDENCE,
+            groups=3,
+        )
+        assessment = CompositionAssessment(
+            "slide_02", "b" * 64, CompositionDensity.BALANCED,
+            VisualAnchor.STRONG, signals,
+            "KPI and native chart establish a balanced reference composition.",
+        )
+        self.assertEqual(assessment.density, CompositionDensity.BALANCED)
+        self.assertNotIn(
+            CompositionSignalFinding.MISSING_PRIMARY_ANCHOR,
+            composition_signal_findings(signals),
+        )
+
+    def test_regression_image_slide_requires_structured_takeaways(self):
+        signals = self.signals(
+            objects=3,
+            levels=2,
+            hero=True,
+            text=TextDensitySignal.LOW,
+            role=VisualRoleExpectation.IMAGE_WITH_TAKEAWAYS,
+            groups=1,
+        )
+        findings = composition_signal_findings(signals)
+        self.assertIn(CompositionSignalFinding.LOW_TEXT_DENSITY_FOR_ROLE, findings)
+        self.assertIn(CompositionSignalFinding.ROLE_STRUCTURE_MISSING, findings)
+
+    def test_regression_cta_sentence_requires_three_step_structure(self):
+        signals = self.signals(
+            objects=3,
+            levels=2,
+            text=TextDensitySignal.LOW,
+            role=VisualRoleExpectation.ACTION_FLOW,
+            groups=1,
+        )
+        findings = composition_signal_findings(signals)
+        self.assertIn(CompositionSignalFinding.MISSING_PRIMARY_ANCHOR, findings)
+        self.assertIn(CompositionSignalFinding.ROLE_STRUCTURE_MISSING, findings)
+
+    def test_empty_area_cannot_be_the_sole_composition_rule(self):
+        envelope = (0.10, 0.15, 0.90, 0.72)
+        intentional = self.signals(
+            objects=2, envelope=envelope, hero=True,
+            role=VisualRoleExpectation.COVER_HERO,
+        )
+        underfilled = self.signals(
+            objects=2, envelope=envelope, hero=False,
+            role=VisualRoleExpectation.COVER_HERO,
+        )
+        self.assertEqual(
+            intentional.occupied_content_envelope,
+            underfilled.occupied_content_envelope,
+        )
+        self.assertNotIn(
+            CompositionSignalFinding.MISSING_HERO_VISUAL,
+            composition_signal_findings(intentional),
+        )
+        self.assertIn(
+            CompositionSignalFinding.MISSING_HERO_VISUAL,
+            composition_signal_findings(underfilled),
+        )
+
+    def test_composition_assessment_has_no_aesthetic_score(self):
+        assessment = CompositionAssessment(
+            "slide_01", "c" * 64, CompositionDensity.INTENTIONAL_MINIMAL,
+            VisualAnchor.STRONG,
+            self.signals(objects=2, hero=True, role=VisualRoleExpectation.COVER_HERO),
+            "Minimal composition remains intentional because the hero anchor is strong.",
+        )
+        self.assertFalse(hasattr(assessment, "score"))
+        self.assertFalse(hasattr(assessment, "empty_area_percentage"))
+
+    def test_invalid_envelope_fails_closed(self):
+        with self.assertRaises(ValueError):
+            OccupiedContentEnvelope(0.8, 0.1, 0.2, 0.9)
+
+
+class EffectiveDensityQualificationTests(unittest.TestCase):
+    def signals(
+        self,
+        *,
+        cards=3,
+        labels=0,
+        supporting=3,
+        substantive=0,
+        distinct=1,
+        related=0,
+        duplicate=0,
+        decorative=0,
+        semantic_units=6,
+        role=VisualRoleExpectation.BALANCED_EVIDENCE,
+        supporting_layer=True,
+    ):
+        return EffectiveDensitySignals(
+            cards, labels, supporting, substantive,
+            distinct, related, duplicate, decorative,
+            semantic_units, 3, role, supporting_layer,
+        )
+
+    def test_numerous_label_only_cards_do_not_count_as_effective_density(self):
+        signals = self.signals(cards=3, labels=3, supporting=0, semantic_units=3, supporting_layer=False)
+        findings = effective_density_signal_findings(signals)
+        self.assertIn(EffectiveDensitySignalFinding.LABEL_ONLY_CARD_PRESENT, findings)
+        self.assertIn(EffectiveDensitySignalFinding.CARD_SUPPORTING_LAYER_MISSING, findings)
+        self.assertIn(EffectiveDensitySignalFinding.ROLE_SUPPORTING_LAYER_MISSING, findings)
+
+    def test_duplicate_crops_do_not_count_as_image_variety(self):
+        signals = self.signals(distinct=0, duplicate=3)
+        findings = effective_density_signal_findings(signals)
+        self.assertIn(EffectiveDensitySignalFinding.DUPLICATIVE_IMAGE_PRESENT, findings)
+        self.assertIn(EffectiveDensitySignalFinding.IMAGE_VARIETY_MISSING, findings)
+
+    def test_supporting_cards_and_distinct_visual_pass_structural_prompts(self):
+        signals = self.signals(supporting=2, substantive=1, distinct=1, related=1)
+        assessment = EffectiveDensityAssessment(
+            "slide_03", "d" * 64, CardInformationDepth.SUPPORTING,
+            ImageVariety.DISTINCT_INFORMATIONAL, SemanticDensity.HIGH,
+            signals, "Cards carry supporting meaning and visuals have distinct informational roles.",
+        )
+        self.assertEqual(assessment.semantic_density, SemanticDensity.HIGH)
+        self.assertEqual(effective_density_signal_findings(signals), ())
+        self.assertFalse(hasattr(assessment, "score"))
+
+    def test_cover_label_tags_do_not_trigger_content_card_rule(self):
+        signals = self.signals(
+            cards=3, labels=3, supporting=0, semantic_units=3,
+            role=VisualRoleExpectation.COVER_HERO, supporting_layer=False,
+        )
+        findings = effective_density_signal_findings(signals)
+        self.assertNotIn(EffectiveDensitySignalFinding.LABEL_ONLY_CARD_PRESENT, findings)
+        self.assertNotIn(EffectiveDensitySignalFinding.ROLE_SUPPORTING_LAYER_MISSING, findings)
+
+    def test_card_depth_counts_must_cover_all_cards(self):
+        with self.assertRaises(ValueError):
+            self.signals(cards=3, labels=1, supporting=1)
 
 
 if __name__ == "__main__":

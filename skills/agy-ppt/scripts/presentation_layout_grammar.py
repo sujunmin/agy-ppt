@@ -39,6 +39,95 @@ class LayoutIssue(str, Enum):
     ENVELOPE_LINE_COUNT = "ENVELOPE_LINE_COUNT"
 
 
+class LayoutDensity(str, Enum):
+    AIRY = "AIRY"
+    BALANCED = "BALANCED"
+    DENSE = "DENSE"
+
+
+class CardDensity(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+
+class ImageDensity(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+
+class CardRole(str, Enum):
+    PRIMARY_CARD = "PRIMARY_CARD"
+    SECONDARY_CARD = "SECONDARY_CARD"
+    MICRO_CARD = "MICRO_CARD"
+    KPI_CARD = "KPI_CARD"
+    IMAGE_CARD = "IMAGE_CARD"
+    INSIGHT_CARD = "INSIGHT_CARD"
+    ACTION_CARD = "ACTION_CARD"
+
+
+@dataclass(frozen=True)
+class PresentationStyleProfile:
+    """Style-level preference; it never changes the global default grammar."""
+
+    layout_density: LayoutDensity = LayoutDensity.BALANCED
+    card_density: CardDensity = CardDensity.MEDIUM
+    image_density: ImageDensity = ImageDensity.MEDIUM
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.layout_density, LayoutDensity):
+            raise ValueError("layout_density must be a LayoutDensity")
+        if not isinstance(self.card_density, CardDensity):
+            raise ValueError("card_density must be a CardDensity")
+        if not isinstance(self.image_density, ImageDensity):
+            raise ValueError("image_density must be an ImageDensity")
+
+
+@dataclass(frozen=True)
+class LayoutSelectionPolicy:
+    min_structured_modules: int
+    max_structured_modules: int
+    preferred_card_roles: tuple[CardRole, ...]
+    preferred_layout_families: tuple[str, ...]
+    primary_visual_expected: bool
+    supporting_visuals_expected: bool
+
+
+DEFAULT_STYLE_PROFILE = PresentationStyleProfile()
+DENSE_IMAGE_RICH_STYLE_PROFILE = PresentationStyleProfile(
+    LayoutDensity.DENSE, CardDensity.HIGH, ImageDensity.HIGH,
+)
+
+
+def layout_selection_policy(profile: PresentationStyleProfile) -> LayoutSelectionPolicy:
+    """Translate an approved style preference into layout-selection constraints."""
+    if not isinstance(profile, PresentationStyleProfile):
+        raise ValueError("style profile is required")
+    if profile.layout_density is LayoutDensity.DENSE and profile.card_density is CardDensity.HIGH:
+        return LayoutSelectionPolicy(
+            2, 6,
+            (CardRole.PRIMARY_CARD, CardRole.SECONDARY_CARD, CardRole.MICRO_CARD,
+             CardRole.KPI_CARD, CardRole.IMAGE_CARD, CardRole.INSIGHT_CARD, CardRole.ACTION_CARD),
+            ("hero_plus_cards", "kpi_chart_annotations", "image_cluster_takeaways",
+             "card_matrix_supporting_visual", "comparison_evidence_strip", "process_visual_cards"),
+            True,
+            profile.image_density is ImageDensity.HIGH,
+        )
+    if profile.layout_density is LayoutDensity.AIRY:
+        return LayoutSelectionPolicy(
+            1, 3, (CardRole.PRIMARY_CARD, CardRole.INSIGHT_CARD),
+            ("single_hero", "editorial_split", "single_assertion"), True, False,
+        )
+    return LayoutSelectionPolicy(
+        1, 4,
+        (CardRole.PRIMARY_CARD, CardRole.SECONDARY_CARD, CardRole.KPI_CARD, CardRole.INSIGHT_CARD),
+        ("editorial_split", "hero_plus_cards", "kpi_chart_annotations", "process_visual_cards"),
+        True,
+        profile.image_density is ImageDensity.HIGH,
+    )
+
+
 @dataclass(frozen=True)
 class LayoutFinding:
     issue: LayoutIssue
@@ -252,8 +341,11 @@ def audit_layout(
 
 
 __all__ = [
-    "DEFAULT_LAYOUT_GRAMMAR", "LayoutFinding", "LayoutIssue", "LayoutSeverity",
+    "CardDensity", "CardRole", "DEFAULT_LAYOUT_GRAMMAR", "DEFAULT_STYLE_PROFILE",
+    "DENSE_IMAGE_RICH_STYLE_PROFILE", "ImageDensity", "LayoutDensity",
+    "LayoutFinding", "LayoutIssue", "LayoutSelectionPolicy", "LayoutSeverity",
+    "PresentationStyleProfile",
     "PresentationLayoutGrammar", "SLIDE_HEIGHT_16_9", "SLIDE_WIDTH_16_9",
     "audit_layout", "audit_text_envelope", "estimated_line_count",
-    "max_characters_for_box", "suggested_font_size",
+    "layout_selection_policy", "max_characters_for_box", "suggested_font_size",
 ]

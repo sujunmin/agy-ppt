@@ -42,12 +42,19 @@ from phase18_production_plan import (  # noqa: E402
     PortabilityRisk,
 )
 from presentation_layout_grammar import (  # noqa: E402
+    CardDensity,
+    CardRole,
     DEFAULT_LAYOUT_GRAMMAR,
+    DEFAULT_STYLE_PROFILE,
+    DENSE_IMAGE_RICH_STYLE_PROFILE,
+    ImageDensity,
+    LayoutDensity,
     LayoutIssue,
     LayoutSeverity,
     audit_layout,
     audit_text_envelope,
     estimated_line_count,
+    layout_selection_policy,
     max_characters_for_box,
 )
 
@@ -211,6 +218,28 @@ class PresentationQualityGrammarTests(unittest.TestCase):
         findings = audit_layout((("body", ElementRole.BODY, box, "Text", 17.0),))
         self.assertEqual(findings[0].issue, LayoutIssue.OUT_OF_BOUNDS)
         self.assertEqual(findings[0].severity, LayoutSeverity.BLOCK)
+
+    def test_default_style_profile_remains_balanced(self):
+        self.assertEqual(DEFAULT_STYLE_PROFILE.layout_density, LayoutDensity.BALANCED)
+        self.assertEqual(DEFAULT_STYLE_PROFILE.card_density, CardDensity.MEDIUM)
+        self.assertEqual(DEFAULT_STYLE_PROFILE.image_density, ImageDensity.MEDIUM)
+
+    def test_dense_image_rich_profile_selects_structured_visual_layouts(self):
+        policy = layout_selection_policy(DENSE_IMAGE_RICH_STYLE_PROFILE)
+        self.assertEqual((policy.min_structured_modules, policy.max_structured_modules), (2, 6))
+        self.assertTrue(policy.primary_visual_expected)
+        self.assertTrue(policy.supporting_visuals_expected)
+        self.assertIn("image_cluster_takeaways", policy.preferred_layout_families)
+        self.assertIn("kpi_chart_annotations", policy.preferred_layout_families)
+        self.assertIn(CardRole.IMAGE_CARD, policy.preferred_card_roles)
+        self.assertIn(CardRole.ACTION_CARD, policy.preferred_card_roles)
+
+    def test_dense_profile_is_opt_in_not_global(self):
+        default = layout_selection_policy(DEFAULT_STYLE_PROFILE)
+        dense = layout_selection_policy(DENSE_IMAGE_RICH_STYLE_PROFILE)
+        self.assertNotEqual(default.preferred_layout_families, dense.preferred_layout_families)
+        self.assertFalse(default.supporting_visuals_expected)
+        self.assertTrue(dense.supporting_visuals_expected)
 
 
 if __name__ == "__main__":
