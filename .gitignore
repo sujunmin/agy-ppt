@@ -73,7 +73,13 @@ ENV/
 *.bmp
 *.pptx
 *.pdf
-examples/
+
+# Public, reviewed showcase examples are intentional repository assets.
+!examples/
+!examples/**/
+!examples/**/*.png
+!examples/**/*.jpg
+!examples/**/*.jpeg
 
 # Test outputs
 /tests/

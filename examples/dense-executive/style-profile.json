@@ -1,0 +1,11 @@
+{
+  "name": "Dense Executive",
+  "layout_density": "DENSE",
+  "card_density": "HIGH",
+  "image_usage": "IMAGE_RICH",
+  "semantic_density": "HIGH",
+  "visual_direction": "Deep navy, warm coral, pale neutral surfaces; one assertion per slide; varied KPI, chart, insight, image, and action modules.",
+  "editable_elements": ["headlines", "KPI text", "cards", "simple shapes", "native chart data", "CTA"],
+  "replaceable_elements": ["generated mark", "micro-hub photo", "team photo", "battery photo", "route photo"],
+  "default_profile_override": "Opt-in example preference; does not change agy-ppt's balanced global default."
+}
