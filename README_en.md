@@ -39,6 +39,8 @@ The default interactive flow asks you to:
 
 Changing the outline or style invalidates dependent sample approval. The full deck is never generated until all three approvals are current.
 
+The visual style may explicitly opt into dense, card-based, image-rich layouts. This is an opt-in preference—the default remains balanced—and density is not inflated with duplicate images, shallow cards, or unsupported copy.
+
 ## How It Works
 
 ```text

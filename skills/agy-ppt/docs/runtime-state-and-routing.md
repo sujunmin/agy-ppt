@@ -194,7 +194,8 @@ parallel generation。
 ```text
 內容 / 規劃 / QA        -> AGY 自己處理
 Coding                  -> 明確指派 Codex Production Engineering Worker 或 kiro_acp_bridge.py -> 回 AGY（worker 不推進 deck phase）
-Image                   -> codex_image_adapter.py -> 回 AGY（AGY QA 後才更新 slide state）
+一般 Image              -> codex_image_adapter.py -> 回 AGY（AGY QA 後才更新 slide state）
+Phase 18 Hybrid Image   -> phase18_codex_worker.py -> frozen codex_image_adapter.py -> 回 AGY
 Assembly                -> upstream assemble_ppt.py（正常不需 engineering worker；有 bug 才派 Codex 或 Kiro）
 ```
 
@@ -212,6 +213,11 @@ AGY -> Codex -> Kiro      (禁止)
 ```
 
 Codex 回 `generated` 不等於 `qa_passed`；只有 AGY 能做 `generated -> qa_passed`。
+
+Phase 18 wrapper 只負責 production safety：驗證並傳遞 Clean Plate / Reserved Editable Zone
+contract，保留 live dispatch、Codex thread、worker result 與 artifact hash evidence。它不改文案、
+不選證據、不做 semantic QA，也不推進 approval gate。Jev 是 Codex 的 development-time bounded
+decision layer，**不在**此 product runtime chain。
 
 ## 13. 統一 Error Handling
 

@@ -51,6 +51,24 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ### Fixed
 
+- Added opt-in dense, card-rich, and image-rich layout selection plus
+  effective-density qualification for card information depth, image variety,
+  and semantic density, while retaining balanced global defaults. (#71)
+- Added exact-artifact visual qualification across Raw Plate, Hybrid Preview,
+  and actual-client PowerPoint render stages, with quality-loss localization
+  and mandatory human acceptance of the final presentation artifact. (#70)
+- Added a deterministic presentation-content preflight for label-only headlines,
+  generic schema-fill copy, density, repetition, narrative alignment, and
+  evidence-bound factual drift; slide workers cannot silently upgrade approved
+  topic labels into unsupported factual assertions. (#69)
+- Hardened Hybrid PowerPoint layout and typography with canonical slide bounds,
+  role-aware CJK/Latin styling, bounded title and KPI envelopes, intentional
+  image crops, and non-default chart presentation; added an exact-artifact
+  human presentation-quality release gate. (#68)
+- Wired Clean Plate and Reserved Editable Zone contracts into the live Codex
+  worker path, added explicit Hybrid Sample provenance, and retained concrete
+  dispatch/artifact evidence so proxy qualification cannot be reported as live.
+  (#67)
 - Added clean-plate visual background production and reserved editable zones to
   eliminate visual-fidelity composite defects including duplicate text ghosting,
   chart overlap, and photo duplication during ACTUAL_CLIENT PowerPoint delivery.

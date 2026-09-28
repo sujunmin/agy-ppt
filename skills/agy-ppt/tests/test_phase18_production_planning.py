@@ -38,9 +38,18 @@ class Phase18ProductionPlanningTests(unittest.TestCase):
         for role in (ElementRole.PRICE, ElementRole.KPI):
             self.assertEqual(plan_element(item(role)).contract.editability, EditabilityClass.EDITABLE_REQUIRED)
 
+    def test_kpi_native_strategy_has_one_line_envelope(self):
+        result = plan_element(item(ElementRole.KPI))
+        self.assertEqual(result.contract.strategy, ProductionStrategy.NATIVE_TEXT)
+        self.assertEqual(result.contract.envelope.expected_max_lines, 1)
+        self.assertEqual(result.contract.envelope.expected_max_characters, 16)
+        self.assertGreaterEqual(result.contract.envelope.minimum_font_size, 24)
+
     def test_ordinary_title_is_native_and_editable_preferred(self):
         result = plan_element(item(ElementRole.TITLE))
         self.assertEqual((result.contract.editability, result.contract.strategy), (EditabilityClass.EDITABLE_PREFERRED, ProductionStrategy.NATIVE_TEXT))
+        self.assertEqual(result.contract.envelope.expected_max_lines, 2)
+        self.assertEqual(result.contract.envelope.expected_max_characters, 48)
 
     def test_body_copy_is_native_when_font_is_safe(self):
         self.assertEqual(plan_element(item(ElementRole.BODY)).contract.strategy, ProductionStrategy.NATIVE_TEXT)

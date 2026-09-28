@@ -520,10 +520,10 @@ def run_roundtrip_qualification(temp_dir: Path | str) -> RoundTripReport:
     elements = (
         HybridElement(kpi_plan, ElementBox(1.0, 1.0, 2.5, 1.0), text_style=TextStyle(font_size=28.0)),
         HybridElement(title_plan, ElementBox(1.0, 2.2, 8.0, 1.0), text_style=TextStyle(font_size=24.0)),
-        HybridElement(logo_plan, ElementBox(10.0, 0.5, 2.0, 0.8), image_path=str(img_path)),
-        HybridElement(photo_plan, ElementBox(5.0, 3.5, 4.0, 2.5), image_path=str(img_path)),
+        HybridElement(logo_plan, ElementBox(8.0, 0.5, 1.4, 0.8), image_path=str(img_path)),
+        HybridElement(photo_plan, ElementBox(5.0, 3.35, 4.0, 1.8), image_path=str(img_path)),
         HybridElement(
-            chart_plan, ElementBox(1.0, 3.5, 3.5, 2.5),
+            chart_plan, ElementBox(1.0, 3.35, 3.5, 1.8),
             chart=ChartSpec(("Q1", "Q2", "Q3"), (ChartSeries("Revenue", (10.0, 14.0, 18.0)),)),
         ),
     )

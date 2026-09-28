@@ -20,6 +20,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
+from phase18_worker_contract import SampleProvenance, classify_sample_provenance
+
 from project_state import (
     PHASE_INTAKE,
     PHASE_OUTLINE,
@@ -57,13 +59,22 @@ class RevisionIntent(str, Enum):
 
 
 @dataclass(frozen=True)
+class SampleArtifact:
+    """Explicit sample artifact and its internal production provenance."""
+
+    artifact_ref: str
+    provenance: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
 class SampleResult:
     """One real sample-render result awaiting user approval."""
 
     slide_number: int
     artifact_ref: str
     status: str = SAMPLE_PENDING_APPROVAL
-    is_hybrid_preview: bool = True
+    is_hybrid_preview: bool = False
+    provenance: SampleProvenance = SampleProvenance.AMBIGUOUS
 
 
 @dataclass(frozen=True)
@@ -240,7 +251,7 @@ class PresentationApprovalWorkflow:
 
     def generate_sample(
         self,
-        generator: Callable[[Mapping[str, Any]], str | Path],
+        generator: Callable[[Mapping[str, Any]], str | Path | SampleArtifact],
         *,
         slide_number: int | None = None,
     ) -> SampleResult:
@@ -251,11 +262,16 @@ class PresentationApprovalWorkflow:
         selected = self._select_sample(outline, slide_number)
         # The callback receives one defensive copy, never the workflow state or full deck.
         generated = generator(_canonical_copy(selected, "sample slide"))
-        if not isinstance(generated, (str, Path)):
+        if isinstance(generated, SampleArtifact):
+            artifact = generated.artifact_ref.strip()
+            provenance = classify_sample_provenance(generated.provenance)
+        elif isinstance(generated, (str, Path)):
+            artifact = str(generated).strip()
+            provenance = SampleProvenance.AMBIGUOUS
+        else:
             raise PresentationWorkflowError(
                 ERROR_WORKFLOW_INVALID, "sample generator returned an invalid artifact reference"
             )
-        artifact = str(generated).strip()
         if not artifact:
             raise PresentationWorkflowError(ERROR_WORKFLOW_INVALID, "sample generator returned no artifact")
         outline_gate = self._state.data["outline"]
@@ -267,8 +283,14 @@ class PresentationApprovalWorkflow:
             artifact_ref=artifact,
             outline_digest=outline_gate["approved_digest"],
             style_digest=style_gate["approved_digest"],
+            artifact_provenance=provenance.value,
         )
-        return SampleResult(slide_number=selected["number"], artifact_ref=artifact)
+        return SampleResult(
+            slide_number=selected["number"],
+            artifact_ref=artifact,
+            is_hybrid_preview=provenance is SampleProvenance.HYBRID_PREVIEW,
+            provenance=provenance,
+        )
 
     def approve_sample(self) -> str:
         self._require_outline_approved()
@@ -500,6 +522,7 @@ __all__ = [
     "FullGenerationResult",
     "PresentationApprovalWorkflow",
     "PresentationWorkflowError",
+    "SampleArtifact",
     "SampleResult",
     "UserFacingPrompt",
     "completion_prompt",

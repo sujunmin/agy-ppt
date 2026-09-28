@@ -205,7 +205,10 @@ def compare_fidelity(
                 add(FidelityIssue.TEXT_REFLOW, QaDimension.LAYOUT_INTEGRITY, QaSeverity.REVIEW_REQUIRED, expected.element_id, "text reflow exceeds the bounded tolerance")
         if actual.overflow:
             add(FidelityIssue.TEXT_OVERFLOW, QaDimension.LAYOUT_INTEGRITY, QaSeverity.REVIEW_REQUIRED, expected.element_id, "text exceeds its editability envelope")
-        if actual.box.left + actual.box.width > 13.334 or actual.box.top + actual.box.height > 7.501:
+        # Hybrid production shares the frozen assembly coordinate system:
+        # 10 x 5.625 inches for 16:9.  Larger bounds previously let objects
+        # pass QA while PowerPoint rendered them partly off-slide.
+        if actual.box.left + actual.box.width > 10.001 or actual.box.top + actual.box.height > 5.626:
             add(FidelityIssue.TEXT_OVERFLOW, QaDimension.LAYOUT_INTEGRITY, QaSeverity.REVIEW_REQUIRED, expected.element_id, "object geometry extends outside slide bounds")
         distance = _distance(expected.box, actual.box)
         if distance > layout_tolerance:
