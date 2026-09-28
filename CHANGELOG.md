@@ -4,6 +4,11 @@ All notable changes to `agy-ppt` will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Added contributor onboarding, pull request and issue templates, and guidance
+  for visual-output evidence and protected architecture boundaries. (#72)
+
 ## [0.6.0] - 2026-09-28
 
 ### Added
