@@ -18,6 +18,8 @@ Output is hybrid PowerPoint: images preserve visual fidelity, with editable text
 
 ## Showcase
 
+![agy-ppt output preview](assets/agy-ppt-teaser.gif)
+
 | Dense Executive | Balanced Executive |
 | --- | --- |
 | ![Dense Executive: information-rich cards, chart, and purposeful imagery](examples/dense-executive/previews/slide-1.png) | ![Balanced Executive: measured layout and shoreline restoration context](examples/balanced-executive/previews/slide-1.png) |

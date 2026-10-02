@@ -18,6 +18,8 @@
 
 ## Showcase
 
+![agy-ppt 實際輸出預覽](assets/agy-ppt-teaser.gif)
+
 | Dense Executive | Balanced Executive |
 | --- | --- |
 | ![Dense Executive：高資訊密度、圖表與不同角色卡片](examples/dense-executive/previews/slide-1.png) | ![Balanced Executive：平衡版面與海岸復育情境](examples/balanced-executive/previews/slide-1.png) |
