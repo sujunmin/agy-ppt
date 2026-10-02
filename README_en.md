@@ -6,7 +6,13 @@ Grounded enough to trust. Edited enough to present. Built to deliver.
 
 **Language:** [繁體中文](README.md) | English
 
-`agy-ppt` turns articles, reports, and source documents into hybrid PowerPoint decks: images preserve visual detail, while suitable text, native charts, and replaceable images remain editable. AGY owns the outline, design direction, content, and quality; specialized workers create visual assets before assembly into a `.pptx` with speaker notes.
+`agy-ppt` is a presentation skill purpose-built for the **Antigravity + Kiro + Codex** pipeline: Antigravity directs (outline, design direction, content, and quality gates); Kiro owns all engineering; Codex (GPT image models) renders each slide as an image, finally assembled into a `.pptx` with speaker notes.
+
+Why not Gemini for rendering? In our tests, Gemini-generated images carry very little Traditional Chinese text — add more characters and they blur or hallucinate; the same layout holds dozens of Chinese characters under GPT. Slides are among the most text-dense visuals there are, so this division of labor was forced by reality, not preference.
+
+Output is hybrid PowerPoint: images preserve visual fidelity, with editable text, native charts, and replaceable images where appropriate.
+
+> **Requirements**: a skill-compatible agent environment with image-generation capability (implemented and tested against Codex's built-in image generation). This is a hard requirement — no image generation, no slides.
 
 🌐 [Website](https://sujunmin.github.io/agy-ppt/) · 🎨 [Examples](examples/README.md) · 🤝 [Contributing](CONTRIBUTING.md)
 
