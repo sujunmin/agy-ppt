@@ -33,7 +33,7 @@
     <main id="main">
       <section class="hero shell" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span class="eyebrow-dot"></span> Open-source PowerPoint workflow <span class="version-pill">v0.6.0</span></p>
+          <p class="eyebrow"><span class="eyebrow-dot"></span> An open-source presentation skill purpose-built for Antigravity + Kiro + Codex <span class="version-pill">v0.6.0</span></p>
           <h1 id="hero-title">Presentations<br><span>without the AI look.</span></h1>
           <p class="hero-lede">Grounded enough to trust.<br>Edited enough to present.<br>Built to deliver.</p>
           <p class="hero-detail">agy-ppt turns sources and ideas into considered hybrid PowerPoint decks: visual detail stays intact while important content remains practical to edit.</p>
@@ -81,8 +81,13 @@
         </div>
       </section>
 
+      <section class="section render-section" aria-labelledby="render-title">
+        <div class="shell"><div class="section-heading"><p class="eyebrow">The reality of CJK slides</p><h2 id="render-title">The text-heavy slide<br>decided the division of labor.</h2><p class="section-intro">In our tests, Gemini-generated images carry very little Traditional Chinese text — add more characters and they blur or hallucinate; the same layout holds dozens of Chinese characters under GPT. Slides are among the most text-dense visuals there are, so Antigravity plans the content while Codex (GPT) renders it. This division of labor was forced by reality, not preference.</p></div>
+        </div>
+      </section>
+
       <section class="section principles-section" aria-labelledby="principles-title">
-        <div class="shell"><div class="section-heading"><p class="eyebrow">More than placing words on slides</p><h2 id="principles-title">Grounded content.<br>Designed to be presented.</h2><p class="section-intro">Clear responsibilities matter. AGY owns meaning and source judgment; the production workflow shapes the visuals and delivers the PowerPoint.</p></div>
+        <div class="shell"><div class="section-heading"><p class="eyebrow">More than placing words on slides</p><h2 id="principles-title">Grounded content.<br>Designed to be presented.</h2><p class="section-intro">Clear responsibilities matter. Antigravity (AGY) owns meaning and source judgment; Kiro owns engineering; Codex owns visual rendering and PowerPoint delivery.</p></div>
           <div class="principle-grid">
             <article class="principle-card"><span class="principle-no">01 / GROUNDED</span><h3>Grounded</h3><p>Start from sources and approved content. Keep facts in context instead of letting polished phrasing stand in for evidence.</p><span class="principle-mark mark-grounded" aria-hidden="true">↗</span></article>
             <article class="principle-card"><span class="principle-no">02 / DESIGNED</span><h3>Designed</h3><p>Use hierarchy, rhythm, and visual roles suited to the message—not the same template on every slide.</p><span class="principle-mark mark-designed" aria-hidden="true">◫</span></article>
@@ -115,7 +120,7 @@
       </section>
 
       <section id="quick-start" class="section quickstart-section" aria-labelledby="quickstart-title">
-        <div class="shell quickstart-layout"><div class="quickstart-copy"><p class="eyebrow eyebrow-light">QUICK START</p><h2 id="quickstart-title">Install it.<br>Try it with your sources.</h2><p>Requires Python 3.11+, Git, and an authenticated agent environment with an available image-generation tool.</p><a class="button button-light" href="https://github.com/sujunmin/agy-ppt#installation" target="_blank" rel="noopener noreferrer">Read the full installation guide <span aria-hidden="true">↗</span></a></div>
+        <div class="shell quickstart-layout"><div class="quickstart-copy"><p class="eyebrow eyebrow-light">QUICK START</p><h2 id="quickstart-title">Install it.<br>Try it with your sources.</h2><p>Requires Python 3.11+, Git, and an agent environment with image-generation capability (implemented and tested against Codex's built-in image generation). This is a hard requirement — no image generation, no slides.</p><a class="button button-light" href="https://github.com/sujunmin/agy-ppt#installation" target="_blank" rel="noopener noreferrer">Read the full installation guide <span aria-hidden="true">↗</span></a></div>
           <div class="code-card"><div class="code-top"><span><i></i><i></i><i></i> TERMINAL</span><button class="copy-button" type="button" data-copy="git clone https://github.com/sujunmin/agy-ppt.git&#10;cd agy-ppt&#10;python3 skills/agy-ppt/scripts/codex_ppt_runtime.py bootstrap&#10;mkdir -p ~/.gemini/config/skills&#10;rsync -a --delete ./skills/agy-ppt/ ~/.gemini/config/skills/agy-ppt/" aria-label="Copy installation commands">Copy commands</button></div><pre><code><span class="code-comment"># Get the project</span>
 git clone https://github.com/sujunmin/agy-ppt.git
 cd agy-ppt

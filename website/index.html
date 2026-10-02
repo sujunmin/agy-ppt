@@ -33,7 +33,7 @@
     <main id="main">
       <section class="hero shell" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span class="eyebrow-dot"></span> 開源 PowerPoint 製作流程 <span class="version-pill">v0.6.0</span></p>
+          <p class="eyebrow"><span class="eyebrow-dot"></span> 為 Antigravity＋Kiro＋Codex 打造的開源簡報 skill <span class="version-pill">v0.6.0</span></p>
           <h1 id="hero-title">沒有 AI 味的<br><span>簡報。</span></h1>
           <p class="hero-lede">內容有根據，呈現像人做的，<br class="desktop-break">而且真的講得動。</p>
           <p class="hero-detail">agy-ppt 將來源與想法，轉成有清楚層次的混合式 PowerPoint：保留視覺細節，也讓重要內容可以編輯。</p>
@@ -81,8 +81,13 @@
         </div>
       </section>
 
+      <section class="section render-section" aria-labelledby="render-title">
+        <div class="shell"><div class="section-heading"><p class="eyebrow">繁中簡報的現實</p><h2 id="render-title">字多的那張圖，<br>決定了分工。</h2><p class="section-intro">實測發現：Gemini 生成圖片時能承載的繁體中文很少，字一多就糊掉、亂寫；同樣的版面，GPT 撐得住幾十個中文字。簡報正好是文字密度最高的場景——所以由 Antigravity 規劃內容、Codex（GPT）負責算圖。這個分工是被現實逼出來的，不是偏好。</p></div>
+        </div>
+      </section>
+
       <section class="section principles-section" aria-labelledby="principles-title">
-        <div class="shell"><div class="section-heading"><p class="eyebrow">不只是把字放進投影片</p><h2 id="principles-title">從內容可信，到上台好講。</h2><p class="section-intro">每個角色都有清楚邊界。AGY 負責內容意義與來源判斷；產製流程負責視覺呈現與 PowerPoint 交付。</p></div>
+        <div class="shell"><div class="section-heading"><p class="eyebrow">不只是把字放進投影片</p><h2 id="principles-title">從內容可信，到上台好講。</h2><p class="section-intro">每個角色都有清楚邊界。Antigravity（AGY）負責內容意義與來源判斷；Kiro 負責工程；Codex 負責視覺算圖與 PowerPoint 交付。</p></div>
           <div class="principle-grid">
             <article class="principle-card"><span class="principle-no">01 / GROUNDED</span><h3>有根據</h3><p>從來源與已核准內容出發，讓事實有脈絡；不拿流暢措辭取代證據。</p><span class="principle-mark mark-grounded" aria-hidden="true">↗</span></article>
             <article class="principle-card"><span class="principle-no">02 / DESIGNED</span><h3>有設計</h3><p>依訊息安排層級、節奏與視覺角色，不把每一頁都套進同一個模板。</p><span class="principle-mark mark-designed" aria-hidden="true">◫</span></article>
@@ -115,7 +120,7 @@
       </section>
 
       <section id="quick-start" class="section quickstart-section" aria-labelledby="quickstart-title">
-        <div class="shell quickstart-layout"><div class="quickstart-copy"><p class="eyebrow eyebrow-light">QUICK START</p><h2 id="quickstart-title">從安裝開始，<br>用自己的來源試一次。</h2><p>需要 Python 3.11+、Git，以及已登入並可使用圖片生成工具的 agent 環境。</p><a class="button button-light" href="https://github.com/sujunmin/agy-ppt#%E5%AE%89%E8%A3%9D" target="_blank" rel="noopener noreferrer">閱讀完整安裝說明 <span aria-hidden="true">↗</span></a></div>
+        <div class="shell quickstart-layout"><div class="quickstart-copy"><p class="eyebrow eyebrow-light">QUICK START</p><h2 id="quickstart-title">從安裝開始，<br>用自己的來源試一次。</h2><p>需要 Python 3.11+、Git，以及具備圖片生成能力的 agent 環境（本專案以 Codex 內建圖片生成實作與測試）。這是硬需求，沒有圖片生成能力就跑不起來。</p><a class="button button-light" href="https://github.com/sujunmin/agy-ppt#%E5%AE%89%E8%A3%9D" target="_blank" rel="noopener noreferrer">閱讀完整安裝說明 <span aria-hidden="true">↗</span></a></div>
           <div class="code-card"><div class="code-top"><span><i></i><i></i><i></i> TERMINAL</span><button class="copy-button" type="button" data-copy="git clone https://github.com/sujunmin/agy-ppt.git&#10;cd agy-ppt&#10;python3 skills/agy-ppt/scripts/codex_ppt_runtime.py bootstrap&#10;mkdir -p ~/.gemini/config/skills&#10;rsync -a --delete ./skills/agy-ppt/ ~/.gemini/config/skills/agy-ppt/" aria-label="複製安裝指令">複製指令</button></div><pre><code><span class="code-comment"># 取得專案</span>
 git clone https://github.com/sujunmin/agy-ppt.git
 cd agy-ppt
