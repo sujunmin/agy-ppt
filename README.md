@@ -6,7 +6,13 @@
 
 **語言：** 繁體中文 | [English](README_en.md)
 
-`agy-ppt` 把文章、報告與來源文件轉成混合式 PowerPoint：以圖片保留視覺細節，並在適合時保留可編輯文字、原生圖表與可替換圖片。AGY 負責大綱、設計方向、內容與品質；專用 worker 產生視覺素材，最後組裝成含講稿的 `.pptx`。
+`agy-ppt` 是為 **Antigravity＋Kiro＋Codex** 這條 pipeline 打造的簡報 skill：Antigravity 擔任導演，負責大綱、設計方向、內容與品質把關；Kiro 負責所有工程；Codex（GPT 圖片模型）負責把每一頁算成圖，最後組裝成含講稿的 `.pptx`。
+
+為什麼算圖不用 Gemini？實測發現：Gemini 生成圖片時能承載的繁體中文很少，字一多就糊掉、亂寫；同樣的版面，GPT 撐得住幾十個中文字。簡報正好是文字密度最高的場景，這個分工是被現實逼出來的，不是偏好。
+
+成品是混合式 PowerPoint：以圖片保留視覺細節，並在適合時保留可編輯文字、原生圖表與可替換圖片。
+
+> **使用需求**：需要可載入 skill、且具備圖片生成能力的 agent 環境（本專案以 Codex 內建圖片生成實作與測試）。這是硬需求，沒有圖片生成的環境跑不起來。
 
 🌐 [官方網站](https://sujunmin.github.io/agy-ppt/) · 🎨 [範例](examples/README.md) · 🤝 [參與貢獻](CONTRIBUTING.md)
 
