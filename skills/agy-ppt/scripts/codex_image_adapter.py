@@ -508,8 +508,10 @@ PROMPT_BOUNDARY = (
     "- Do NOT write, run, or edit code. Do NOT call Kiro. Do NOT assemble PPTX.\n"
     "- Do NOT decide the next workflow phase. You only render one image.\n"
     "- Generate exactly ONE image in this turn.\n"
-    "- After generating, report the absolute path of the generated image file\n"
-    "  on its own line prefixed with 'ARTIFACT_PATH: '.\n"
+    "- The environment automatically captures and saves the generated artifact from the tool call.\n"
+    "  You do NOT need to locate, move, or report the file path on disk.\n"
+    "- When the image_gen tool finishes generating, reply with IMAGE_GENERATION_COMPLETED\n"
+    "  (or 'ARTIFACT_PATH: <absolute path>' if known).\n"
 )
 
 
@@ -535,8 +537,8 @@ def build_worker_prompt(request: ImageRequest) -> str:
     lines.append(request.prompt)
     lines.append("")
     lines.append(
-        "When done, output one line 'ARTIFACT_PATH: <absolute path to the "
-        "generated PNG>' so the caller can locate the artifact."
+        "When done, output 'IMAGE_GENERATION_COMPLETED' (or 'ARTIFACT_PATH: <absolute path to the "
+        "generated PNG>' if known) so the caller can locate the artifact."
     )
     return "\n".join(lines)
 
@@ -601,13 +603,18 @@ def _parse_events(stdout: str) -> tuple[list[dict[str, Any]], str, str, list[str
         events.append(event)
 
         etype = event.get("type")
-        if etype == "thread.started" and event.get("thread_id"):
+        if etype in ("thread.started", "thread_started") and event.get("thread_id"):
             thread_id = str(event["thread_id"])
-        elif etype == "item.completed":
+        elif etype in ("item.completed", "item_completed"):
             item = event.get("item") if isinstance(event.get("item"), dict) else {}
             if item.get("type") == "agent_message" and item.get("text"):
                 agent_chunks.append(str(item["text"]))
-        elif etype in ("item.updated", "item.started"):
+            elif (
+                item.get("kind") == "image_gen.generation"
+                or item.get("type") == "Extension"
+            ) and item.get("status") == "completed" and item.get("id"):
+                reported.append(str(item["id"]))
+        elif etype in ("item.updated", "item.started", "item_updated", "item_started"):
             item = event.get("item") if isinstance(event.get("item"), dict) else {}
             if item.get("type") == "agent_message" and item.get("text"):
                 agent_chunks.append(str(item["text"]))
@@ -742,16 +749,33 @@ def discover_artifact(
     2. A safe before/after diff scoped to the turn's ``thread_id`` directory.
     3. A before/after diff across the whole generated_images root.
     """
-    # 1. Explicit path reported by Codex.
+    # 1. Explicit path reported by Codex (or artifact id from extension event).
     for reported in run.reported_paths:
         cleaned = reported.strip()
         # Tolerate a stray "ARTIFACT_PATH:" prefix if it slipped through.
         cleaned = re.sub(r"(?i)^artifact_path\s*:\s*", "", cleaned).strip().strip("'\"")
         candidate = Path(os.path.expanduser(cleaned))
         if not candidate.is_absolute():
+            if run.thread_id:
+                thread_candidate = images_root / run.thread_id / cleaned
+                if not thread_candidate.suffix:
+                    thread_candidate = thread_candidate.with_suffix(".png")
+                thread_candidate = Path(os.path.normpath(str(thread_candidate)))
+                if (
+                    thread_candidate.is_file()
+                    and thread_candidate.suffix.lower() in ALLOWED_IMAGE_SUFFIXES
+                    and sniff_image(thread_candidate) is not None
+                ):
+                    return ArtifactDiscovery(thread_candidate, "explicit_reported_path", [str(thread_candidate)])
+            if not candidate.suffix:
+                candidate = candidate.with_suffix(".png")
             candidate = images_root / cleaned
         candidate = Path(os.path.normpath(str(candidate)))
-        if candidate.is_file() and candidate.suffix.lower() in ALLOWED_IMAGE_SUFFIXES:
+        if (
+            candidate.is_file()
+            and candidate.suffix.lower() in ALLOWED_IMAGE_SUFFIXES
+            and sniff_image(candidate) is not None
+        ):
             return ArtifactDiscovery(candidate, "explicit_reported_path", [str(candidate)])
 
     # 2. before/after diff, scoped to this turn's thread dir when known.
@@ -976,18 +1000,6 @@ class CodexImageAdapter:
                 "codex session is not authenticated",
                 diagnostics,
             )
-        if _matches_any(text_lower, _BACKEND_UNAVAILABLE_MARKERS):
-            return self._error(
-                request, ERROR_BACKEND_UNAVAILABLE, "built-in image_gen unavailable", diagnostics
-            )
-        if run.returncode not in (0, None):
-            diagnostics["stderr_tail"] = run.stderr[-800:]
-            return self._error(
-                request,
-                ERROR_GENERATION_FAILED,
-                f"codex exited with code {run.returncode}",
-                diagnostics,
-            )
 
         discovery = discover_artifact(run, self.images_root, before)
         diagnostics["artifact_discovery"] = {
@@ -1004,6 +1016,18 @@ class CodexImageAdapter:
                 diagnostics,
             )
         if discovery.path is None:
+            if _matches_any(text_lower, _BACKEND_UNAVAILABLE_MARKERS):
+                return self._error(
+                    request, ERROR_BACKEND_UNAVAILABLE, "built-in image_gen unavailable", diagnostics
+                )
+            if run.returncode not in (0, None):
+                diagnostics["stderr_tail"] = run.stderr[-800:]
+                return self._error(
+                    request,
+                    ERROR_GENERATION_FAILED,
+                    f"codex exited with code {run.returncode}",
+                    diagnostics,
+                )
             return self._error(
                 request,
                 ERROR_ARTIFACT_NOT_FOUND,
